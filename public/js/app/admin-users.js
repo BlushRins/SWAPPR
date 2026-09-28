@@ -265,7 +265,12 @@
                 ? `Sent to @${swapp.partner || "unknown"}`
                 : `Received from @${swapp.partner || "unknown"}`,
             ),
-            el("span", { class: "admin-list-side admin-capitalize" }, swapp.status || "pending"),
+            el(
+              "span",
+              { class: "admin-list-side" },
+              swapp.dateCreated ? ui.formatDate(swapp.dateCreated) : null,
+              el("span", { class: "admin-capitalize" }, swapp.status || "pending"),
+            ),
           ),
         ),
       ),

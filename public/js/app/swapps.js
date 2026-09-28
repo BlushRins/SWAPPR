@@ -1,6 +1,24 @@
 (function (root) {
   const app = (root.SWAPPR = root.SWAPPR || {});
 
+  // Usernames aren't restricted at registration, so they're escaped before
+  // going into the card markup.
+  function escapeHtml(value) {
+    return String(value ?? "").replace(
+      /[&<>"']/g,
+      (ch) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch],
+    );
+  }
+
+  function sentLabel(swapp) {
+    const sent = root.SWAPPRDates?.formatDateTime(swapp.date_created);
+    return sent
+      ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Sent ${escapeHtml(sent)}</p>`
+      : "";
+  }
+
+  // Requests arrive from the server newest first (FUNC-011 REQT-003).
   app.renderRequests = function renderRequests() {
     const currentUser = app.state.currentUser;
     if (!currentUser) {
@@ -21,16 +39,17 @@
           <div class="p-5 rounded-xl bg-white dark:bg-[#181428] shadow border border-purple-100 dark:border-white/[0.06] mb-4">
             <div class="flex items-start justify-between mb-3">
               <div>
-                <p class="text-sm font-bold text-purple-900 dark:text-purple-100">@${swapp.sender} wants to swap</p>
+                <p class="text-sm font-bold text-purple-900 dark:text-purple-100">@${escapeHtml(swapp.sender)} wants to swap</p>
                 <p class="text-xs text-purple-400 mt-1">Pending your approval</p>
+                ${sentLabel(swapp)}
               </div>
               <span class="text-xs px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 font-medium">Pending</span>
             </div>
             <div class="flex gap-2 mt-4">
-              <button class="respond-btn flex-1 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition" data-id="${swapp.id}" data-status="accepted">
+              <button class="respond-btn flex-1 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition" data-id="${escapeHtml(swapp.id)}" data-status="accepted">
                 Accept
               </button>
-              <button class="respond-btn flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition" data-id="${swapp.id}" data-status="rejected">
+              <button class="respond-btn flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition" data-id="${escapeHtml(swapp.id)}" data-status="rejected">
                 Deny
               </button>
             </div>

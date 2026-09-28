@@ -309,7 +309,7 @@ async function seed() {
     `CREATE TABLE Likes (user_id INTEGER, notebook_id INTEGER, PRIMARY KEY (user_id, notebook_id))`,
   );
   await run(
-    `CREATE TABLE Swapps (id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER, receiver_id INTEGER, status TEXT)`,
+    `CREATE TABLE Swapps (id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER, receiver_id INTEGER, status TEXT, date_created DATETIME DEFAULT CURRENT_TIMESTAMP)`,
   );
 
   const userIds = {};
@@ -357,10 +357,13 @@ async function seed() {
   }
   console.log("❤️ Likes seeded.");
 
-  for (const s of SWAPPS) {
+  // Space the requests an hour apart, oldest first, so the Requests page has
+  // a real newest-first order to show.
+  for (const [index, s] of SWAPPS.entries()) {
+    const hoursAgo = SWAPPS.length - index;
     await run(
-      `INSERT INTO Swapps (sender_id, receiver_id, status) VALUES (?,?,?)`,
-      [userIds[s.from], userIds[s.to], s.status],
+      `INSERT INTO Swapps (sender_id, receiver_id, status, date_created) VALUES (?,?,?, datetime('now', ?))`,
+      [userIds[s.from], userIds[s.to], s.status, `-${hoursAgo} hours`],
     );
   }
   console.log("⇄ Swapps seeded.\n✅ All set!");

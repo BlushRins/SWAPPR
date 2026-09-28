@@ -33,23 +33,8 @@
   ui.openVerb = (openOn) =>
     openOn === "dblclick" && !ui.isTouch() ? "Double-click" : ui.isTouch() ? "Tap" : "Click";
 
-  // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
-  function parseDbDate(value) {
-    if (!value) return null;
-    const text = String(value);
-    const iso = /[zZ]$|[+-]\d\d:?\d\d$/.test(text)
-      ? text
-      : `${text.replace(" ", "T")}Z`;
-    const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  // The design spec displays dates as m/d/yyyy.
-  ui.formatDate = function formatDate(value) {
-    const date = parseDbDate(value);
-    if (!date) return "—";
-    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-  };
+  // The design spec displays dates as m/d/yyyy (see js/date-format.js).
+  ui.formatDate = (value) => root.SWAPPRDates.formatDate(value) || "—";
 
   const REASONS = {
     inappropriate: "Inappropriate or offensive content",

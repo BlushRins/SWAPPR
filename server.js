@@ -360,8 +360,13 @@ PRIMARY KEY (user_id, notebook_id)
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 sender_id INTEGER,
 receiver_id INTEGER,
-status TEXT
+status TEXT,
+date_created DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
+    // SQLite can't add a column with a CURRENT_TIMESTAMP default, so older
+    // databases get a plain column and new requests set it explicitly.
+    // Requests made before this column existed keep a NULL date.
+    await addColumnIfMissing("Swapps", "date_created DATETIME");
     await dbRun(`CREATE TABLE IF NOT EXISTS Chats (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 swapp_id INTEGER,
@@ -1202,7 +1207,8 @@ app.post("/api/swapps", requireAuth, async (req, res) => {
     }
 
     const result = await dbRun(
-      `INSERT INTO Swapps (sender_id, receiver_id, status) VALUES (?, ?, 'pending')`,
+      `INSERT INTO Swapps (sender_id, receiver_id, status, date_created)
+       VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
       [senderId, receiver.id],
     );
     res.status(201).json({ success: true, swappId: result.lastID });
@@ -1225,11 +1231,14 @@ app.get("/api/swapps/:username", requireAuth, (req, res) => {
     (err, user) => {
       if (!user) return res.json({ swapps: [] });
       db.all(
+        // FUNC-011 REQT-003: newest first. Undated requests (made before
+        // dates were recorded) sort last, by insertion order.
         `SELECT Swapps.*, s.username AS sender, r.username AS receiver
 FROM Swapps
 JOIN Users s ON Swapps.sender_id = s.id
 JOIN Users r ON Swapps.receiver_id = r.id
-WHERE sender_id=? OR receiver_id=?`,
+WHERE sender_id=? OR receiver_id=?
+ORDER BY Swapps.date_created IS NULL, Swapps.date_created DESC, Swapps.id DESC`,
         [user.id, user.id],
         (swappErr, swapps) => {
           if (swappErr) {
@@ -1712,14 +1721,14 @@ app.get("/api/admin/users/:id", requireAdminAuth, async (req, res) => {
         [id],
       ),
       dbAll(
-        `SELECT Swapps.id, Swapps.status,
+        `SELECT Swapps.id, Swapps.status, Swapps.date_created AS dateCreated,
                 CASE WHEN Swapps.sender_id = ? THEN 'sent' ELSE 'received' END AS direction,
                 CASE WHEN Swapps.sender_id = ? THEN receiver.username ELSE sender.username END AS partner
          FROM Swapps
          LEFT JOIN Users sender ON sender.id = Swapps.sender_id
          LEFT JOIN Users receiver ON receiver.id = Swapps.receiver_id
          WHERE Swapps.sender_id = ? OR Swapps.receiver_id = ?
-         ORDER BY Swapps.id DESC`,
+         ORDER BY Swapps.date_created IS NULL, Swapps.date_created DESC, Swapps.id DESC`,
         [id, id, id, id],
       ),
       dbAll(
