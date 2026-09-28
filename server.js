@@ -595,7 +595,8 @@ app.post("/api/verify-otp", async (req, res) => {
 });
 
 app.post("/api/register", async (req, res) => {
-  console.log("[REGISTER] Request received:", req.body);
+  // Never log the body: it contains the plaintext password.
+  console.log("[REGISTER] Request received for username:", req.body.username);
 
   const {
     name,
