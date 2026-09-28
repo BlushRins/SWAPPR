@@ -125,21 +125,30 @@
 
   function createActionControls(notebook, actionContainer) {
     const currentUser = app.state.currentUser;
-    const hasSwapp = app.state.swapps.some(
+    const swappsWithAuthor = app.state.swapps.filter(
       (swapp) =>
-        ((swapp.sender === currentUser?.username && swapp.receiver === notebook.username) ||
-          (swapp.receiver === currentUser?.username && swapp.sender === notebook.username)) &&
-        swapp.status === "accepted",
+        (swapp.sender === currentUser?.username && swapp.receiver === notebook.username) ||
+        (swapp.receiver === currentUser?.username && swapp.sender === notebook.username),
     );
+    const hasSwapp = swappsWithAuthor.some((swapp) => swapp.status === "accepted");
 
+    // Only a pending or accepted SWAPP blocks a new request; after a rejection
+    // either student can ask again (the server allows it too).
     const canSwapp =
       currentUser &&
       notebook.username !== currentUser.username &&
-      !app.state.swapps.some(
-        (swapp) =>
-          (swapp.sender === currentUser.username && swapp.receiver === notebook.username) ||
-          (swapp.receiver === currentUser.username && swapp.sender === notebook.username),
+      !swappsWithAuthor.some(
+        (swapp) => swapp.status === "pending" || swapp.status === "accepted",
       );
+
+    // FUNC-011 REQT-008: let the requester see their last request was declined.
+    const latestSwapp = swappsWithAuthor.reduce(
+      (latest, swapp) => (!latest || swapp.id > latest.id ? swapp : latest),
+      null,
+    );
+    const wasDeclined =
+      latestSwapp?.status === "rejected" &&
+      latestSwapp.sender === currentUser?.username;
 
     if (notebook.username === currentUser?.username) {
       const badge = document.createElement("span");
@@ -196,6 +205,14 @@
     }
 
     if (canSwapp) {
+      if (wasDeclined) {
+        const declined = document.createElement("span");
+        declined.className = "text-xs font-medium text-red-500 dark:text-red-400";
+        declined.textContent = "Declined";
+        declined.title = "Your last request was declined. You can ask again.";
+        actionContainer.appendChild(declined);
+      }
+
       const swapBtn = document.createElement("button");
       swapBtn.innerHTML =
         '<i data-lucide="repeat-2" class="w-4 h-4"></i> Request Swap';
