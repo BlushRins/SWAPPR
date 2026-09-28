@@ -42,5 +42,10 @@
     likeNotebook: (payload) => send("/portfolios/like", "POST", payload),
     sendSwapp: (payload) => send("/swapps", "POST", payload),
     respondSwapp: (id, payload) => send(`/swapps/${id}/respond`, "PUT", payload),
+    getChats: () => get("/chats"),
+    getChatMessages: (chatId) => get(`/chats/${chatId}/messages`),
+    sendChatMessage: (chatId, body) =>
+      send(`/chats/${chatId}/messages`, "POST", { body }),
+    archiveChat: (chatId) => send(`/chats/${chatId}/archive`, "POST", {}),
   };
 })(window);

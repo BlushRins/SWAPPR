@@ -162,6 +162,13 @@
         }
       });
       actionContainer.appendChild(accessBtn);
+
+      const chatBtn = document.createElement("button");
+      chatBtn.innerHTML = '<i data-lucide="message-circle" class="w-4 h-4"></i> Chat';
+      chatBtn.className =
+        "text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm ml-2";
+      chatBtn.addEventListener("click", () => app.openChatForNotebook(notebook.username));
+      actionContainer.appendChild(chatBtn);
       return;
     }
 

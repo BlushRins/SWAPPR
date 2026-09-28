@@ -29,4 +29,11 @@ assert.ok(
   "profile match usernames must not be interpolated into innerHTML",
 );
 
+const chatSource = fs.readFileSync(path.join(__dirname, "chat.js"), "utf8");
+
+assert.ok(
+  !chatSource.includes(".innerHTML"),
+  "chat messages must be rendered with textContent, not innerHTML",
+);
+
 console.log("notebooks.xss.test.js OK");

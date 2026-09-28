@@ -547,6 +547,45 @@
       </div>
     </div>
 
+    <!-- ── Chat Panel ─────────────────────────────────────────────────────── -->
+    <div id="chatPanel" class="chat-panel hidden">
+      <div class="chat-panel-header">
+        <span class="flex items-center gap-2 min-w-0">
+          <i data-lucide="message-circle" class="w-4 h-4 shrink-0"></i>
+          <span id="chatPanelHeader" class="truncate">SWAPPR Chat</span>
+        </span>
+        <div class="flex items-center gap-3 shrink-0">
+          <button id="chatEndBtn" onclick="endChat()" class="chat-panel-end">
+            End Chat
+          </button>
+          <button
+            onclick="closeChat()"
+            class="chat-panel-close"
+            aria-label="Close chat"
+          >
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+      <div id="chatMessageList" class="chat-panel-messages"></div>
+      <p id="chatEndedNotice" class="chat-panel-ended-notice hidden">
+        This chat has ended.
+      </p>
+      <div id="chatInputRow" class="chat-panel-input-row">
+        <input
+          type="text"
+          id="chatMessageInput"
+          class="chat-panel-input"
+          placeholder="Type a message..."
+          maxlength="1000"
+          onkeydown="if (event.key === 'Enter') sendChatMessage()"
+        />
+        <button onclick="sendChatMessage()" class="chat-panel-send">
+          Send
+        </button>
+      </div>
+    </div>
+
     <!-- Subject Settings Modal -->
     <div
       id="subjectSettingsModal"
@@ -648,6 +687,7 @@
     <script src="js/app/subject-settings.js"></script>
     <script src="js/app/subjects.js"></script>
     <script src="js/app/swapps.js"></script>
+    <script src="js/app/chat.js"></script>
     <script src="js/app/notebooks.js"></script>
     <script src="js/app/sidebar.js"></script>
     <script src="js/app/profile-panel.js"></script>

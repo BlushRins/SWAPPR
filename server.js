@@ -228,6 +228,14 @@ const dbGet = (sql, params = []) =>
     });
   });
 
+const dbAll = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+
 async function initializeDatabase() {
   try {
     console.log("Creating tables...");
@@ -307,6 +315,29 @@ sender_id INTEGER,
 receiver_id INTEGER,
 status TEXT
 )`);
+    await dbRun(`CREATE TABLE IF NOT EXISTS Chats (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+swapp_id INTEGER,
+user_a_id INTEGER,
+user_b_id INTEGER,
+status TEXT DEFAULT 'active',
+created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+archived_at DATETIME
+)`);
+    await dbRun(`CREATE TABLE IF NOT EXISTS ChatMessages (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+chat_id INTEGER,
+sender_id INTEGER,
+body TEXT,
+created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+    // Backfill: swapps accepted before chats existed get their chat now.
+    await dbRun(
+      `INSERT INTO Chats (swapp_id, user_a_id, user_b_id)
+       SELECT id, sender_id, receiver_id FROM Swapps
+       WHERE status = 'accepted'
+         AND id NOT IN (SELECT swapp_id FROM Chats WHERE swapp_id IS NOT NULL)`,
+    );
     console.log("Database initialized.");
     return true;
   } catch (err) {
@@ -988,20 +1019,159 @@ WHERE sender_id=? OR receiver_id=?`,
   );
 });
 
-app.put("/api/swapps/:id/respond", requireAuth, (req, res) => {
-  db.run(
-    `UPDATE Swapps SET status=? WHERE id=? AND receiver_id=?`,
-    [req.body.status, req.params.id, req.currentUser.id],
-    function onRespond(err) {
-      if (err) return res.json({ success: false, message: err.message });
-      if (!this.changes) {
-        return res
-          .status(404)
-          .json({ success: false, message: "SWAPP not found" });
+app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
+  try {
+    const swapp = await dbGet(
+      `SELECT * FROM Swapps WHERE id=? AND receiver_id=?`,
+      [req.params.id, req.currentUser.id],
+    );
+    if (!swapp) {
+      return res
+        .status(404)
+        .json({ success: false, message: "SWAPP not found" });
+    }
+
+    await dbRun(`UPDATE Swapps SET status=? WHERE id=?`, [
+      req.body.status,
+      swapp.id,
+    ]);
+
+    if (req.body.status === "accepted") {
+      const existing = await dbGet(`SELECT id FROM Chats WHERE swapp_id=?`, [
+        swapp.id,
+      ]);
+      if (!existing) {
+        await dbRun(
+          `INSERT INTO Chats (swapp_id, user_a_id, user_b_id) VALUES (?, ?, ?)`,
+          [swapp.id, swapp.sender_id, swapp.receiver_id],
+        );
+        console.log(`[CHAT] Created chat for swapp ${swapp.id}`);
       }
-      res.json({ success: true });
-    },
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[CHAT] respond failed:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Chat routes. Every lookup checks (user_a_id=? OR user_b_id=?) so only the
+// two participants of a chat can read it, post to it, or end it.
+const CHAT_MESSAGE_MAX_LENGTH = 1000;
+
+function findChatForUser(chatId, userId) {
+  return dbGet(
+    `SELECT * FROM Chats WHERE id=? AND (user_a_id=? OR user_b_id=?)`,
+    [chatId, userId, userId],
   );
+}
+
+app.get("/api/chats", requireAuth, async (req, res) => {
+  try {
+    const chats = await dbAll(
+      `SELECT Chats.*,
+CASE WHEN user_a_id = ? THEN ub.username ELSE ua.username END AS otherUsername
+FROM Chats
+JOIN Users ua ON Chats.user_a_id = ua.id
+JOIN Users ub ON Chats.user_b_id = ub.id
+WHERE user_a_id = ? OR user_b_id = ?
+ORDER BY Chats.id DESC`,
+      [req.currentUser.id, req.currentUser.id, req.currentUser.id],
+    );
+    res.json({ chats });
+  } catch (err) {
+    console.error("[CHAT] list chats failed:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get("/api/chats/:id/messages", requireAuth, async (req, res) => {
+  try {
+    const chat = await findChatForUser(req.params.id, req.currentUser.id);
+    if (!chat) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Chat not found" });
+    }
+    const other = await dbGet(`SELECT username FROM Users WHERE id=?`, [
+      chat.user_a_id === req.currentUser.id ? chat.user_b_id : chat.user_a_id,
+    ]);
+    const messages = await dbAll(
+      `SELECT ChatMessages.*, Users.username AS senderUsername
+FROM ChatMessages
+JOIN Users ON ChatMessages.sender_id = Users.id
+WHERE chat_id=?
+ORDER BY ChatMessages.id ASC`,
+      [chat.id],
+    );
+    res.json({
+      chat: { ...chat, otherUsername: other?.username || "" },
+      messages,
+    });
+  } catch (err) {
+    console.error("[CHAT] fetch messages failed:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/api/chats/:id/messages", requireAuth, async (req, res) => {
+  try {
+    const chat = await findChatForUser(req.params.id, req.currentUser.id);
+    if (!chat) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Chat not found" });
+    }
+    if (chat.status !== "active") {
+      return res
+        .status(403)
+        .json({ success: false, message: "This chat has ended" });
+    }
+    const body = String(req.body.body || "").trim();
+    if (!body) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Message cannot be empty" });
+    }
+    if (body.length > CHAT_MESSAGE_MAX_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: `Message must be ${CHAT_MESSAGE_MAX_LENGTH} characters or fewer`,
+      });
+    }
+    const result = await dbRun(
+      `INSERT INTO ChatMessages (chat_id, sender_id, body) VALUES (?, ?, ?)`,
+      [chat.id, req.currentUser.id, body],
+    );
+    console.log(`[CHAT] Message ${result.lastID} sent in chat ${chat.id}`);
+    res.json({ success: true, id: result.lastID });
+  } catch (err) {
+    console.error("[CHAT] send message failed:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/api/chats/:id/archive", requireAuth, async (req, res) => {
+  try {
+    const chat = await findChatForUser(req.params.id, req.currentUser.id);
+    if (!chat) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Chat not found" });
+    }
+    await dbRun(
+      `UPDATE Chats SET status='archived', archived_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [chat.id],
+    );
+    console.log(
+      `[CHAT] Chat ${chat.id} archived by user ${req.currentUser.id}`,
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[CHAT] archive failed:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 initializeDatabase().then((success) => {

@@ -31,6 +31,9 @@
     root.closeAddModal = app.closeAddModal;
     root.submitPortfolio = app.submitPortfolio;
     root.likeNotebook = app.likeNotebook;
+    root.closeChat = app.closeChat;
+    root.sendChatMessage = app.sendChatMessage;
+    root.endChat = app.endChat;
   }
 
   app.init = async function init() {
