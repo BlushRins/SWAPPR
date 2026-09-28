@@ -449,10 +449,22 @@
           <p
             class="text-xs text-purple-400 font-semibold mt-1 uppercase tracking-wider"
           >
-            SWAPPs
+            Completed SWAPPs
           </p>
         </div>
       </div>
+
+      <!-- FUNC-014 REQT-003: read-only account standing (REQT-010) -->
+      <dl class="profile-standing mb-6">
+        <dt>Course</dt>
+        <dd id="profileCourse">—</dd>
+        <dt>Trust Score</dt>
+        <dd><span id="profileTrustScore" class="font-bold">100%</span></dd>
+        <dt>Warnings</dt>
+        <dd id="profileWarningCount">0</dd>
+        <dt>Account Status</dt>
+        <dd id="profileAccountStatus">Active</dd>
+      </dl>
 
       <div class="h-px bg-purple-100 dark:bg-[#3a2565] mb-5"></div>
 
@@ -477,11 +489,6 @@
         >
           <i data-lucide="handshake" class="w-4 h-4"></i>
           SWAPP Matches
-        </p>
-        <p
-          class="text-xs text-purple-500 dark:text-purple-400 text-center mb-3"
-        >
-          Trust Score: <span id="profileTrustScore" class="font-bold">98%</span>
         </p>
         <div id="profileMatchList" class="space-y-2"></div>
       </div>

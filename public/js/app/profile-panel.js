@@ -1,6 +1,21 @@
 (function (root) {
   const app = (root.SWAPPR = root.SWAPPR || {});
 
+  // PNL001 colour bands for a trust score: 95%+ green, 85%+ yellow, below
+  // that red. Shared with the notebook cards.
+  app.trustTone = function trustTone(score) {
+    if (score >= 95) return "high";
+    if (score >= 85) return "mid";
+    return "low";
+  };
+
+  const TRUST_TONE_CLASSES = {
+    high: ["text-green-500", "dark:text-green-400"],
+    mid: ["text-yellow-500", "dark:text-yellow-400"],
+    low: ["text-red-500", "dark:text-red-400"],
+  };
+  const ACCOUNT_STATUS_LABELS = { active: "Active", suspended: "Suspended" };
+
   app.openProfilePanel = async function openProfilePanel() {
     try {
       const username = app.state.currentUser.username;
@@ -14,8 +29,17 @@
       document.getElementById("profilePortfolioCount").textContent =
         profile.portfolios.length;
 
+      // FUNC-014 REQT-002: number of completed SWAPPs.
       const swappCountEl = document.getElementById("profileSwappCount");
-      if (swappCountEl) swappCountEl.textContent = profile.matches?.length || 0;
+      if (swappCountEl) swappCountEl.textContent = profile.completedSwapps || 0;
+
+      // FUNC-014 REQT-003: course, warning count and account status.
+      document.getElementById("profileCourse").textContent = profile.course || "—";
+      document.getElementById("profileWarningCount").textContent = String(
+        profile.warningCount ?? 0,
+      );
+      document.getElementById("profileAccountStatus").textContent =
+        ACCOUNT_STATUS_LABELS[profile.accountStatus] || profile.accountStatus || "Active";
 
       const initialsEl = document.getElementById("profileInitials");
       if (initialsEl && profile.name) {
@@ -38,33 +62,20 @@
     }
   };
 
+  function setTrustTone(element, score) {
+    Object.values(TRUST_TONE_CLASSES).forEach((classes) =>
+      element.classList.remove(...classes),
+    );
+    element.classList.add(...TRUST_TONE_CLASSES[app.trustTone(score)]);
+  }
+
   function renderTrustScore(profile) {
-    const trustScoreValue = profile.trustScore ?? "100%";
     const trustScoreEl = document.getElementById("profileTrustScore");
     if (!trustScoreEl) return;
 
-    trustScoreEl.textContent = trustScoreValue;
-    trustScoreEl.classList.remove(
-      "text-green-500",
-      "dark:text-green-400",
-      "text-yellow-500",
-      "dark:text-yellow-400",
-      "text-red-500",
-      "dark:text-red-400",
-      "text-purple-700",
-      "dark:text-purple-300",
-    );
-
-    const numericScore = parseInt(trustScoreValue);
-    if (numericScore >= 95) {
-      trustScoreEl.classList.add("text-green-500", "dark:text-green-400");
-    } else if (numericScore >= 85) {
-      trustScoreEl.classList.add("text-yellow-500", "dark:text-yellow-400");
-    } else if (numericScore >= 70) {
-      trustScoreEl.classList.add("text-red-500", "dark:text-red-400");
-    } else {
-      trustScoreEl.classList.add("text-purple-700", "dark:text-purple-300");
-    }
+    const score = Number(profile.trustScore ?? 100);
+    trustScoreEl.textContent = `${score}%`;
+    setTrustTone(trustScoreEl, score);
   }
 
   // Only the author gets these notebooks back from the API, so this tells
@@ -104,10 +115,18 @@
       return;
     }
 
-    profile.matches.forEach((username) => {
+    // FUNC-014 REQT-002: each SWAPP partner with their trust score.
+    profile.matches.forEach((match) => {
       const div = document.createElement("div");
-      div.className = "text-xs text-purple-400";
-      div.textContent = `@${username}`;
+      div.className = "flex items-center justify-between gap-2 text-xs text-purple-400";
+      const name = document.createElement("span");
+      name.className = "min-w-0 break-words";
+      name.textContent = `@${match.username}`;
+      const score = document.createElement("span");
+      score.className = "font-bold shrink-0";
+      score.textContent = `${match.trustScore}%`;
+      setTrustTone(score, Number(match.trustScore));
+      div.append(name, score);
       matchList.appendChild(div);
     });
   }

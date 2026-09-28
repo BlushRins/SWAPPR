@@ -2494,3 +2494,50 @@ body {
 .dark .requests-heading {
   color: #a78bfa;
 }
+
+/* ─────────────────────────────
+   TRUST SCORE (FUNC-007, FUNC-011, FUNC-012, FUNC-014)
+───────────────────────────── */
+
+/* Notebook cards use the PNL001 colour bands: 95%+ green (the default
+   .trust-score colour), 85%+ yellow, below that red. */
+.notebooks-grid .trust-score.trust-mid {
+  color: #d97706;
+}
+.notebooks-grid .trust-score.trust-low {
+  color: #dc2626;
+}
+.dark .notebooks-grid .trust-score.trust-mid {
+  color: #fbbf24;
+}
+.dark .notebooks-grid .trust-score.trust-low {
+  color: #f87171;
+}
+
+/* Profile panel: read-only account standing (FUNC-014 REQT-003). */
+.profile-standing {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: #faf5ff;
+  font-size: 0.8rem;
+}
+.profile-standing dt {
+  font-weight: 700;
+  color: #9b8ec4;
+}
+.profile-standing dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+  color: #4c1d95;
+  overflow-wrap: anywhere;
+}
+.dark .profile-standing {
+  background: #181428;
+}
+.dark .profile-standing dd {
+  color: #ede9fe;
+}

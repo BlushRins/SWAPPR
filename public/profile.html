@@ -465,6 +465,7 @@
               <p class="profile-tagline" id="profileTaglineEl">—</p>
               <p class="profile-meta" id="profileMetaEl">—</p>
               <p class="profile-stats" id="profileStatsEl"></p>
+              <p class="profile-stats" id="profileStandingEl"></p>
             </div>
             <!-- Action buttons -->
             <div class="flex gap-2 shrink-0 pt-1" id="profileActions"></div>
@@ -787,6 +788,14 @@
         setTimeout(() => t.classList.remove("show"), 2800);
       }
 
+      // PNL001 colour bands for a trust score: 95%+ green, 85%+ yellow,
+      // below that red (the same bands as index.html).
+      function trustToneClass(score) {
+        if (score >= 95) return "text-green-500 dark:text-green-400";
+        if (score >= 85) return "text-yellow-500 dark:text-yellow-400";
+        return "text-red-500 dark:text-red-400";
+      }
+
       // Shown to the author only: other students never receive these notebooks.
       function moderationNote(status) {
         if (status === "under_review") return "Under review — hidden from the feed";
@@ -861,7 +870,18 @@
         // Stats
         document.getElementById("profileStatsEl").innerHTML =
           `<span>${p.portfolios.length} Notebook${p.portfolios.length !== 1 ? "s" : ""}</span>` +
-          `<span>${p.matches.length} SWAPP Connection${p.matches.length !== 1 ? "s" : ""}</span>`;
+          `<span>${p.matches.length} SWAPP Connection${p.matches.length !== 1 ? "s" : ""}</span>` +
+          `<span>${Number(p.completedSwapps) || 0} Completed SWAPP${p.completedSwapps !== 1 ? "s" : ""}</span>`;
+
+        // FUNC-014 REQT-003: trust score, warning count and account status,
+        // read-only for students (REQT-010).
+        const trustScore = Number(p.trustScore ?? 100);
+        const warnings = Number(p.warningCount) || 0;
+        const status = p.accountStatus === "suspended" ? "Suspended" : "Active";
+        document.getElementById("profileStandingEl").innerHTML =
+          `<span class="${trustToneClass(trustScore)} font-bold">${trustScore}% Trust Score</span>` +
+          `<span>${warnings} Warning${warnings !== 1 ? "s" : ""}</span>` +
+          `<span>${status}</span>`;
 
         // Top skills preview strip
         const allStrengths = [
@@ -998,14 +1018,15 @@
           noMatches.classList.remove("hidden");
         } else {
           noMatches.classList.add("hidden");
+          // FUNC-014 REQT-002: each partner with their trust score.
           matchesList.innerHTML = p.matches
             .map(
-              (u) => `
+              ({ username: u, trustScore: partnerTrust }) => `
             <a href="profile.html?user=${encodeURIComponent(u)}" class="match-pill">
               <div class="match-avatar-sm">${escapeHtml(u.slice(0, 2).toUpperCase())}</div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-bold text-purple-900 dark:text-purple-100 truncate">@${escapeHtml(u)}</p>
-                <p class="text-xs text-purple-400">SWAPP match</p>
+                <p class="text-xs text-purple-400">SWAPP match · <span class="${trustToneClass(Number(partnerTrust))} font-bold">${escapeHtml(partnerTrust)}% Trust Score</span></p>
               </div>
               <span class="text-xs text-emerald-500 font-bold shrink-0">✅ Matched</span>
             </a>`,

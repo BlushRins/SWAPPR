@@ -20,6 +20,12 @@ const {
   REPORT_UNDER_REVIEW_THRESHOLD,
   WARNING_HIGHLIGHT_THRESHOLD,
 } = require("./lib/constants");
+const {
+  TRUST_CHANGE,
+  TRUST_SCORE_DEFAULT,
+  TRUST_SCORE_MAX,
+  TRUST_SCORE_MIN,
+} = require("./lib/trustScore");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -402,7 +408,7 @@ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
     // Moderation (FUNC-015 to FUNC-018): account standing, notebook review
     // state, administrators, and the reports students file.
-    await addColumnIfMissing("Users", "trust_score INTEGER DEFAULT 100");
+    await addColumnIfMissing("Users", `trust_score INTEGER DEFAULT ${TRUST_SCORE_DEFAULT}`);
     await addColumnIfMissing("Users", "warning_count INTEGER DEFAULT 0");
     await addColumnIfMissing("Users", "account_status TEXT DEFAULT 'active'");
     await addColumnIfMissing("Notebooks", "status TEXT DEFAULT 'active'");
@@ -824,7 +830,17 @@ app.post("/api/logout", (req, res) => {
 
 app.get("/api/profile/:username", requireAuth, (req, res) => {
   db.get(
-    `SELECT * FROM Users WHERE username=?`,
+    // completedSwapps: accepted SWAPPs whose chat has been ended
+    // (FUNC-014 REQT-002, FUNC-011 REQT-011).
+    `SELECT Users.*,
+            (SELECT COUNT(*) FROM Swapps
+             WHERE (Swapps.sender_id = Users.id OR Swapps.receiver_id = Users.id)
+               AND Swapps.status = 'accepted'
+               AND EXISTS (
+                 SELECT 1 FROM Chats
+                 WHERE Chats.swapp_id = Swapps.id AND Chats.status = 'archived'
+               )) AS completedSwapps
+     FROM Users WHERE username=?`,
     [req.params.username],
     (err, user) => {
       if (err) return res.status(500).json({ message: err.message });
@@ -849,19 +865,25 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
             return res.json({ success: false, message: notebookErr.message });
           }
 
+          // SWAPP partners with their trust score (FUNC-014 REQT-002). One row
+          // per partner, even if they share several accepted SWAPPs.
           db.all(
-            `SELECT CASE WHEN sender_id=? THEN r.username ELSE s.username END AS matched_user
+            `SELECT partner.username AS username,
+                    COALESCE(partner.trust_score, ${TRUST_SCORE_DEFAULT}) AS trustScore
             FROM Swapps
-            JOIN Users s ON Swapps.sender_id = s.id
-            JOIN Users r ON Swapps.receiver_id = r.id
-            WHERE (sender_id=? OR receiver_id=?) AND status='accepted'`,
+            JOIN Users partner ON partner.id =
+              CASE WHEN Swapps.sender_id = ? THEN Swapps.receiver_id ELSE Swapps.sender_id END
+            WHERE (Swapps.sender_id = ? OR Swapps.receiver_id = ?) AND Swapps.status = 'accepted'
+            GROUP BY partner.id
+            ORDER BY partner.username`,
             [user.id, user.id, user.id],
             (matchErr, matchRows) => {
               if (matchErr) {
                 return res.json({ success: false, message: matchErr.message });
               }
 
-              const matches = (matchRows || []).map((row) => row.matched_user);
+              // FUNC-014 REQT-003: trust score, warning count and account
+              // status are shown on the profile (read-only, REQT-010).
               const profile = {
                 id: user.id,
                 name: user.name,
@@ -871,8 +893,12 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
                 department: user.department || user.course || "",
                 yearLevel: user.yearLevel || "",
                 studentId: user.studentId || "",
+                trustScore: user.trust_score ?? TRUST_SCORE_DEFAULT,
+                warningCount: user.warning_count ?? 0,
+                accountStatus: user.account_status || "active",
+                completedSwapps: user.completedSwapps || 0,
                 portfolios: notebooks,
-                matches,
+                matches: matchRows || [],
               };
 
               res.json({
@@ -970,7 +996,8 @@ const NB_SELECT = `
       Notebooks.course_code,
       ${NB_FILE_URL_FOR_VIEWER} AS file_url,
       Notebooks.created_at,
-      Users.username, 
+      Users.username,
+      COALESCE(Users.trust_score, ${TRUST_SCORE_DEFAULT}) AS trustScore,
       COUNT(Likes.notebook_id) AS likes
       FROM Notebooks
       LEFT JOIN Users ON Notebooks.author_id = Users.id
@@ -1232,6 +1259,17 @@ app.post("/api/reports", requireAuth, async (req, res) => {
   }
 });
 
+// Applies a trust change (see lib/trustScore.js) in one statement, so two
+// events at once can't overwrite each other. Same clamp as applyTrustChange.
+function adjustTrustScore(userId, change) {
+  return dbRun(
+    `UPDATE Users
+     SET trust_score = MAX(?, MIN(?, COALESCE(trust_score, ?) + ?))
+     WHERE id = ?`,
+    [TRUST_SCORE_MIN, TRUST_SCORE_MAX, TRUST_SCORE_DEFAULT, change, userId],
+  );
+}
+
 // A student has access to a notebook once it is on the manifest of an
 // accepted SWAPP they are part of (FUNC-011 REQT-006).
 function findAccessSwapp(userId, notebookId) {
@@ -1390,7 +1428,7 @@ app.get("/api/swapps/:username", requireAuth, async (req, res) => {
     // were recorded) sort last, by insertion order.
     const swapps = await dbAll(
       `SELECT Swapps.*, s.username AS sender, r.username AS receiver,
-              COALESCE(s.trust_score, 100) AS senderTrustScore,
+              COALESCE(s.trust_score, ${TRUST_SCORE_DEFAULT}) AS senderTrustScore,
               c.username AS cancelledBy,
               EXISTS (
                 SELECT 1 FROM Chats
@@ -1559,6 +1597,8 @@ app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
        WHERE swapp_id = ? AND status = 'active'`,
       [swapp.id],
     );
+    // FUNC-011 REQT-011: only the student who cancelled loses trust.
+    await adjustTrustScore(me, TRUST_CHANGE.swappCancelled);
 
     res.json({ success: true });
   } catch (err) {
@@ -1716,10 +1756,23 @@ app.post("/api/chats/:id/archive", requireAuth, async (req, res) => {
         .status(404)
         .json({ success: false, message: "Chat not found" });
     }
-    await dbRun(
-      `UPDATE Chats SET status='archived', archived_at=CURRENT_TIMESTAMP WHERE id=?`,
+    const update = await dbRun(
+      `UPDATE Chats SET status='archived', archived_at=CURRENT_TIMESTAMP
+       WHERE id=? AND status='active'`,
       [chat.id],
     );
+    // Ending the chat completes its SWAPP (FUNC-011 REQT-011): both students
+    // gain trust, once. A chat closed by a cancellation never gets here.
+    if (update.changes) {
+      const swapp = await dbGet(
+        `SELECT sender_id, receiver_id FROM Swapps WHERE id=? AND status='accepted'`,
+        [chat.swapp_id],
+      );
+      if (swapp) {
+        await adjustTrustScore(swapp.sender_id, TRUST_CHANGE.swappCompleted);
+        await adjustTrustScore(swapp.receiver_id, TRUST_CHANGE.swappCompleted);
+      }
+    }
     console.log(
       `[CHAT] Chat ${chat.id} archived by user ${req.currentUser.id}`,
     );
@@ -1756,6 +1809,8 @@ async function removeNotebook(notebook, adminId) {
       `UPDATE Users SET warning_count = COALESCE(warning_count, 0) + 1 WHERE id = ?`,
       [notebook.author_id],
     );
+    // Platform conduct: each warning also lowers the author's trust.
+    await adjustTrustScore(notebook.author_id, TRUST_CHANGE.warning);
   }
   await closeOpenReports(notebook.id, "notebook_removed", adminId);
 }
@@ -1968,7 +2023,7 @@ app.post("/api/admin/reports/:id/resolve", requireAdminAuth, async (req, res) =>
 });
 
 const ADMIN_USER_COLUMNS = `Users.id, Users.username, Users.name, Users.course,
-  COALESCE(Users.trust_score, 100) AS trustScore,
+  COALESCE(Users.trust_score, ${TRUST_SCORE_DEFAULT}) AS trustScore,
   COALESCE(Users.warning_count, 0) AS warningCount,
   COALESCE(Users.account_status, 'active') AS accountStatus`;
 

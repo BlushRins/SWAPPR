@@ -228,7 +228,9 @@
 
     const wordCount = notebook.wordCount || Math.floor(Math.random() * 12000) + 2000;
     const subjectLabel = escapeHtml(notebook.department || notebook.course || "General");
-    const trustScore = escapeHtml(notebook.trustScore || 98);
+    // FUNC-007 REQT-002: the author's stored trust score.
+    const trustScore = escapeHtml(notebook.trustScore ?? 100);
+    const trustTone = app.trustTone(Number(notebook.trustScore ?? 100));
     const levelTag =
       notebook.level ||
       (wordCount > 15000
@@ -282,7 +284,7 @@
           <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           ${escapeHtml(notebook.readTime || 48)} min read
         </div>
-        <div class="trust-score">
+        <div class="trust-score trust-${trustTone}">
           <i data-lucide="shield-check" class="w-4 h-4"></i>
           ${trustScore}% Trust Score
         </div>
