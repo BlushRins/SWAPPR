@@ -252,6 +252,11 @@ async function seed() {
   await run(`DROP TABLE IF EXISTS Notebooks`);
   await run(`DROP TABLE IF EXISTS Likes`);
   await run(`DROP TABLE IF EXISTS Swapps`);
+  // Chats point at Swapps/Users ids, so they can't survive a reseed. server.js
+  // recreates both tables on its next boot and back-fills chats for the
+  // seeded accepted swapps.
+  await run(`DROP TABLE IF EXISTS ChatMessages`);
+  await run(`DROP TABLE IF EXISTS Chats`);
 
   await run(
     `CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT UNIQUE, password TEXT, bio TEXT, course TEXT, department TEXT, yearLevel TEXT)`,

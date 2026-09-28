@@ -56,6 +56,31 @@ body {
   color: #5a4878;
 }
 
+/* Invalid state — red border plus a "Missing input." line under the field. */
+.input-field.error {
+  border-color: #ef4444;
+}
+.input-field.error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+.dark .input-field.error {
+  border-color: #f87171;
+}
+.dark .input-field.error:focus {
+  border-color: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.18);
+}
+.report-error {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ef4444;
+}
+.dark .report-error {
+  color: #f87171;
+}
+
 /* ── Primary button ──────────────────────────────────────────────────────── */
 .btn-primary {
   padding: 0.55rem 1.2rem;
@@ -340,6 +365,7 @@ body.mobile-menu-open {
 }
 
 .modal-box {
+  position: relative;
   background: white;
   border-radius: 24px;
   padding: 28px 24px;
@@ -352,6 +378,36 @@ body.mobile-menu-open {
 .dark .modal-box {
   background: #110e20;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.report-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.report-modal-close:hover {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.dark .report-modal-close {
+  color: #a78bfa;
+}
+.dark .report-modal-close:hover {
+  background: rgba(139, 92, 246, 0.15);
+  color: #ede9fe;
 }
 
 .bg-particle {
@@ -617,6 +673,8 @@ body.mobile-menu-open {
   position: relative;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   align-items: center;
 }

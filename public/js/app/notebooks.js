@@ -149,6 +149,18 @@
       return;
     }
 
+    // Report sits before whichever swap control follows, so every card that
+    // isn't yours gets exactly one.
+    const reportBtn = document.createElement("button");
+    reportBtn.type = "button";
+    reportBtn.innerHTML = '<i data-lucide="flag" class="w-4 h-4"></i>';
+    reportBtn.className =
+      "inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-lg border border-gray-200 dark:border-purple-500/30 text-gray-400 dark:text-purple-300 hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-400/40 transition";
+    reportBtn.title = "Report";
+    reportBtn.setAttribute("aria-label", "Report this notebook");
+    reportBtn.addEventListener("click", () => app.openReportModal(notebook));
+    actionContainer.appendChild(reportBtn);
+
     if (hasSwapp) {
       const accessBtn = document.createElement("button");
       accessBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4"></i> Access';

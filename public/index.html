@@ -690,6 +690,78 @@
       </div>
     </div>
 
+    <!-- Report Notebook / User Modal (RPT001 / FUNC-015) -->
+    <div
+      id="reportModal"
+      class="modal-overlay hidden"
+      onclick="closeReportModal(event)"
+    >
+      <div class="modal-box">
+        <button
+          type="button"
+          onclick="closeReportModal()"
+          class="report-modal-close"
+          aria-label="Close"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <h3
+          class="text-xl font-extrabold mb-1 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2"
+        >
+          <i data-lucide="flag" class="w-5 h-5"></i>
+          Report Notebook
+        </h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-5 break-words">
+          Reporting "<strong id="reportModalTitle" class="text-gray-700 dark:text-purple-100"></strong>"
+          by @<strong id="reportModalAuthor" class="text-gray-700 dark:text-purple-100"></strong>
+        </p>
+
+        <div class="space-y-4">
+          <div>
+            <label for="reportReason" class="field-section-label">
+              Reason <span class="text-red-500">*</span>
+            </label>
+            <select id="reportReason" class="input-field">
+              <option value="" disabled selected>Select a reason</option>
+              <option value="inappropriate">Inappropriate or offensive content</option>
+              <option value="spam">Spam or misleading</option>
+              <option value="plagiarism">Plagiarized / not original work</option>
+              <option value="harassment">Harassment or abuse</option>
+              <option value="other">Other</option>
+            </select>
+            <p id="reportReasonError" class="report-error hidden">Missing input.</p>
+          </div>
+
+          <div>
+            <label for="reportDetails" class="field-section-label">
+              Details <span class="text-red-500">*</span>
+            </label>
+            <textarea
+              id="reportDetails"
+              rows="4"
+              maxlength="500"
+              class="input-field resize-none"
+              placeholder="Tell us what's wrong with this notebook or its author"
+            ></textarea>
+            <p id="reportDetailsError" class="report-error hidden">Missing input.</p>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onclick="closeReportModal()"
+              class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+            >
+              Cancel
+            </button>
+            <button type="button" onclick="submitReport()" class="btn-primary">
+              Submit Report
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
@@ -705,6 +777,7 @@
     <script src="js/app/swapps.js"></script>
     <script src="js/app/chat.js"></script>
     <script src="js/app/notebooks.js"></script>
+    <script src="js/app/report-modal.js"></script>
     <script src="js/app/sidebar.js"></script>
     <script src="js/app/profile-panel.js"></script>
     <script src="js/app/notebook-modal.js"></script>
