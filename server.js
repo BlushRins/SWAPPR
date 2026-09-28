@@ -19,6 +19,11 @@ const { subjectsForCourse, filterSubjects } = require("./lib/subjects");
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "127.0.0.1";
+// Dev-only escape hatch: print OTPs to the server console instead of emailing
+// them, so registration works locally without SMTP credentials. Never active
+// when NODE_ENV=production, regardless of what .env says.
+const OTP_DEV_MODE =
+  process.env.OTP_DEV_MODE === "true" && process.env.NODE_ENV !== "production";
 const HASH_PREFIX = "scrypt";
 const SESSION_COOKIE = "swappr_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -164,6 +169,12 @@ function createMailTransport() {
     });
   }
 
+  if (OTP_DEV_MODE) {
+    // jsonTransport serializes the message and resolves without opening a
+    // connection, so the normal send path runs unchanged.
+    return nodemailer.createTransport({ jsonTransport: true });
+  }
+
   return null;
 }
 
@@ -171,7 +182,7 @@ const mailFromAddress =
   process.env.SMTP_FROM ||
   process.env.SMTP_USER ||
   process.env.GMAIL_USER ||
-  "";
+  (OTP_DEV_MODE ? "dev@localhost" : "");
 
 app.use(express.json());
 app.use(sessionMiddleware);
@@ -380,7 +391,14 @@ app.post("/api/send-otp", async (req, res) => {
         </div>`,
     });
 
-    console.log(`[OTP] Sent to ${email}`);
+    if (OTP_DEV_MODE) {
+      console.log(
+        `\n[OTP][DEV MODE] No email was sent. Code for ${email}: ${otp}\n` +
+          `                Expires in ${Math.round(OTP_TTL_MS / 60000)} minutes.\n`,
+      );
+    } else {
+      console.log(`[OTP] Sent to ${email}`);
+    }
     res.json({ success: true });
   } catch (err) {
     console.error("[OTP] Email send failed:", err.message);
@@ -991,6 +1009,18 @@ initializeDatabase().then((success) => {
     app.listen(PORT, HOST, () => {
       console.log(`SWAPPR running on http://${HOST}:${PORT}`);
       console.log(`This is also localhost:3000 if you are running it locally.`);
+      if (OTP_DEV_MODE) {
+        console.log(
+          "[mail] OTP_DEV_MODE is on - verification codes are printed here, not emailed.",
+        );
+      } else if (createMailTransport()) {
+        console.log(`[mail] Sending verification codes as ${mailFromAddress}`);
+      } else {
+        console.warn(
+          "[mail] No email transport configured - registration will fail. " +
+            "Set SMTP_* / GMAIL_* vars, or OTP_DEV_MODE=true for local dev.",
+        );
+      }
     });
   } else {
     console.error("Failed to initialize database. Exiting.");
