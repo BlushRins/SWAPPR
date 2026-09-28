@@ -1163,26 +1163,54 @@ app.post("/api/reports", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/swapps", requireAuth, (req, res) => {
-  const { to } = req.body;
-  db.get(
-    `SELECT id FROM Users WHERE username=?`,
-    [req.currentUser.username],
-    (err, sender) => {
-      db.get(
-        `SELECT id FROM Users WHERE username=?`,
-        [to],
-        (receiverErr, receiver) => {
-          if (!sender || !receiver) return res.json({ success: false });
-          db.run(
-            `INSERT INTO Swapps (sender_id, receiver_id, status) VALUES (?,?,'pending')`,
-            [sender.id, receiver.id],
-            () => res.json({ success: true }),
-          );
-        },
-      );
-    },
-  );
+// FUNC-010: the sender always comes from the session, never the request body.
+app.post("/api/swapps", requireAuth, async (req, res) => {
+  const to = String(req.body.to || "").trim();
+  const senderId = req.currentUser.id;
+
+  try {
+    const receiver = await dbGet(`SELECT id FROM Users WHERE username = ?`, [to]);
+    if (!receiver) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+    if (receiver.id === senderId) {
+      return res.status(400).json({
+        success: false,
+        message: "You can't send a SWAPP request to yourself.",
+      });
+    }
+
+    // A pending or accepted SWAPP in either direction blocks a new one.
+    // A rejected request doesn't, so students can ask again later.
+    const existing = await dbGet(
+      `SELECT sender_id, status FROM Swapps
+       WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
+         AND status IN ('pending', 'accepted')
+       ORDER BY status = 'accepted' DESC
+       LIMIT 1`,
+      [senderId, receiver.id, receiver.id, senderId],
+    );
+    if (existing) {
+      let message = "You already have a pending request for this notebook.";
+      if (existing.status === "accepted") {
+        message = `You already have an active SWAPP with @${to}.`;
+      } else if (existing.sender_id === receiver.id) {
+        message = `@${to} already sent you a request. Check your Requests page to respond.`;
+      }
+      return res.status(409).json({ success: false, message });
+    }
+
+    const result = await dbRun(
+      `INSERT INTO Swapps (sender_id, receiver_id, status) VALUES (?, ?, 'pending')`,
+      [senderId, receiver.id],
+    );
+    res.status(201).json({ success: true, swappId: result.lastID });
+  } catch (err) {
+    console.error("[SWAPPS] create failed:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Could not send the request. Please try again." });
+  }
 });
 
 app.get("/api/swapps/:username", requireAuth, (req, res) => {

@@ -80,12 +80,9 @@
     }
   };
 
+  // The server takes the sender from the session.
   app.sendSwapp = async function sendSwapp(toUsername) {
-    const currentUser = app.state.currentUser;
-    return app.api.sendSwapp({
-      from: currentUser.username,
-      to: toUsername,
-    });
+    return app.api.sendSwapp({ to: toUsername });
   };
 
   app.respondSwapp = async function respondSwapp(id, status) {

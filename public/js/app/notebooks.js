@@ -211,8 +211,12 @@
           await app.loadSwapps();
           app.renderNotebooks();
         } catch (err) {
-          app.showToast("Failed to send request");
+          app.showToast(err.message || "Failed to send request");
           console.error(err);
+          // The request may have been refused because the swap state changed
+          // (e.g. sent from another tab), so show the current state.
+          await app.loadSwapps().catch(() => {});
+          app.renderNotebooks();
         } finally {
           swapBtn.disabled = false;
           swapBtn.innerHTML =
