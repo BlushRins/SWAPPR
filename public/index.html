@@ -117,10 +117,18 @@
         href="#"
         data-filter="matched"
         onclick="filterBy('matched'); closeMobileMenu(); return false;"
-        class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
+        class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
-        <i data-lucide="handshake" class="w-4 h-4"></i>
-        My SWAPPs
+        <span class="flex items-center gap-2">
+          <i data-lucide="handshake" class="w-4 h-4"></i>
+          My SWAPPs
+        </span>
+        <span
+          data-chat-badge
+          title="Unread messages"
+          class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+          >0</span
+        >
       </a>
       <a
         href="#"
@@ -219,10 +227,18 @@
                 filterBy('matched');
                 return false;
               "
-              class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
+              class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
-              <i data-lucide="handshake" class="w-4 h-4"></i>
-              My SWAPPs
+              <span class="flex items-center gap-2">
+                <i data-lucide="handshake" class="w-4 h-4"></i>
+                My SWAPPs
+              </span>
+              <span
+                data-chat-badge
+                title="Unread messages"
+                class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+                >0</span
+              >
             </a>
             <a
               href="#"

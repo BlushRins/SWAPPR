@@ -322,8 +322,20 @@ user_a_id INTEGER,
 user_b_id INTEGER,
 status TEXT DEFAULT 'active',
 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-archived_at DATETIME
+archived_at DATETIME,
+user_a_last_read INTEGER DEFAULT 0,
+user_b_last_read INTEGER DEFAULT 0
 )`);
+    await dbRun(
+      `ALTER TABLE Chats ADD COLUMN user_a_last_read INTEGER DEFAULT 0`,
+    ).catch((err) => {
+      if (!/duplicate column name/i.test(err.message)) throw err;
+    });
+    await dbRun(
+      `ALTER TABLE Chats ADD COLUMN user_b_last_read INTEGER DEFAULT 0`,
+    ).catch((err) => {
+      if (!/duplicate column name/i.test(err.message)) throw err;
+    });
     await dbRun(`CREATE TABLE IF NOT EXISTS ChatMessages (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 chat_id INTEGER,
@@ -1067,17 +1079,32 @@ function findChatForUser(chatId, userId) {
   );
 }
 
+// Each participant has their own "last read message id" column on Chats.
+function lastReadColumn(chat, userId) {
+  return chat.user_a_id === userId ? "user_a_last_read" : "user_b_last_read";
+}
+
+// unreadCount / lastIncomingId only count messages from the other person;
+// the frontend polls this list to drive the unread badges and the
+// "New message from @x" popup.
 app.get("/api/chats", requireAuth, async (req, res) => {
+  const me = req.currentUser.id;
   try {
     const chats = await dbAll(
       `SELECT Chats.*,
-CASE WHEN user_a_id = ? THEN ub.username ELSE ua.username END AS otherUsername
+CASE WHEN user_a_id = ? THEN ub.username ELSE ua.username END AS otherUsername,
+(SELECT COUNT(*) FROM ChatMessages m
+ WHERE m.chat_id = Chats.id AND m.sender_id != ?
+   AND m.id > COALESCE(CASE WHEN Chats.user_a_id = ? THEN Chats.user_a_last_read ELSE Chats.user_b_last_read END, 0)
+) AS unreadCount,
+(SELECT MAX(m.id) FROM ChatMessages m
+ WHERE m.chat_id = Chats.id AND m.sender_id != ?) AS lastIncomingId
 FROM Chats
 JOIN Users ua ON Chats.user_a_id = ua.id
 JOIN Users ub ON Chats.user_b_id = ub.id
 WHERE user_a_id = ? OR user_b_id = ?
 ORDER BY Chats.id DESC`,
-      [req.currentUser.id, req.currentUser.id, req.currentUser.id],
+      [me, me, me, me, me, me],
     );
     res.json({ chats });
   } catch (err) {
@@ -1105,6 +1132,17 @@ WHERE chat_id=?
 ORDER BY ChatMessages.id ASC`,
       [chat.id],
     );
+
+    // Opening (or polling) a chat marks everything in it as read for this user.
+    const newestId = messages.length ? messages[messages.length - 1].id : 0;
+    const column = lastReadColumn(chat, req.currentUser.id);
+    if (newestId > (chat[column] || 0)) {
+      await dbRun(`UPDATE Chats SET ${column} = ? WHERE id = ?`, [
+        newestId,
+        chat.id,
+      ]);
+    }
+
     res.json({
       chat: { ...chat, otherUsername: other?.username || "" },
       messages,

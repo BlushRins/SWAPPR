@@ -2,9 +2,76 @@
   const app = (root.SWAPPR = root.SWAPPR || {});
 
   const POLL_INTERVAL_MS = 4000;
+  const NOTIFY_POLL_INTERVAL_MS = 5000;
 
   let pollTimer = null;
   let activeChatId = null;
+
+  let notifyTimer = null;
+  let lastSeenIncoming = null; // chat id -> newest incoming message id; null until first check
+  let unreadByUser = {};
+
+  app.getChatUnreadFor = function getChatUnreadFor(username) {
+    return unreadByUser[username] || 0;
+  };
+
+  function setBadge(badge, count) {
+    badge.textContent = count > 9 ? "9+" : String(count);
+    badge.classList.toggle("hidden", count === 0);
+  }
+
+  function updateChatBadges() {
+    const total = Object.values(unreadByUser).reduce((sum, n) => sum + n, 0);
+    document.querySelectorAll("[data-chat-badge]").forEach((badge) => setBadge(badge, total));
+    document.querySelectorAll("[data-chat-user]").forEach((button) => {
+      const badge = button.querySelector("[data-chat-button-badge]");
+      if (badge) setBadge(badge, app.getChatUnreadFor(button.dataset.chatUser));
+    });
+  }
+
+  // Polls the chat list for unread counts. Drives the red badges on
+  // "My SWAPPs" and the Chat buttons, and the "New message from @x" popup.
+  app.refreshChatNotifications = async function refreshChatNotifications() {
+    if (!app.state.currentUser) return;
+    try {
+      const data = await app.api.getChats();
+      const firstCheck = lastSeenIncoming === null;
+      const seen = lastSeenIncoming || new Map();
+      const newFrom = [];
+
+      unreadByUser = {};
+      (data.chats || []).forEach((chat) => {
+        // The open chat is marked read by its own polling, so it never counts.
+        const unread = chat.id === activeChatId ? 0 : chat.unreadCount || 0;
+        unreadByUser[chat.otherUsername] = (unreadByUser[chat.otherUsername] || 0) + unread;
+
+        const newest = chat.lastIncomingId || 0;
+        if (!firstCheck && unread > 0 && newest > (seen.get(chat.id) || 0)) {
+          newFrom.push(chat.otherUsername);
+        }
+        seen.set(chat.id, newest);
+      });
+      lastSeenIncoming = seen;
+      updateChatBadges();
+
+      const total = Object.values(unreadByUser).reduce((sum, n) => sum + n, 0);
+      if (firstCheck && total > 0) {
+        app.showToast(`You have ${total} unread message${total === 1 ? "" : "s"}`);
+      } else if (newFrom.length === 1) {
+        app.showToast(`New message from @${newFrom[0]}`);
+      } else if (newFrom.length > 1) {
+        app.showToast(`New messages from @${newFrom[0]} and ${newFrom.length - 1} more`);
+      }
+    } catch (err) {
+      console.error("[CHAT] notifications", err);
+    }
+  };
+
+  app.startChatNotifications = function startChatNotifications() {
+    if (notifyTimer) clearInterval(notifyTimer);
+    app.refreshChatNotifications();
+    notifyTimer = setInterval(app.refreshChatNotifications, NOTIFY_POLL_INTERVAL_MS);
+  };
 
   // Bubbles are built with textContent, never innerHTML, so a message can't
   // inject markup into the other student's page.
@@ -83,6 +150,7 @@
     document.getElementById("chatPanel")?.classList.remove("hidden");
     root.lucide?.createIcons();
     await loadMessages(chatId);
+    app.refreshChatNotifications();
     if (activeChatId === chatId && !document.getElementById("chatInputRow")?.classList.contains("hidden")) {
       startPolling(chatId);
       document.getElementById("chatMessageInput")?.focus();
@@ -93,6 +161,7 @@
     activeChatId = null;
     stopPolling();
     document.getElementById("chatPanel")?.classList.add("hidden");
+    app.refreshChatNotifications();
   };
 
   app.openChatForNotebook = async function openChatForNotebook(otherUsername) {

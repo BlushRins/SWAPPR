@@ -166,7 +166,18 @@
       const chatBtn = document.createElement("button");
       chatBtn.innerHTML = '<i data-lucide="message-circle" class="w-4 h-4"></i> Chat';
       chatBtn.className =
-        "text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm ml-2";
+        "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm ml-2";
+      chatBtn.dataset.chatUser = notebook.username;
+
+      const unread = app.getChatUnreadFor?.(notebook.username) || 0;
+      const chatBadge = document.createElement("span");
+      chatBadge.dataset.chatButtonBadge = "";
+      chatBadge.className =
+        "bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 inline-flex items-center justify-center";
+      chatBadge.textContent = unread > 9 ? "9+" : String(unread);
+      chatBadge.classList.toggle("hidden", unread === 0);
+      chatBtn.appendChild(chatBadge);
+
       chatBtn.addEventListener("click", () => app.openChatForNotebook(notebook.username));
       actionContainer.appendChild(chatBtn);
       return;

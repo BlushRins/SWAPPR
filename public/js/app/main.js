@@ -43,6 +43,7 @@
     app.loadNotebooks();
     app.loadSwapps();
     app.loadSidebar();
+    app.startChatNotifications();
     attachStaticEventListeners();
   };
 
