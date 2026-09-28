@@ -367,6 +367,11 @@ date_created DATETIME DEFAULT CURRENT_TIMESTAMP
     // databases get a plain column and new requests set it explicitly.
     // Requests made before this column existed keep a NULL date.
     await addColumnIfMissing("Swapps", "date_created DATETIME");
+    // FUNC-011 REQT-009: who cancelled an accepted SWAPP and when, and
+    // whether the other student has been shown the notice yet.
+    await addColumnIfMissing("Swapps", "cancelled_by INTEGER");
+    await addColumnIfMissing("Swapps", "cancelled_at DATETIME");
+    await addColumnIfMissing("Swapps", "cancel_notified INTEGER DEFAULT 0");
     await dbRun(`CREATE TABLE IF NOT EXISTS Chats (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 swapp_id INTEGER,
@@ -828,12 +833,17 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
       // Authors still see their own notebooks while under review or after
       // removal; everyone else only sees active ones.
       const isOwner = user.id === req.currentUser.id;
+      const viewerId = req.currentUser.id;
       db.all(
-        `SELECT Notebooks.*, COUNT(Likes.notebook_id) as likes
+        `SELECT Notebooks.id, Notebooks.title, Notebooks.description,
+              Notebooks.department, Notebooks.course_code, Notebooks.author_id,
+              ${NB_FILE_URL_FOR_VIEWER} AS file_url,
+              Notebooks.created_at, Notebooks.status, Notebooks.report_count,
+              COUNT(Likes.notebook_id) as likes
       FROM Notebooks LEFT JOIN Likes ON Notebooks.id = Likes.notebook_id
       WHERE author_id=? ${isOwner ? "" : "AND COALESCE(Notebooks.status, 'active') = 'active'"}
-      GROUP BY Notebooks.id ORDER BY created_at DESC`,
-        [user.id],
+      GROUP BY Notebooks.id ORDER BY Notebooks.created_at DESC`,
+        [viewerId, viewerId, viewerId, user.id],
         (notebookErr, notebooks) => {
           if (notebookErr) {
             return res.json({ success: false, message: notebookErr.message });
@@ -938,6 +948,19 @@ app.get("/api/subjects", (req, res) => {
   );
 });
 
+// A notebook's file link is only sent to its author and to students who
+// unlocked it through an accepted SWAPP (FUNC-011 REQT-006, REQT-010).
+// Everyone else gets null, so locked notebooks can't be opened.
+const NB_FILE_URL_FOR_VIEWER = `
+      CASE WHEN Notebooks.author_id = ? OR EXISTS (
+        SELECT 1 FROM Transaction_Manifest
+        JOIN Swapps ON Swapps.id = Transaction_Manifest.SWAPP_ID
+        WHERE Transaction_Manifest.notebook_ID = Notebooks.id
+          AND Swapps.status = 'accepted'
+          AND (Swapps.sender_id = ? OR Swapps.receiver_id = ?)
+      ) THEN Notebooks.file_url ELSE NULL END`;
+
+// Takes the viewer's user id three times (see NB_FILE_URL_FOR_VIEWER).
 const NB_SELECT = `
       SELECT 
       Notebooks.id, 
@@ -945,7 +968,7 @@ const NB_SELECT = `
       Notebooks.description,
       Notebooks.department,
       Notebooks.course_code,
-      Notebooks.file_url,
+      ${NB_FILE_URL_FOR_VIEWER} AS file_url,
       Notebooks.created_at,
       Users.username, 
       COUNT(Likes.notebook_id) AS likes
@@ -956,15 +979,25 @@ const NB_SELECT = `
       GROUP BY Notebooks.id
       `;
 
+const viewerParams = (req) => [
+  req.currentUser.id,
+  req.currentUser.id,
+  req.currentUser.id,
+];
+
 app.get("/api/portfolios", requireAuth, (req, res) => {
-  db.all(`${NB_SELECT} ORDER BY Notebooks.created_at DESC`, [], (err, rows) => {
-    if (err) return res.json({ success: false, message: err.message });
-    res.json({ portfolios: rows || [] });
-  });
+  db.all(
+    `${NB_SELECT} ORDER BY Notebooks.created_at DESC`,
+    viewerParams(req),
+    (err, rows) => {
+      if (err) return res.json({ success: false, message: err.message });
+      res.json({ portfolios: rows || [] });
+    },
+  );
 });
 
 app.get("/api/portfolios/top", requireAuth, (req, res) => {
-  db.all(`${NB_SELECT} ORDER BY likes DESC LIMIT 5`, [], (err, rows) => {
+  db.all(`${NB_SELECT} ORDER BY likes DESC LIMIT 5`, viewerParams(req), (err, rows) => {
     if (err) return res.json({ success: false, message: err.message });
     res.json({ portfolios: rows || [] });
   });
@@ -973,7 +1006,7 @@ app.get("/api/portfolios/top", requireAuth, (req, res) => {
 app.get("/api/portfolios/recent", requireAuth, (req, res) => {
   db.all(
     `${NB_SELECT} ORDER BY Notebooks.created_at DESC LIMIT 5`,
-    [],
+    viewerParams(req),
     (err, rows) => {
       if (err) return res.json({ success: false, message: err.message });
       res.json({ portfolios: rows || [] });
@@ -1357,10 +1390,16 @@ app.get("/api/swapps/:username", requireAuth, async (req, res) => {
     // were recorded) sort last, by insertion order.
     const swapps = await dbAll(
       `SELECT Swapps.*, s.username AS sender, r.username AS receiver,
-              COALESCE(s.trust_score, 100) AS senderTrustScore
+              COALESCE(s.trust_score, 100) AS senderTrustScore,
+              c.username AS cancelledBy,
+              EXISTS (
+                SELECT 1 FROM Chats
+                WHERE Chats.swapp_id = Swapps.id AND Chats.status = 'archived'
+              ) AS chatEnded
        FROM Swapps
        JOIN Users s ON Swapps.sender_id = s.id
        JOIN Users r ON Swapps.receiver_id = r.id
+       LEFT JOIN Users c ON Swapps.cancelled_by = c.id
        WHERE sender_id = ? OR receiver_id = ?
        ORDER BY Swapps.date_created IS NULL, Swapps.date_created DESC, Swapps.id DESC`,
       [me, me],
@@ -1400,6 +1439,7 @@ app.get("/api/swapps/:username", requireAuth, async (req, res) => {
         const swappLines = bySwapp.get(swapp.id) || [];
         return {
           ...swapp,
+          chatEnded: Boolean(swapp.chatEnded),
           requestedNotebooks: swappLines
             .filter((line) => line.authorId === swapp.receiver_id)
             .map(describe),
@@ -1467,6 +1507,82 @@ app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("[CHAT] respond failed:", err.message);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// FUNC-011 REQT-009, REQT-010 (UC-05 extension 3a): either student cancels an
+// accepted SWAPP. Access to its notebooks ends, because access comes only from
+// accepted SWAPPs, and its chat closes at once (FUNC-013 REQT-007). A SWAPP
+// whose chat was already ended is complete and can no longer be cancelled.
+app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
+  const me = req.currentUser.id;
+  try {
+    const swapp = await dbGet(
+      `SELECT * FROM Swapps WHERE id = ? AND (sender_id = ? OR receiver_id = ?)`,
+      [req.params.id, me, me],
+    );
+    if (!swapp) {
+      return res.status(404).json({ success: false, message: "SWAPP not found" });
+    }
+    if (swapp.status !== "accepted") {
+      return res.status(409).json({
+        success: false,
+        message: "Only an accepted SWAPP can be cancelled.",
+      });
+    }
+    const ended = await dbGet(
+      `SELECT id FROM Chats WHERE swapp_id = ? AND status = 'archived'`,
+      [swapp.id],
+    );
+    if (ended) {
+      return res.status(409).json({
+        success: false,
+        message: "This SWAPP has already ended and can't be cancelled.",
+      });
+    }
+
+    const update = await dbRun(
+      `UPDATE Swapps
+       SET status = 'cancelled', cancelled_by = ?, cancelled_at = CURRENT_TIMESTAMP,
+           cancel_notified = 0
+       WHERE id = ? AND status = 'accepted'`,
+      [me, swapp.id],
+    );
+    if (!update.changes) {
+      return res.status(409).json({
+        success: false,
+        message: "Only an accepted SWAPP can be cancelled.",
+      });
+    }
+    await dbRun(
+      `UPDATE Chats SET status = 'archived', archived_at = CURRENT_TIMESTAMP
+       WHERE swapp_id = ? AND status = 'active'`,
+      [swapp.id],
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[SWAPPS] cancel failed:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Could not cancel the SWAPP. Please try again." });
+  }
+});
+
+// The other student has seen the "cancelled" notice, so it isn't shown again.
+app.post("/api/swapps/:id/cancel-seen", requireAuth, async (req, res) => {
+  const me = req.currentUser.id;
+  try {
+    await dbRun(
+      `UPDATE Swapps SET cancel_notified = 1
+       WHERE id = ? AND status = 'cancelled' AND cancelled_by != ?
+         AND (sender_id = ? OR receiver_id = ?)`,
+      [req.params.id, me, me, me],
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[SWAPPS] cancel-seen failed:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 

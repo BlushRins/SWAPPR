@@ -52,6 +52,8 @@
     likeNotebook: (payload) => send("/portfolios/like", "POST", payload),
     sendSwapp: (payload) => send("/swapps", "POST", payload),
     respondSwapp: (id, payload) => send(`/swapps/${id}/respond`, "PUT", payload),
+    cancelSwapp: (id) => send(`/swapps/${id}/cancel`, "POST", {}),
+    markCancelSeen: (id) => send(`/swapps/${id}/cancel-seen`, "POST", {}),
     getChats: () => get("/chats"),
     getChatMessages: (chatId) => get(`/chats/${chatId}/messages`),
     sendChatMessage: (chatId, body) =>

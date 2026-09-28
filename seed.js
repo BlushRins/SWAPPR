@@ -313,7 +313,7 @@ async function seed() {
     `CREATE TABLE Likes (user_id INTEGER, notebook_id INTEGER, PRIMARY KEY (user_id, notebook_id))`,
   );
   await run(
-    `CREATE TABLE Swapps (id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER, receiver_id INTEGER, status TEXT, date_created DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE Swapps (id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER, receiver_id INTEGER, status TEXT, date_created DATETIME DEFAULT CURRENT_TIMESTAMP, cancelled_by INTEGER, cancelled_at DATETIME, cancel_notified INTEGER DEFAULT 0)`,
   );
   await run(
     `CREATE TABLE Transaction_Manifest (Transaction_Manifest_ID INTEGER PRIMARY KEY AUTOINCREMENT, SWAPP_ID INTEGER, notebook_ID INTEGER, is_confirmed INTEGER DEFAULT 0)`,

@@ -123,7 +123,7 @@
     const currentUser = app.state.currentUser;
     // Per-notebook SWAPP state from its Transaction_Manifest (FUNC-010,
     // FUNC-011 REQT-006). After a rejection the student can ask again.
-    const { accessSwapp, pending, declined } = app.swappStateFor(notebook);
+    const { accessSwapp, pending, cancelled, declined } = app.swappStateFor(notebook);
 
     if (notebook.username === currentUser?.username) {
       const badge = document.createElement("span");
@@ -187,6 +187,15 @@
       pendingBadge.textContent = "Swap Pending...";
       actionContainer.appendChild(pendingBadge);
       return;
+    }
+
+    // FUNC-011 REQT-009: the SWAPP that unlocked this notebook was cancelled.
+    if (cancelled) {
+      const cancelledLabel = document.createElement("span");
+      cancelledLabel.className = "text-xs font-medium text-red-500 dark:text-red-400";
+      cancelledLabel.textContent = "Cancelled";
+      cancelledLabel.title = "The SWAPP for this notebook was cancelled. You can request it again.";
+      actionContainer.appendChild(cancelledLabel);
     }
 
     // FUNC-011 REQT-008: let the requester see their last request was declined.

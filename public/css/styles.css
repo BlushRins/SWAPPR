@@ -2474,3 +2474,23 @@ body {
 .dark .request-notebooks li svg {
   color: #a78bfa;
 }
+
+/* Requests page sections: headings and empty states span the whole grid. */
+.requests-heading,
+.requests-full {
+  grid-column: 1 / -1;
+}
+.requests-heading {
+  margin-bottom: -1rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7c3aed;
+}
+.requests-heading:not(:first-child) {
+  margin-top: 1rem;
+}
+.dark .requests-heading {
+  color: #a78bfa;
+}

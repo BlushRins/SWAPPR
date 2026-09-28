@@ -49,6 +49,7 @@
     app.loadSwapps();
     app.loadSidebar();
     app.startChatNotifications();
+    app.startSwappUpdates();
     attachStaticEventListeners();
   };
 
