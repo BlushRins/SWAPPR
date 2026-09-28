@@ -34,6 +34,8 @@
     root.openReportModal = app.openReportModal;
     root.closeReportModal = app.closeReportModal;
     root.submitReport = app.submitReport;
+    root.closeSwappRequestModal = app.closeSwappRequestModal;
+    root.submitSwappRequest = app.submitSwappRequest;
     root.closeChat = app.closeChat;
     root.sendChatMessage = app.sendChatMessage;
     root.endChat = app.endChat;

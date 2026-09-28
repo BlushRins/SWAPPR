@@ -55,15 +55,6 @@
     );
   }
 
-  function matchedUsernames() {
-    const currentUser = app.state.currentUser;
-    return app.state.swapps
-      .filter((swapp) => swapp.status === "accepted")
-      .map((swapp) =>
-        swapp.sender === currentUser.username ? swapp.receiver : swapp.sender,
-      );
-  }
-
   function filterNotebooks(searchQuery) {
     let filtered = [...app.state.notebooks];
 
@@ -97,9 +88,14 @@
       );
     }
 
+    // FUNC-012 REQT-002: only the notebooks unlocked by confirmed SWAPPs.
     if (app.state.currentFilter === "matched") {
-      const matches = matchedUsernames();
-      filtered = filtered.filter((notebook) => matches.includes(notebook.username));
+      const unlocked = app.unlockedNotebookIds();
+      filtered = filtered.filter(
+        (notebook) =>
+          unlocked.has(notebook.id) &&
+          notebook.username !== app.state.currentUser?.username,
+      );
     }
 
     if (app.state.currentFilter === "top") {
@@ -125,30 +121,9 @@
 
   function createActionControls(notebook, actionContainer) {
     const currentUser = app.state.currentUser;
-    const swappsWithAuthor = app.state.swapps.filter(
-      (swapp) =>
-        (swapp.sender === currentUser?.username && swapp.receiver === notebook.username) ||
-        (swapp.receiver === currentUser?.username && swapp.sender === notebook.username),
-    );
-    const hasSwapp = swappsWithAuthor.some((swapp) => swapp.status === "accepted");
-
-    // Only a pending or accepted SWAPP blocks a new request; after a rejection
-    // either student can ask again (the server allows it too).
-    const canSwapp =
-      currentUser &&
-      notebook.username !== currentUser.username &&
-      !swappsWithAuthor.some(
-        (swapp) => swapp.status === "pending" || swapp.status === "accepted",
-      );
-
-    // FUNC-011 REQT-008: let the requester see their last request was declined.
-    const latestSwapp = swappsWithAuthor.reduce(
-      (latest, swapp) => (!latest || swapp.id > latest.id ? swapp : latest),
-      null,
-    );
-    const wasDeclined =
-      latestSwapp?.status === "rejected" &&
-      latestSwapp.sender === currentUser?.username;
+    // Per-notebook SWAPP state from its Transaction_Manifest (FUNC-010,
+    // FUNC-011 REQT-006). After a rejection the student can ask again.
+    const { accessSwapp, pending, declined } = app.swappStateFor(notebook);
 
     if (notebook.username === currentUser?.username) {
       const badge = document.createElement("span");
@@ -170,7 +145,7 @@
     reportBtn.addEventListener("click", () => app.openReportModal(notebook));
     actionContainer.appendChild(reportBtn);
 
-    if (hasSwapp) {
+    if (accessSwapp) {
       const accessBtn = document.createElement("button");
       accessBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4"></i> Access';
       accessBtn.className =
@@ -184,13 +159,14 @@
       });
       actionContainer.appendChild(accessBtn);
 
+      // Opens the chat of the SWAPP that unlocked this notebook.
       const chatBtn = document.createElement("button");
       chatBtn.innerHTML = '<i data-lucide="message-circle" class="w-4 h-4"></i> Chat';
       chatBtn.className =
         "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm ml-2";
-      chatBtn.dataset.chatUser = notebook.username;
+      chatBtn.dataset.chatSwapp = String(accessSwapp.id);
 
-      const unread = app.getChatUnreadFor?.(notebook.username) || 0;
+      const unread = app.getChatUnreadForSwapp?.(accessSwapp.id) || 0;
       const chatBadge = document.createElement("span");
       chatBadge.dataset.chatButtonBadge = "";
       chatBadge.className =
@@ -199,62 +175,37 @@
       chatBadge.classList.toggle("hidden", unread === 0);
       chatBtn.appendChild(chatBadge);
 
-      chatBtn.addEventListener("click", () => app.openChatForNotebook(notebook.username));
+      chatBtn.addEventListener("click", () => app.openChatForSwapp(accessSwapp.id));
       actionContainer.appendChild(chatBtn);
       return;
     }
 
-    if (canSwapp) {
-      if (wasDeclined) {
-        const declined = document.createElement("span");
-        declined.className = "text-xs font-medium text-red-500 dark:text-red-400";
-        declined.textContent = "Declined";
-        declined.title = "Your last request was declined. You can ask again.";
-        actionContainer.appendChild(declined);
-      }
-
-      const swapBtn = document.createElement("button");
-      swapBtn.innerHTML =
-        '<i data-lucide="repeat-2" class="w-4 h-4"></i> Request Swap';
-      swapBtn.className =
-        "text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm";
-      swapBtn.addEventListener("click", async () => {
-        swapBtn.disabled = true;
-        swapBtn.textContent = "Sending...";
-
-        try {
-          await app.sendSwapp(notebook.username);
-          app.showToast("Swap request sent!");
-          await app.loadSwapps();
-          app.renderNotebooks();
-        } catch (err) {
-          // FUNC-010 REQT-008: no notebook to offer, so offer to upload one.
-          if (err.code === "NO_NOTEBOOKS") {
-            if (confirm(`${err.message}\n\nUpload one now?`)) app.openAddModal();
-            return;
-          }
-          app.showToast(err.message || "Failed to send request");
-          console.error(err);
-          // The request may have been refused because the swap state changed
-          // (e.g. sent from another tab), so show the current state.
-          await app.loadSwapps().catch(() => {});
-          app.renderNotebooks();
-        } finally {
-          swapBtn.disabled = false;
-          swapBtn.innerHTML =
-            '<i data-lucide="repeat-2" class="w-4 h-4"></i> Request Swap';
-          root.lucide?.createIcons();
-        }
-      });
-      actionContainer.appendChild(swapBtn);
+    if (pending) {
+      const pendingBadge = document.createElement("span");
+      pendingBadge.className =
+        "text-xs text-yellow-600 dark:text-yellow-400 font-medium";
+      pendingBadge.textContent = "Swap Pending...";
+      actionContainer.appendChild(pendingBadge);
       return;
     }
 
-    const pendingBadge = document.createElement("span");
-    pendingBadge.className =
-      "text-xs text-yellow-600 dark:text-yellow-400 font-medium";
-    pendingBadge.textContent = "Swap Pending...";
-    actionContainer.appendChild(pendingBadge);
+    // FUNC-011 REQT-008: let the requester see their last request was declined.
+    if (declined) {
+      const declinedLabel = document.createElement("span");
+      declinedLabel.className = "text-xs font-medium text-red-500 dark:text-red-400";
+      declinedLabel.textContent = "Declined";
+      declinedLabel.title = "Your last request was declined. You can ask again.";
+      actionContainer.appendChild(declinedLabel);
+    }
+
+    // FUNC-010 REQT-003: opens the prompt to choose which notebooks to offer.
+    const swapBtn = document.createElement("button");
+    swapBtn.innerHTML =
+      '<i data-lucide="repeat-2" class="w-4 h-4"></i> Request Swap';
+    swapBtn.className =
+      "text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm";
+    swapBtn.addEventListener("click", () => app.openSwappRequestModal(notebook));
+    actionContainer.appendChild(swapBtn);
   }
 
   function createNotebookCard(notebook) {

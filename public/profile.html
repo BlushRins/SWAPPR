@@ -1073,7 +1073,8 @@
       }
 
       async function deleteNotebook(notebookId) {
-        if (!confirm("Delete this notebook?")) return;
+        // FUNC-009 REQT-008
+        if (!confirm("Are you sure you want to delete this notebook?")) return;
         try {
           const res = await fetch("/api/portfolios/delete", {
             method: "POST",
@@ -1085,6 +1086,9 @@
           if (data.success) {
             showToast("Notebook deleted.", "red");
             loadProfile();
+          } else {
+            // e.g. FUNC-009 REQT-011: the notebook is in an open SWAPP.
+            showToast(data.message || "Failed to delete.", "red");
           }
         } catch {
           showToast("Failed to delete.", "red");

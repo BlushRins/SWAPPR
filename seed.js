@@ -161,11 +161,14 @@ const LIKES = [
   { liker: "marco_s", notebookIdx: 8 },
 ];
 
+// `requested` is the NOTEBOOKS index of the receiver's notebook being asked
+// for; `offered` lists the sender's notebooks offered in exchange. Together
+// they become the SWAPP's Transaction_Manifest lines.
 const SWAPPS = [
-  { from: "ana_reyes", to: "marco_s", status: "accepted" },
-  { from: "josh_m", to: "lia_cruz", status: "accepted" },
-  { from: "renz_v", to: "ana_reyes", status: "pending" },
-  { from: "cami_tan", to: "sofia_dc", status: "pending" },
+  { from: "ana_reyes", to: "marco_s", status: "accepted", requested: 2, offered: [0] },
+  { from: "josh_m", to: "lia_cruz", status: "accepted", requested: 4, offered: [5] },
+  { from: "renz_v", to: "ana_reyes", status: "pending", requested: 0, offered: [8] },
+  { from: "cami_tan", to: "sofia_dc", status: "pending", requested: 9, offered: [7] },
 ];
 
 function assertKnownCourses() {
@@ -292,9 +295,10 @@ async function seed() {
   // seeded accepted swapps.
   await run(`DROP TABLE IF EXISTS ChatMessages`);
   await run(`DROP TABLE IF EXISTS Chats`);
-  // Reports point at Users/Notebooks ids too. The Admin table is left alone:
-  // it holds operator accounts, not demo content.
+  // Reports and manifest lines point at Users/Notebooks/Swapps ids too. The
+  // Admin table is left alone: it holds operator accounts, not demo content.
   await run(`DROP TABLE IF EXISTS Reports`);
+  await run(`DROP TABLE IF EXISTS Transaction_Manifest`);
 
   await run(
     `CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT UNIQUE, password TEXT, bio TEXT, course TEXT, department TEXT, yearLevel TEXT, trust_score INTEGER DEFAULT 100, warning_count INTEGER DEFAULT 0, account_status TEXT DEFAULT 'active')`,
@@ -310,6 +314,9 @@ async function seed() {
   );
   await run(
     `CREATE TABLE Swapps (id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER, receiver_id INTEGER, status TEXT, date_created DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+  );
+  await run(
+    `CREATE TABLE Transaction_Manifest (Transaction_Manifest_ID INTEGER PRIMARY KEY AUTOINCREMENT, SWAPP_ID INTEGER, notebook_ID INTEGER, is_confirmed INTEGER DEFAULT 0)`,
   );
 
   const userIds = {};
@@ -361,10 +368,17 @@ async function seed() {
   // a real newest-first order to show.
   for (const [index, s] of SWAPPS.entries()) {
     const hoursAgo = SWAPPS.length - index;
-    await run(
+    const swapp = await run(
       `INSERT INTO Swapps (sender_id, receiver_id, status, date_created) VALUES (?,?,?, datetime('now', ?))`,
       [userIds[s.from], userIds[s.to], s.status, `-${hoursAgo} hours`],
     );
+    const confirmed = s.status === "accepted" ? 1 : 0;
+    for (const notebookIdx of [s.requested, ...s.offered]) {
+      await run(
+        `INSERT INTO Transaction_Manifest (SWAPP_ID, notebook_ID, is_confirmed) VALUES (?,?,?)`,
+        [swapp.lastID, notebookIds[notebookIdx], confirmed],
+      );
+    }
   }
   console.log("⇄ Swapps seeded.\n✅ All set!");
   db.close();

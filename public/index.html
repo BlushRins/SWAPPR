@@ -767,6 +767,49 @@
       </div>
     </div>
 
+    <!-- Select notebooks to offer (FUNC-010 REQT-003, REQT-004 / UC-04 step 2) -->
+    <div
+      id="swappRequestModal"
+      class="modal-overlay hidden"
+      onclick="closeSwappRequestModal(event)"
+    >
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="swappRequestHeading">
+        <h3
+          id="swappRequestHeading"
+          class="text-xl font-extrabold mb-1 text-purple-900 dark:text-purple-100 flex items-center gap-2"
+        >
+          <i data-lucide="repeat-2" class="w-5 h-5"></i>
+          Request Swap
+        </h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-5 break-words">
+          Requesting "<strong id="swappRequestTitle" class="text-gray-700 dark:text-purple-100"></strong>"
+          by @<strong id="swappRequestAuthor" class="text-gray-700 dark:text-purple-100"></strong>
+        </p>
+
+        <p class="field-section-label">Select which of your notebooks to offer</p>
+        <div id="swappRequestChoices" class="swapp-choices"></div>
+        <p id="swappRequestError" class="report-error hidden"></p>
+
+        <div class="flex justify-end gap-3 pt-5">
+          <button
+            type="button"
+            onclick="closeSwappRequestModal()"
+            class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+          >
+            Cancel
+          </button>
+          <button
+            id="swappRequestSendBtn"
+            type="button"
+            onclick="submitSwappRequest()"
+            class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Send Request
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
@@ -784,6 +827,7 @@
     <script src="js/app/chat.js"></script>
     <script src="js/app/notebooks.js"></script>
     <script src="js/app/report-modal.js"></script>
+    <script src="js/app/swapp-request-modal.js"></script>
     <script src="js/app/sidebar.js"></script>
     <script src="js/app/profile-panel.js"></script>
     <script src="js/app/notebook-modal.js"></script>

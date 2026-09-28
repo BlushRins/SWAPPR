@@ -10,9 +10,12 @@
   let notifyTimer = null;
   let lastSeenIncoming = null; // chat id -> newest incoming message id; null until first check
   let unreadByUser = {};
+  // Each SWAPP has its own chat, so a notebook's Chat button counts only the
+  // chat of the SWAPP that unlocked it.
+  let unreadBySwapp = {};
 
-  app.getChatUnreadFor = function getChatUnreadFor(username) {
-    return unreadByUser[username] || 0;
+  app.getChatUnreadForSwapp = function getChatUnreadForSwapp(swappId) {
+    return unreadBySwapp[swappId] || 0;
   };
 
   function setBadge(badge, count) {
@@ -23,9 +26,9 @@
   function updateChatBadges() {
     const total = Object.values(unreadByUser).reduce((sum, n) => sum + n, 0);
     document.querySelectorAll("[data-chat-badge]").forEach((badge) => setBadge(badge, total));
-    document.querySelectorAll("[data-chat-user]").forEach((button) => {
+    document.querySelectorAll("[data-chat-swapp]").forEach((button) => {
       const badge = button.querySelector("[data-chat-button-badge]");
-      if (badge) setBadge(badge, app.getChatUnreadFor(button.dataset.chatUser));
+      if (badge) setBadge(badge, app.getChatUnreadForSwapp(button.dataset.chatSwapp));
     });
   }
 
@@ -40,10 +43,12 @@
       const newFrom = [];
 
       unreadByUser = {};
+      unreadBySwapp = {};
       (data.chats || []).forEach((chat) => {
         // The open chat is marked read by its own polling, so it never counts.
         const unread = chat.id === activeChatId ? 0 : chat.unreadCount || 0;
         unreadByUser[chat.otherUsername] = (unreadByUser[chat.otherUsername] || 0) + unread;
+        unreadBySwapp[chat.swapp_id] = unread;
 
         const newest = chat.lastIncomingId || 0;
         if (!firstCheck && unread > 0 && newest > (seen.get(chat.id) || 0)) {
@@ -164,10 +169,11 @@
     app.refreshChatNotifications();
   };
 
-  app.openChatForNotebook = async function openChatForNotebook(otherUsername) {
+  // Opens the chat workspace of one SWAPP (FUNC-013 REQT-002).
+  app.openChatForSwapp = async function openChatForSwapp(swappId) {
     try {
       const data = await app.api.getChats();
-      const chat = (data.chats || []).find((c) => c.otherUsername === otherUsername);
+      const chat = (data.chats || []).find((c) => c.swapp_id === Number(swappId));
       if (!chat) {
         app.showToast("Chat not available yet");
         return;

@@ -425,6 +425,35 @@ date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP
        WHERE status = 'accepted'
          AND id NOT IN (SELECT swapp_id FROM Chats WHERE swapp_id IS NOT NULL)`,
     );
+    // FUNC-010 REQT-005, FUNC-011 REQT-006: one line per notebook exchanged in
+    // a SWAPP, both the notebook requested and every notebook offered.
+    // is_confirmed turns 1 when the receiver accepts.
+    await dbRun(`CREATE TABLE IF NOT EXISTS Transaction_Manifest (
+Transaction_Manifest_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+SWAPP_ID INTEGER,
+notebook_ID INTEGER,
+is_confirmed INTEGER DEFAULT 0
+)`);
+    await dbRun(
+      `CREATE INDEX IF NOT EXISTS idx_manifest_swapp ON Transaction_Manifest(SWAPP_ID)`,
+    );
+    await dbRun(
+      `CREATE INDEX IF NOT EXISTS idx_manifest_notebook ON Transaction_Manifest(notebook_ID)`,
+    );
+    // Backfill: SWAPPs made before the manifest existed unlocked every notebook
+    // of both students, so their manifest lists all of them. That keeps the
+    // access those students already had. New SWAPPs always have lines, so
+    // this only ever touches old rows.
+    await dbRun(
+      `INSERT INTO Transaction_Manifest (SWAPP_ID, notebook_ID, is_confirmed)
+       SELECT Swapps.id, Notebooks.id,
+              CASE WHEN Swapps.status = 'accepted' THEN 1 ELSE 0 END
+       FROM Swapps
+       JOIN Notebooks ON Notebooks.author_id IN (Swapps.sender_id, Swapps.receiver_id)
+       WHERE NOT EXISTS (
+         SELECT 1 FROM Transaction_Manifest t WHERE t.SWAPP_ID = Swapps.id
+       )`,
+    );
     console.log("Database initialized.");
     return true;
   } catch (err) {
@@ -1040,41 +1069,42 @@ app.put("/api/portfolios/:id", requireAuth, (req, res) => {
   );
 });
 
-app.post("/api/portfolios/delete", requireAuth, (req, res) => {
+app.post("/api/portfolios/delete", requireAuth, async (req, res) => {
   const { id, title } = req.body;
-  if (id) {
-    db.run(
-      `DELETE FROM Notebooks WHERE id=? AND author_id=?`,
-      [id, req.currentUser.id],
-      function onDelete(err) {
-        if (err) return res.json({ success: false, message: err.message });
-        if (!this.changes) {
-          return res
-            .status(404)
-            .json({ success: false, message: "Notebook not found" });
-        }
-        res.json({ success: true });
-      },
-    );
-  } else if (title) {
-    db.get(
-      `SELECT Notebooks.id FROM Notebooks JOIN Users ON Notebooks.author_id=Users.id
-WHERE Notebooks.title=? AND Users.username=?`,
-      [title, req.currentUser.username],
-      (err, row) => {
-        if (err || !row) {
-          return res.json({ success: false, message: "Notebook not found" });
-        }
-        db.run(`DELETE FROM Notebooks WHERE id=?`, [row.id], (deleteErr) => {
-          if (deleteErr) {
-            return res.json({ success: false, message: deleteErr.message });
-          }
-          res.json({ success: true });
-        });
-      },
-    );
-  } else {
-    res.json({ success: false, message: "Provide id or title+author" });
+  if (!id && !title) {
+    return res.json({ success: false, message: "Provide id or title+author" });
+  }
+
+  try {
+    const notebook = id
+      ? await dbGet(`SELECT id FROM Notebooks WHERE id=? AND author_id=?`, [
+          id,
+          req.currentUser.id,
+        ])
+      : await dbGet(`SELECT id FROM Notebooks WHERE title=? AND author_id=?`, [
+          title,
+          req.currentUser.id,
+        ]);
+    if (!notebook) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Notebook not found" });
+    }
+
+    // FUNC-009 REQT-011
+    if (await findOpenSwappForNotebook(notebook.id)) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This notebook is part of an active SWAPP and can't be deleted until the SWAPP session is closed.",
+      });
+    }
+
+    await dbRun(`DELETE FROM Notebooks WHERE id=?`, [notebook.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[NOTEBOOKS] delete failed:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -1169,67 +1199,145 @@ app.post("/api/reports", requireAuth, async (req, res) => {
   }
 });
 
-// FUNC-010: the sender always comes from the session, never the request body.
+// A student has access to a notebook once it is on the manifest of an
+// accepted SWAPP they are part of (FUNC-011 REQT-006).
+function findAccessSwapp(userId, notebookId) {
+  return dbGet(
+    `SELECT Swapps.id FROM Transaction_Manifest
+     JOIN Swapps ON Swapps.id = Transaction_Manifest.SWAPP_ID
+     WHERE Transaction_Manifest.notebook_ID = ?
+       AND Swapps.status = 'accepted'
+       AND (Swapps.sender_id = ? OR Swapps.receiver_id = ?)
+     LIMIT 1`,
+    [notebookId, userId, userId],
+  );
+}
+
+// FUNC-009 REQT-011: a notebook in an open SWAPP can't be deleted. A SWAPP is
+// open while it is pending, and while it is accepted until its chat is ended.
+function findOpenSwappForNotebook(notebookId) {
+  return dbGet(
+    `SELECT Swapps.id FROM Transaction_Manifest
+     JOIN Swapps ON Swapps.id = Transaction_Manifest.SWAPP_ID
+     WHERE Transaction_Manifest.notebook_ID = ?
+       AND (
+         Swapps.status = 'pending'
+         OR (
+           Swapps.status = 'accepted'
+           AND NOT EXISTS (
+             SELECT 1 FROM Chats
+             WHERE Chats.swapp_id = Swapps.id AND Chats.status = 'archived'
+           )
+         )
+       )
+     LIMIT 1`,
+    [notebookId],
+  );
+}
+
+// FUNC-010 (UC-04): request access to one notebook, offering one or more of
+// your own in exchange. The receiver is the requested notebook's author.
 app.post("/api/swapps", requireAuth, async (req, res) => {
-  const to = String(req.body.to || "").trim();
   const senderId = req.currentUser.id;
+  const notebookId = Number(req.body.notebookId);
+  const offeredIds = Array.isArray(req.body.offeredNotebookIds)
+    ? [...new Set(req.body.offeredNotebookIds.map(Number))]
+    : [];
+
+  if (!Number.isInteger(notebookId) || notebookId <= 0) {
+    return res.status(404).json({ success: false, message: "Notebook not found." });
+  }
 
   try {
-    const receiver = await dbGet(`SELECT id FROM Users WHERE username = ?`, [to]);
-    if (!receiver) {
-      return res.status(404).json({ success: false, message: "User not found." });
+    const notebook = await dbGet(
+      `SELECT id, author_id, COALESCE(status, 'active') AS status
+       FROM Notebooks WHERE id = ?`,
+      [notebookId],
+    );
+    if (!notebook || notebook.status !== "active") {
+      return res.status(404).json({ success: false, message: "Notebook not found." });
     }
-    if (receiver.id === senderId) {
+    // REQT-009
+    if (notebook.author_id === senderId) {
       return res.status(400).json({
         success: false,
-        message: "You can't send a SWAPP request to yourself.",
+        message: "You can't send a SWAPP request for your own notebook.",
+      });
+    }
+    if (await findAccessSwapp(senderId, notebookId)) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have access to this notebook.",
+      });
+    }
+    // REQT-010: a rejected request doesn't count, so students can ask again.
+    const duplicate = await dbGet(
+      `SELECT Swapps.id FROM Swapps
+       JOIN Transaction_Manifest ON Transaction_Manifest.SWAPP_ID = Swapps.id
+       WHERE Swapps.sender_id = ? AND Swapps.status = 'pending'
+         AND Transaction_Manifest.notebook_ID = ?
+       LIMIT 1`,
+      [senderId, notebookId],
+    );
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have a pending request for this notebook.",
       });
     }
 
-    // A pending or accepted SWAPP in either direction blocks a new one.
-    // A rejected request doesn't, so students can ask again later.
-    const existing = await dbGet(
-      `SELECT sender_id, status FROM Swapps
-       WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
-         AND status IN ('pending', 'accepted')
-       ORDER BY status = 'accepted' DESC
-       LIMIT 1`,
-      [senderId, receiver.id, receiver.id, senderId],
-    );
-    if (existing) {
-      let message = "You already have a pending request for this notebook.";
-      if (existing.status === "accepted") {
-        message = `You already have an active SWAPP with @${to}.`;
-      } else if (existing.sender_id === receiver.id) {
-        message = `@${to} already sent you a request. Check your Requests page to respond.`;
-      }
-      return res.status(409).json({ success: false, message });
-    }
-
-    // FUNC-010 REQT-002, REQT-008: a student needs a notebook of their own to
-    // offer. Notebooks under review or removed are hidden from others, so
-    // only active ones count.
-    const ownNotebook = await dbGet(
+    // REQT-002, REQT-008: notebooks under review or removed are hidden from
+    // other students, so only active ones can be offered.
+    const ownNotebooks = await dbAll(
       `SELECT id FROM Notebooks
-       WHERE author_id = ? AND COALESCE(status, 'active') = 'active'
-       LIMIT 1`,
+       WHERE author_id = ? AND COALESCE(status, 'active') = 'active'`,
       [senderId],
     );
-    if (!ownNotebook) {
+    if (!ownNotebooks.length) {
       return res.status(400).json({
         success: false,
         code: "NO_NOTEBOOKS",
-        message:
-          "You need to upload at least one notebook before you can send a SWAPP request.",
+        message: "Upload a notebook before sending a request.",
+      });
+    }
+    // REQT-003 to REQT-005: at least one of your own notebooks is offered.
+    if (!offeredIds.length) {
+      return res.status(400).json({
+        success: false,
+        code: "NO_OFFER",
+        message: "Select at least one notebook to offer.",
+      });
+    }
+    const ownIds = new Set(ownNotebooks.map((row) => row.id));
+    if (!offeredIds.every((id) => ownIds.has(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "You can only offer your own notebooks.",
       });
     }
 
+    // REQT-006
     const result = await dbRun(
       `INSERT INTO Swapps (sender_id, receiver_id, status, date_created)
        VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
-      [senderId, receiver.id],
+      [senderId, notebook.author_id],
     );
-    res.status(201).json({ success: true, swappId: result.lastID });
+    const swappId = result.lastID;
+    // REQT-005: one line for the requested notebook and one per offered
+    // notebook, written in a single statement so the manifest is never partial.
+    const lines = [notebookId, ...offeredIds];
+    try {
+      await dbRun(
+        `INSERT INTO Transaction_Manifest (SWAPP_ID, notebook_ID, is_confirmed)
+         VALUES ${lines.map(() => "(?, ?, 0)").join(", ")}`,
+        lines.flatMap((id) => [swappId, id]),
+      );
+    } catch (manifestErr) {
+      await dbRun(`DELETE FROM Swapps WHERE id = ?`, [swappId]).catch(() => {});
+      throw manifestErr;
+    }
+
+    res.status(201).json({ success: true, swappId });
   } catch (err) {
     console.error("[SWAPPS] create failed:", err.message);
     res
@@ -1238,38 +1346,82 @@ app.post("/api/swapps", requireAuth, async (req, res) => {
   }
 });
 
-app.get("/api/swapps/:username", requireAuth, (req, res) => {
+app.get("/api/swapps/:username", requireAuth, async (req, res) => {
   if (req.params.username !== req.currentUser.username) {
     return res.status(403).json({ success: false, message: "Forbidden" });
   }
+  const me = req.currentUser.id;
 
-  db.get(
-    `SELECT id FROM Users WHERE username=?`,
-    [req.params.username],
-    (err, user) => {
-      if (!user) return res.json({ swapps: [] });
-      db.all(
-        // FUNC-011 REQT-003: newest first. Undated requests (made before
-        // dates were recorded) sort last, by insertion order.
-        `SELECT Swapps.*, s.username AS sender, r.username AS receiver
-FROM Swapps
-JOIN Users s ON Swapps.sender_id = s.id
-JOIN Users r ON Swapps.receiver_id = r.id
-WHERE sender_id=? OR receiver_id=?
-ORDER BY Swapps.date_created IS NULL, Swapps.date_created DESC, Swapps.id DESC`,
-        [user.id, user.id],
-        (swappErr, swapps) => {
-          if (swappErr) {
-            return res.json({ success: false, message: swappErr.message });
-          }
-          res.json({ swapps: swapps || [] });
-        },
-      );
-    },
-  );
+  try {
+    // FUNC-011 REQT-003: newest first. Undated requests (made before dates
+    // were recorded) sort last, by insertion order.
+    const swapps = await dbAll(
+      `SELECT Swapps.*, s.username AS sender, r.username AS receiver,
+              COALESCE(s.trust_score, 100) AS senderTrustScore
+       FROM Swapps
+       JOIN Users s ON Swapps.sender_id = s.id
+       JOIN Users r ON Swapps.receiver_id = r.id
+       WHERE sender_id = ? OR receiver_id = ?
+       ORDER BY Swapps.date_created IS NULL, Swapps.date_created DESC, Swapps.id DESC`,
+      [me, me],
+    );
+
+    // Attach each SWAPP's manifest: the notebook(s) requested from the
+    // receiver and the notebook(s) the sender offered. Lines whose notebook
+    // was since deleted are left out.
+    const lines = swapps.length
+      ? await dbAll(
+          `SELECT Transaction_Manifest.SWAPP_ID AS swappId,
+                  Transaction_Manifest.is_confirmed AS isConfirmed,
+                  Notebooks.id, Notebooks.title, Notebooks.author_id AS authorId,
+                  COALESCE(Notebooks.status, 'active') AS status
+           FROM Transaction_Manifest
+           JOIN Notebooks ON Notebooks.id = Transaction_Manifest.notebook_ID
+           WHERE Transaction_Manifest.SWAPP_ID IN (${swapps.map(() => "?").join(", ")})
+           ORDER BY Transaction_Manifest.Transaction_Manifest_ID`,
+          swapps.map((swapp) => swapp.id),
+        )
+      : [];
+
+    const bySwapp = new Map();
+    for (const line of lines) {
+      if (!bySwapp.has(line.swappId)) bySwapp.set(line.swappId, []);
+      bySwapp.get(line.swappId).push(line);
+    }
+    const describe = ({ id, title, status, isConfirmed }) => ({
+      id,
+      title,
+      status,
+      isConfirmed: Boolean(isConfirmed),
+    });
+
+    res.json({
+      swapps: swapps.map((swapp) => {
+        const swappLines = bySwapp.get(swapp.id) || [];
+        return {
+          ...swapp,
+          requestedNotebooks: swappLines
+            .filter((line) => line.authorId === swapp.receiver_id)
+            .map(describe),
+          offeredNotebooks: swappLines
+            .filter((line) => line.authorId === swapp.sender_id)
+            .map(describe),
+        };
+      }),
+    });
+  } catch (err) {
+    console.error("[SWAPPS] list failed:", err.message);
+    res.status(500).json({ success: false, message: "Could not load SWAPPs." });
+  }
 });
 
+// FUNC-011 (UC-05): the receiver accepts or declines a pending request.
 app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
+  const { status } = req.body;
+  if (status !== "accepted" && status !== "rejected") {
+    return res.status(400).json({ success: false, message: "Invalid response." });
+  }
+
   try {
     const swapp = await dbGet(
       `SELECT * FROM Swapps WHERE id=? AND receiver_id=?`,
@@ -1281,12 +1433,24 @@ app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
         .json({ success: false, message: "SWAPP not found" });
     }
 
-    await dbRun(`UPDATE Swapps SET status=? WHERE id=?`, [
-      req.body.status,
-      swapp.id,
-    ]);
+    // Only a pending request can be answered, and only once.
+    const update = await dbRun(
+      `UPDATE Swapps SET status=? WHERE id=? AND status='pending'`,
+      [status, swapp.id],
+    );
+    if (!update.changes) {
+      return res.status(409).json({
+        success: false,
+        message: "This request has already been answered.",
+      });
+    }
 
-    if (req.body.status === "accepted") {
+    if (status === "accepted") {
+      // REQT-006: accepting confirms every line of the manifest.
+      await dbRun(
+        `UPDATE Transaction_Manifest SET is_confirmed = 1 WHERE SWAPP_ID = ?`,
+        [swapp.id],
+      );
       const existing = await dbGet(`SELECT id FROM Chats WHERE swapp_id=?`, [
         swapp.id,
       ]);
