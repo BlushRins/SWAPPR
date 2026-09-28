@@ -1,7 +1,16 @@
 const sqlite3 = require("sqlite3").verbose();
 const { COURSE_TO_DEPARTMENT } = require("./lib/constants");
+const { hashPassword } = require("./lib/passwordHash");
 
 let db;
+
+// Demo administrator. Admins live in their own table and log in through the
+// same form as students; the password is hashed before it is stored.
+const ADMIN = {
+  username: "admin",
+  name: "SWAPPR Admin",
+  password: "admin123",
+};
 
 const USERS = [
   {
@@ -243,6 +252,32 @@ async function seedBulkNotebooks(count, userIds) {
   await run("COMMIT");
 }
 
+// Creates the demo admin if it doesn't exist yet. Never overwrites an
+// existing admin, so it is safe to run against a database with real data.
+async function seedAdmin() {
+  await run(
+    `CREATE TABLE IF NOT EXISTS Admin (admin_ID INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, name TEXT, password TEXT)`,
+  );
+  const existingStudent = await get(`SELECT id FROM Users WHERE username = ?`, [
+    ADMIN.username,
+  ]).catch(() => null);
+  if (existingStudent) {
+    throw new Error(
+      `A student already uses the username "${ADMIN.username}", so the admin could never log in.`,
+    );
+  }
+
+  const inserted = await run(
+    `INSERT OR IGNORE INTO Admin (username, name, password) VALUES (?,?,?)`,
+    [ADMIN.username, ADMIN.name, hashPassword(ADMIN.password)],
+  );
+  console.log(
+    inserted.changes
+      ? `🔑 Admin created → ${ADMIN.username} / ${ADMIN.password}`
+      : `🔑 Admin already exists → ${ADMIN.username}`,
+  );
+}
+
 async function seed() {
   assertKnownCourses();
   console.log("🌱 Starting fresh seed...");
@@ -257,12 +292,18 @@ async function seed() {
   // seeded accepted swapps.
   await run(`DROP TABLE IF EXISTS ChatMessages`);
   await run(`DROP TABLE IF EXISTS Chats`);
+  // Reports point at Users/Notebooks ids too. The Admin table is left alone:
+  // it holds operator accounts, not demo content.
+  await run(`DROP TABLE IF EXISTS Reports`);
 
   await run(
-    `CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT UNIQUE, password TEXT, bio TEXT, course TEXT, department TEXT, yearLevel TEXT)`,
+    `CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT UNIQUE, password TEXT, bio TEXT, course TEXT, department TEXT, yearLevel TEXT, trust_score INTEGER DEFAULT 100, warning_count INTEGER DEFAULT 0, account_status TEXT DEFAULT 'active')`,
   );
   await run(
-    `CREATE TABLE Notebooks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, department TEXT, course_code TEXT, author_id INTEGER, file_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE Notebooks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, department TEXT, course_code TEXT, author_id INTEGER, file_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, status TEXT DEFAULT 'active', report_count INTEGER DEFAULT 0)`,
+  );
+  await run(
+    `CREATE TABLE Reports (report_ID INTEGER PRIMARY KEY AUTOINCREMENT, reporter_ID INTEGER, notebook_ID INTEGER, resolved_by INTEGER, reason TEXT, complaint TEXT, status TEXT DEFAULT 'open', date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP)`,
   );
   await run(
     `CREATE TABLE Likes (user_id INTEGER, notebook_id INTEGER, PRIMARY KEY (user_id, notebook_id))`,
@@ -281,6 +322,8 @@ async function seed() {
     userIds[u.username] = res.lastID;
   }
   console.log("👤 Users seeded.");
+
+  await seedAdmin();
 
   const notebookIds = [];
   for (const nb of NOTEBOOKS) {
@@ -325,6 +368,7 @@ async function seed() {
 }
 
 module.exports = {
+  ADMIN,
   USERS,
   NOTEBOOKS,
   LIKES,
@@ -334,7 +378,16 @@ module.exports = {
 };
 
 if (require.main === module) {
-  seed().catch((err) => {
+  // `node seed.js --admin-only` adds the admin without wiping any data.
+  const task = process.argv.includes("--admin-only")
+    ? async () => {
+        db = new sqlite3.Database("./sql/swappr.db");
+        await seedAdmin();
+        db.close();
+      }
+    : seed;
+
+  task().catch((err) => {
     console.error("❌ Error:", err.message);
     if (db) db.close();
   });

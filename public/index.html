@@ -754,7 +754,12 @@
             >
               Cancel
             </button>
-            <button type="button" onclick="submitReport()" class="btn-primary">
+            <button
+              id="reportSubmitBtn"
+              type="button"
+              onclick="submitReport()"
+              class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               Submit Report
             </button>
           </div>

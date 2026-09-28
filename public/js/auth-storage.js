@@ -23,7 +23,8 @@
       }
 
       const data = await response.json();
-      const user = data.success ? data.user : null;
+      // Keep the role with the user so pages can tell students and admins apart.
+      const user = data.success && data.user ? { ...data.user, role: data.role } : null;
 
       if (user) {
         this.setUser(user);

@@ -432,8 +432,12 @@
 
       // Check if already logged in
       window.SWAPPR?.auth?.getUser().then((user) => {
-        if (user) window.location.replace("index.html");
+        if (user) window.location.replace(homePageFor(user.role));
       });
+
+      function homePageFor(role) {
+        return role === "admin" ? "admin.html" : "index.html";
+      }
 
       // ── OTP box auto-advance ──────────────────────────────────────────────
       document.addEventListener("DOMContentLoaded", () => {
@@ -990,8 +994,8 @@
           const data = await res.json();
 
           if (data.success && data.user && data.user.username) {
-            window.SWAPPR.auth.setUser(data.user);
-            window.location.replace("index.html");
+            window.SWAPPR.auth.setUser({ ...data.user, role: data.role });
+            window.location.replace(homePageFor(data.role));
           } else {
             errorEl.textContent =
               data.message || "Invalid username or password.";

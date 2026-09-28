@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SWAPPR — Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = { darkMode: "class" };
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+
+  <body
+    class="font-sans min-h-screen overflow-x-hidden transition-colors duration-300 text-gray-900 dark:text-purple-100 bg-transparent"
+  >
+    <!-- Header -->
+    <header
+      class="w-full overflow-hidden px-4 py-4 flex items-center justify-between gap-3 bg-gradient-to-r from-[#0f172a] via-[#4f46e5] to-[#9333ea] text-white sticky top-0 z-40 shadow-lg"
+    >
+      <a href="#notebooks" data-view="notebooks" class="flex items-center gap-2 shrink-0 min-w-0">
+        <i data-lucide="repeat" class="w-6 h-6"></i>
+        <h1
+          class="text-2xl font-extrabold tracking-tight truncate text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-500 dark:from-purple-300 dark:to-indigo-300"
+        >
+          SWAPPR
+        </h1>
+        <span class="admin-pill">Admin</span>
+      </a>
+      <div class="flex items-center gap-2 min-w-0 flex-nowrap">
+        <span
+          class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-btn text-xs font-bold text-[#4a0080] dark:text-[#d0c0f8]"
+        >
+          <i data-lucide="shield" class="w-4 h-4"></i>
+          <span id="adminName"></span>
+        </span>
+        <button
+          id="themeToggle"
+          class="w-8 h-8 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
+          title="Toggle theme"
+          aria-label="Toggle theme"
+        >
+          <i data-lucide="moon" class="w-5 h-5"></i>
+        </button>
+        <button
+          onclick="adminLogout()"
+          class="hidden md:inline-flex text-xs font-bold px-3 py-1.5 rounded-full glass-btn hover:bg-red-500/20 hover:scale-105 transition"
+        >
+          Logout
+        </button>
+        <button
+          id="mobileMenuToggle"
+          type="button"
+          onclick="toggleMobileMenu()"
+          class="md:hidden w-9 h-9 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
+          aria-label="Open menu"
+          aria-expanded="false"
+          aria-controls="mobileMenu"
+        >
+          <i data-mobile-menu-icon data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile navigation -->
+    <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+    <nav id="mobileMenu" class="mobile-menu" aria-label="Admin navigation">
+      <p class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400">
+        Admin Panel
+      </p>
+      <a href="#notebooks" data-view="notebooks" class="sidebar-link active flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+        <span class="flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4"></i>Flagged Notebooks</span>
+        <span data-count="notebooks" class="admin-count hidden">0</span>
+      </a>
+      <a href="#reports" data-view="reports" class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+        <span class="flex items-center gap-2"><i data-lucide="file-warning" class="w-4 h-4"></i>Reports</span>
+        <span data-count="reports" class="admin-count hidden">0</span>
+      </a>
+      <a href="#users" data-view="users" class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+        <i data-lucide="users" class="w-4 h-4"></i>User Accounts
+      </a>
+      <button
+        onclick="adminLogout()"
+        class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
+      >
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+        Logout
+      </button>
+    </nav>
+
+    <div class="flex min-w-0">
+      <!-- Sidebar (FUNC-016 REQT-002, REQT-003) -->
+      <aside
+        class="w-56 bg-white/70 backdrop-blur-md dark:bg-[#110e20] p-5 hidden md:flex flex-col gap-6 shrink-0 border-r border-purple-100 dark:border-white/[0.06] sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto"
+      >
+        <div>
+          <p class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400">
+            Admin Panel
+          </p>
+          <nav class="space-y-1">
+            <a href="#notebooks" data-view="notebooks" class="sidebar-link active flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+              <span class="flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4"></i>Flagged Notebooks</span>
+              <span data-count="notebooks" class="admin-count hidden" title="Notebooks under review">0</span>
+            </a>
+            <a href="#reports" data-view="reports" class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+              <span class="flex items-center gap-2"><i data-lucide="file-warning" class="w-4 h-4"></i>Reports</span>
+              <span data-count="reports" class="admin-count hidden" title="Open reports">0</span>
+            </a>
+            <a href="#users" data-view="users" class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+              <i data-lucide="users" class="w-4 h-4"></i>User Accounts
+            </a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="flex-1 min-w-0 p-4 md:p-8">
+        <div class="max-w-7xl mx-auto">
+          <div class="mb-6">
+            <h2 id="adminTitle" class="text-3xl font-extrabold text-gray-800 dark:text-purple-100">
+              Flagged Notebooks
+            </h2>
+            <p id="adminSubtitle" class="text-sm text-gray-600 dark:text-gray-400 mt-1"></p>
+          </div>
+
+          <!-- ADM001 — Flagged Notebooks -->
+          <section data-view-panel="notebooks">
+            <div class="admin-card">
+              <div id="notebooksTable" class="admin-table-wrap"></div>
+            </div>
+            <div id="notebooksPagination" class="pagination admin-pagination hidden"></div>
+          </section>
+
+          <!-- ADM002 — Reports -->
+          <section data-view-panel="reports" class="hidden">
+            <div class="admin-toolbar">
+              <input
+                type="search"
+                id="reportsSearch"
+                placeholder="Search reports..."
+                aria-label="Search reports"
+                autocomplete="off"
+                maxlength="50"
+                class="admin-search"
+              />
+            </div>
+            <div class="admin-card">
+              <div id="reportsTable" class="admin-table-wrap"></div>
+            </div>
+            <div id="reportsPagination" class="pagination admin-pagination hidden"></div>
+          </section>
+
+          <!-- ADM003 — User Accounts -->
+          <section data-view-panel="users" class="hidden">
+            <div class="admin-toolbar">
+              <input
+                type="search"
+                id="usersSearch"
+                placeholder="Search users..."
+                aria-label="Search users"
+                autocomplete="off"
+                maxlength="50"
+                class="admin-search"
+              />
+              <p id="usersWarningNote" class="admin-muted text-xs"></p>
+            </div>
+            <div class="admin-card">
+              <div id="usersTable" class="admin-table-wrap"></div>
+            </div>
+            <div id="usersPagination" class="pagination admin-pagination hidden"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Detail modal: flagged notebook / report -->
+    <div id="adminModal" class="modal-overlay hidden" onclick="closeAdminModal(event)">
+      <div class="modal-box admin-modal-box" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+        <button type="button" onclick="closeAdminModal()" class="report-modal-close" aria-label="Close">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <h3
+          id="adminModalTitle"
+          class="text-xl font-extrabold mb-4 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2"
+        ></h3>
+        <div id="adminModalBody"></div>
+      </div>
+    </div>
+
+    <!-- View Specific User slide-over (FUNC-018 REQT-006) -->
+    <div id="adminUserOverlay" class="profile-overlay" onclick="closeAdminUserPanel()"></div>
+    <aside id="adminUserPanel" class="profile-panel admin-user-panel" aria-label="User details">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-2">
+          <i data-lucide="user" class="w-5 h-5"></i>
+          <span class="text-sm font-extrabold tracking-widest uppercase text-purple-800 dark:text-purple-200">
+            User Account
+          </span>
+        </div>
+        <button
+          type="button"
+          onclick="closeAdminUserPanel()"
+          aria-label="Close"
+          class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-purple-400 hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
+        >
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="adminUserPanelBody"></div>
+    </aside>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="js/pagination.js"></script>
+    <script src="js/auth-storage.js"></script>
+    <script src="js/app/theme.js"></script>
+    <script src="js/app/toast.js"></script>
+    <script src="js/app/admin-api.js"></script>
+    <script src="js/app/admin-ui.js"></script>
+    <script src="js/app/admin-notebooks.js"></script>
+    <script src="js/app/admin-reports.js"></script>
+    <script src="js/app/admin-users.js"></script>
+    <script src="js/mobile-menu.js"></script>
+    <script src="js/app/admin-main.js"></script>
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

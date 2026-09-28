@@ -67,6 +67,13 @@
     }
   }
 
+  // Only the author gets these notebooks back from the API, so this tells
+  // them why a notebook is missing from the feed.
+  const MODERATION_LABELS = {
+    under_review: "under review",
+    removed: "removed by an admin",
+  };
+
   function renderProfileLists(profile) {
     const portfolioList = document.getElementById("profilePortfolioList");
     portfolioList.innerHTML = "";
@@ -75,6 +82,13 @@
       div.className =
         "text-sm py-1 border-b border-purple-100 dark:border-white/[0.05]";
       div.textContent = portfolio.title;
+      const statusLabel = MODERATION_LABELS[portfolio.status];
+      if (statusLabel) {
+        const label = document.createElement("span");
+        label.className = "ml-1 text-xs font-semibold text-red-500 dark:text-red-400";
+        label.textContent = `(${statusLabel})`;
+        div.appendChild(label);
+      }
       portfolioList.appendChild(div);
     });
 

@@ -787,6 +787,13 @@
         setTimeout(() => t.classList.remove("show"), 2800);
       }
 
+      // Shown to the author only: other students never receive these notebooks.
+      function moderationNote(status) {
+        if (status === "under_review") return "Under review — hidden from the feed";
+        if (status === "removed") return "Removed by an admin";
+        return "";
+      }
+
       function escapeHtml(value) {
         return String(value ?? "").replace(
           /[&<>"']/g,
@@ -922,12 +929,21 @@
                 <div class="flex-1 min-w-0">
                   <p class="notebook-title">${escapeHtml(n.title)}</p>
                   <p class="notebook-dept">${escapeHtml(n.department || "No department")}</p>
+                  ${
+                    moderationNote(n.status)
+                      ? `<p class="text-xs font-semibold text-red-500 dark:text-red-400 mt-1">${moderationNote(n.status)}</p>`
+                      : ""
+                  }
                 </div>
                 ${
                   isOwn
                     ? `
                   <div class="flex gap-1.5 shrink-0">
-                    <button onclick="editNotebook(${n.id})" class="edit-btn">✏️ Edit</button>
+                    ${
+                      moderationNote(n.status)
+                        ? ""
+                        : `<button onclick="editNotebook(${n.id})" class="edit-btn">✏️ Edit</button>`
+                    }
                     <button onclick="deleteNotebook(${n.id})" class="delete-btn">🗑️</button>
                   </div>`
                     : ""

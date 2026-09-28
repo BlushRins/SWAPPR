@@ -6,6 +6,13 @@
   }
 
   async function parseJson(response) {
+    // The session is gone (expired, logged out elsewhere, or the account was
+    // suspended), so send the student back to log in.
+    if (response.status === 401) {
+      app.auth?.clearLocalUser();
+      root.location.replace("login.html");
+      throw new Error("Login required");
+    }
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.message || "Request failed");
@@ -47,5 +54,6 @@
     sendChatMessage: (chatId, body) =>
       send(`/chats/${chatId}/messages`, "POST", { body }),
     archiveChat: (chatId) => send(`/chats/${chatId}/archive`, "POST", {}),
+    submitReport: (payload) => send("/reports", "POST", payload),
   };
 })(window);

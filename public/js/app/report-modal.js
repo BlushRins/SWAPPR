@@ -1,11 +1,8 @@
 (function (root) {
   const app = (root.SWAPPR = root.SWAPPR || {});
 
-  // No admin or reports table exists yet, so reports are kept in the browser
-  // until a backend can take them over.
-  const REPORTS_KEY = "swappr_reports";
-
   let reportedNotebook = null;
+  let submitting = false;
 
   function getFields() {
     return {
@@ -43,13 +40,12 @@
     return !reasonMissing && !detailsMissing;
   }
 
-  function readReports() {
-    try {
-      const stored = JSON.parse(localStorage.getItem(REPORTS_KEY));
-      return Array.isArray(stored) ? stored : [];
-    } catch {
-      return [];
-    }
+  function setSubmitting(isSubmitting) {
+    submitting = isSubmitting;
+    const button = document.getElementById("reportSubmitBtn");
+    if (!button) return;
+    button.disabled = isSubmitting;
+    button.textContent = isSubmitting ? "Submitting..." : "Submit Report";
   }
 
   app.openReportModal = function openReportModal(notebook) {
@@ -73,33 +69,31 @@
     reportedNotebook = null;
   };
 
-  app.submitReport = function submitReport() {
-    if (!reportedNotebook || !validateReportForm()) return;
+  app.submitReport = async function submitReport() {
+    if (submitting || !reportedNotebook || !validateReportForm()) return;
 
     const { reason, details } = getFields();
-    const report = {
-      id: `report_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      reporterUsername: app.state.currentUser?.username || null,
-      notebookId: reportedNotebook.id,
-      notebookTitle: reportedNotebook.title || "",
-      authorUsername: reportedNotebook.username || "",
-      reason: reason.value,
-      details: details.value.trim(),
-      dateSubmitted: new Date().toISOString(),
-    };
-
+    setSubmitting(true);
     try {
-      const reports = readReports();
-      reports.push(report);
-      localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+      await app.api.submitReport({
+        notebookId: reportedNotebook.id,
+        reason: reason.value,
+        details: details.value.trim(),
+      });
     } catch (err) {
-      console.error("Could not save report:", err);
-      app.showToast("Could not submit report. Please try again.");
+      console.error("Could not submit report:", err);
+      app.showToast(err.message || "Could not submit report. Please try again.");
       return;
+    } finally {
+      setSubmitting(false);
     }
 
     app.closeReportModal();
     app.showToast("Report submitted for admin review.");
+    // The notebook is now under review, so it drops out of the feed.
+    app.loadNotebooks?.();
+    app.loadSubjects?.();
+    app.loadSidebar?.();
   };
 
   function closeOnEscape(event) {
