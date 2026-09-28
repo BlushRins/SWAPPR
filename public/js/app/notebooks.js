@@ -211,6 +211,11 @@
           await app.loadSwapps();
           app.renderNotebooks();
         } catch (err) {
+          // FUNC-010 REQT-008: no notebook to offer, so offer to upload one.
+          if (err.code === "NO_NOTEBOOKS") {
+            if (confirm(`${err.message}\n\nUpload one now?`)) app.openAddModal();
+            return;
+          }
           app.showToast(err.message || "Failed to send request");
           console.error(err);
           // The request may have been refused because the swap state changed

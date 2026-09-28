@@ -15,7 +15,10 @@
     }
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.message || "Request failed");
+      const error = new Error(data.message || "Request failed");
+      // Lets callers react to specific failures, e.g. NO_NOTEBOOKS.
+      error.code = data.code;
+      throw error;
     }
     return data;
   }

@@ -1206,6 +1206,24 @@ app.post("/api/swapps", requireAuth, async (req, res) => {
       return res.status(409).json({ success: false, message });
     }
 
+    // FUNC-010 REQT-002, REQT-008: a student needs a notebook of their own to
+    // offer. Notebooks under review or removed are hidden from others, so
+    // only active ones count.
+    const ownNotebook = await dbGet(
+      `SELECT id FROM Notebooks
+       WHERE author_id = ? AND COALESCE(status, 'active') = 'active'
+       LIMIT 1`,
+      [senderId],
+    );
+    if (!ownNotebook) {
+      return res.status(400).json({
+        success: false,
+        code: "NO_NOTEBOOKS",
+        message:
+          "You need to upload at least one notebook before you can send a SWAPP request.",
+      });
+    }
+
     const result = await dbRun(
       `INSERT INTO Swapps (sender_id, receiver_id, status, date_created)
        VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
