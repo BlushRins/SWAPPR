@@ -13,6 +13,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       /* ── Page surfaces ───────────────────────────────────────────────────── */
       .page-bg {
@@ -575,6 +576,10 @@
 
     <script src="js/auth-storage.js"></script>
     <script src="js/mobile-menu.js"></script>
+    <!-- The shared Report dialog (RPT001) and what it needs -->
+    <script src="js/app/state.js"></script>
+    <script src="js/app/api.js"></script>
+    <script src="js/app/report-modal.js"></script>
     <script>
       // ── Theme ────────────────────────────────────────────────────────────────
       const savedTheme = localStorage.getItem("theme");
@@ -600,6 +605,15 @@
       }
 
       // ── Toast ─────────────────────────────────────────────────────────────────
+      function reportProfileUser() {
+        if (!profileData) return;
+        window.SWAPPR.openReportModal({
+          type: "user",
+          id: profileData.id,
+          username: profileData.username,
+        });
+      }
+
       function showToast(msg, type = "") {
         const t = document.getElementById("toast");
         t.textContent = msg;
@@ -723,7 +737,9 @@
           document.getElementById("profileActions").innerHTML = `
             <button onclick="editProfile()" class="btn-action btn-action-primary">✏️ Edit Profile</button>`;
         } else {
+          // FUNC-015 REQT-002: another student's profile can be reported.
           document.getElementById("profileActions").innerHTML = `
+            <button onclick="reportProfileUser()" class="btn-action btn-action-outline">🚩 Report</button>
             <button onclick="goHome()" class="btn-action btn-action-outline">← Back</button>`;
         }
 
@@ -908,6 +924,9 @@
         isOwn = viewUser === currentUser.username;
         loadProfile();
       }
+
+      // The Report dialog shows its notices with this page's toast.
+      window.SWAPPR.showToast = (message) => showToast(message);
 
       initProfile();
     </script>

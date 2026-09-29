@@ -128,18 +128,36 @@
       return;
     }
 
-    // FUNC-014 REQT-002: each SWAPP partner with their trust score.
+    // FUNC-014 REQT-002: each SWAPP partner with their trust score. The name
+    // opens their profile page; the flag reports the account (FUNC-015 REQT-002).
     profile.matches.forEach((match) => {
       const div = document.createElement("div");
       div.className = "flex items-center justify-between gap-2 text-xs text-purple-400";
-      const name = document.createElement("span");
-      name.className = "min-w-0 break-words";
+      const name = document.createElement("a");
+      name.className = "min-w-0 break-words hover:underline hover:text-purple-600 dark:hover:text-purple-200";
+      name.href = `profile.html?user=${encodeURIComponent(match.username)}`;
       name.textContent = `@${match.username}`;
+      const right = document.createElement("span");
+      right.className = "flex items-center gap-2 shrink-0";
       const score = document.createElement("span");
-      score.className = "font-bold shrink-0";
+      score.className = "font-bold";
       score.textContent = `${match.trustScore}%`;
       setTrustTone(score, Number(match.trustScore));
-      div.append(name, score);
+      const report = document.createElement("button");
+      report.type = "button";
+      report.className =
+        "inline-flex items-center justify-center w-6 h-6 rounded-md text-gray-400 dark:text-purple-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition";
+      report.title = "Report";
+      report.setAttribute("aria-label", `Report @${match.username}`);
+      const flag = document.createElement("i");
+      flag.dataset.lucide = "flag";
+      flag.className = "w-3.5 h-3.5";
+      report.appendChild(flag);
+      report.addEventListener("click", () =>
+        app.openReportModal({ type: "user", id: match.id, username: match.username }),
+      );
+      right.append(score, report);
+      div.append(name, right);
       matchList.appendChild(div);
     });
   }

@@ -457,8 +457,11 @@ resolved_by INTEGER,
 reason TEXT,
 complaint TEXT,
 status TEXT DEFAULT 'open',
-date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP
+date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP,
+reported_user_ID INTEGER
 )`);
+    // FUNC-015 REQT-001: a report targets a notebook or a student account.
+    await addColumnIfMissing("Reports", "reported_user_ID INTEGER");
     // Backfill: swapps accepted before chats existed get their chat now.
     await dbRun(
       `INSERT INTO Chats (swapp_id, user_a_id, user_b_id, expires_at)
@@ -899,7 +902,7 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
           // SWAPP partners with their trust score (FUNC-014 REQT-002). One row
           // per partner, even if they share several accepted SWAPPs.
           db.all(
-            `SELECT partner.username AS username,
+            `SELECT partner.id AS id, partner.username AS username,
                     COALESCE(partner.trust_score, ${TRUST_SCORE_DEFAULT}) AS trustScore
             FROM Swapps
             JOIN Users partner ON partner.id =
@@ -1327,12 +1330,19 @@ const REPORT_DETAILS_MAX_LENGTH = 500;
 // FUNC-015: a student reports a notebook (and through it, its author). Enough
 // reports move the notebook out of the public feed and into the admin's
 // Flagged Notebooks queue.
+// FUNC-015: report a notebook or another student's account. Exactly one of
+// notebookId / reportedUserId names the target.
 app.post("/api/reports", requireAuth, async (req, res) => {
+  const hasNotebook = req.body.notebookId !== undefined && req.body.notebookId !== null;
+  const hasUser = req.body.reportedUserId !== undefined && req.body.reportedUserId !== null;
   const notebookId = Number(req.body.notebookId);
+  const reportedUserId = Number(req.body.reportedUserId);
   const reason = String(req.body.reason || "");
   const details = String(req.body.details || "").trim();
 
-  if (!Number.isInteger(notebookId) || !REPORT_REASONS.has(reason) || !details) {
+  const validTarget = hasNotebook !== hasUser &&
+    Number.isInteger(hasNotebook ? notebookId : reportedUserId);
+  if (!validTarget || !REPORT_REASONS.has(reason) || !details) {
     return res.status(400).json({ success: false, message: "Missing input." });
   }
   if (details.length > REPORT_DETAILS_MAX_LENGTH) {
@@ -1341,6 +1351,8 @@ app.post("/api/reports", requireAuth, async (req, res) => {
       message: `Details must be ${REPORT_DETAILS_MAX_LENGTH} characters or fewer.`,
     });
   }
+
+  if (hasUser) return reportUser(req, res, reportedUserId, reason, details);
 
   try {
     const notebook = await dbGet(
@@ -1391,6 +1403,41 @@ app.post("/api/reports", requireAuth, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+// A reported account stays active until an administrator acts on the report
+// in ADM002 (UC-08).
+async function reportUser(req, res, reportedUserId, reason, details) {
+  try {
+    const target = await dbGet(`SELECT id FROM Users WHERE id = ?`, [reportedUserId]);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+    if (target.id === req.currentUser.id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "You can't report your own account." });
+    }
+    const alreadyReported = await dbGet(
+      `SELECT report_ID FROM Reports
+       WHERE reporter_ID = ? AND reported_user_ID = ? AND status = 'open'`,
+      [req.currentUser.id, target.id],
+    );
+    if (alreadyReported) {
+      return res.status(409).json({
+        success: false,
+        message: "You already reported this account. An admin will review it.",
+      });
+    }
+    const result = await dbRun(
+      `INSERT INTO Reports (reporter_ID, reported_user_ID, reason, complaint) VALUES (?,?,?,?)`,
+      [req.currentUser.id, target.id, reason, details],
+    );
+    res.status(201).json({ success: true, reportId: result.lastID });
+  } catch (err) {
+    console.error("[REPORTS] user report failed:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+}
 
 // Applies a trust change (see lib/trustScore.js) in one statement, so two
 // events at once can't overwrite each other. Same clamp as applyTrustChange.
@@ -2114,13 +2161,21 @@ app.get("/api/admin/reports", requireAdminAuth, async (req, res) => {
               Notebooks.description AS notebookDescription,
               Notebooks.file_url AS notebookFileUrl,
               COALESCE(Notebooks.status, 'active') AS notebookStatus,
-              author.username AS reportedUser,
-              COALESCE(author.account_status, 'active') AS reportedUserStatus,
+              CASE WHEN Reports.reported_user_ID IS NOT NULL THEN 'user' ELSE 'notebook' END
+                AS reportType,
+              COALESCE(target.id, author.id) AS reportedUserId,
+              COALESCE(target.username, author.username) AS reportedUser,
+              COALESCE(target.account_status, author.account_status, 'active') AS reportedUserStatus,
+              target.name AS reportedUserName,
+              target.course AS reportedUserCourse,
+              COALESCE(target.trust_score, ${TRUST_SCORE_DEFAULT}) AS reportedUserTrust,
+              COALESCE(target.warning_count, 0) AS reportedUserWarnings,
               Admin.username AS resolvedBy
        FROM Reports
        LEFT JOIN Users reporter ON reporter.id = Reports.reporter_ID
        LEFT JOIN Notebooks ON Notebooks.id = Reports.notebook_ID
        LEFT JOIN Users author ON author.id = Notebooks.author_id
+       LEFT JOIN Users target ON target.id = Reports.reported_user_ID
        LEFT JOIN Admin ON Admin.admin_ID = Reports.resolved_by
        ORDER BY Reports.date_submitted DESC, Reports.report_ID DESC`,
     );
@@ -2153,7 +2208,17 @@ app.post("/api/admin/reports/:id/resolve", requireAdminAuth, async (req, res) =>
     const notebook = report.notebook_ID
       ? await getNotebookForAdmin(report.notebook_ID)
       : null;
-    if (action !== "disregard" && !notebook) {
+    if (action === "remove_notebook" && !notebook) {
+      return res.status(409).json({
+        success: false,
+        message: report.reported_user_ID
+          ? "Only a notebook report can remove a notebook."
+          : "The reported notebook no longer exists.",
+      });
+    }
+    // Suspending hits the reported account, or the reported notebook's author.
+    const suspendId = report.reported_user_ID || notebook?.author_id;
+    if (action === "suspend_user" && !suspendId) {
       return res.status(409).json({
         success: false,
         message: "The reported notebook no longer exists.",
@@ -2166,9 +2231,9 @@ app.post("/api/admin/reports/:id/resolve", requireAdminAuth, async (req, res) =>
       await removeNotebook(notebook, adminId);
     } else if (action === "suspend_user") {
       await dbRun(`UPDATE Users SET account_status = 'suspended' WHERE id = ?`, [
-        notebook.author_id,
+        suspendId,
       ]);
-      endSessionsForUser(notebook.author_id);
+      endSessionsForUser(suspendId);
       await dbRun(
         `UPDATE Reports SET status = 'user_suspended', resolved_by = ? WHERE report_ID = ?`,
         [adminId, id],
@@ -2266,11 +2331,11 @@ app.get("/api/admin/users/:id", requireAdminAuth, async (req, res) => {
                 Reports.status, Reports.date_submitted AS dateSubmitted,
                 Notebooks.title AS notebookTitle, reporter.username AS reporter
          FROM Reports
-         JOIN Notebooks ON Notebooks.id = Reports.notebook_ID
+         LEFT JOIN Notebooks ON Notebooks.id = Reports.notebook_ID
          LEFT JOIN Users reporter ON reporter.id = Reports.reporter_ID
-         WHERE Notebooks.author_id = ?
+         WHERE Notebooks.author_id = ? OR Reports.reported_user_ID = ?
          ORDER BY Reports.date_submitted DESC, Reports.report_ID DESC`,
-        [id],
+        [id, id],
       ),
     ]);
 

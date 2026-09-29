@@ -8,6 +8,8 @@
   let reportsById = new Map();
 
   function reportedLabel(report) {
+    // FUNC-015 REQT-001: a report targets a notebook or a student's account.
+    if (report.reportType === "user") return `User account — @${report.reportedUser || "unknown"}`;
     const title = report.notebookTitle || "Deleted notebook";
     return report.reportedUser ? `${title} — @${report.reportedUser}` : title;
   }
@@ -116,8 +118,32 @@
     });
   }
 
+  function reportedContent(report, hasNotebook) {
+    if (report.reportType === "user") {
+      return ui.details([
+        ["Username", report.reportedUser ? `@${report.reportedUser}` : "—"],
+        ["Name", report.reportedUserName || "—"],
+        ["Course", report.reportedUserCourse || "—"],
+        ["Trust Score", `${report.reportedUserTrust}%`],
+        ["Warnings", String(report.reportedUserWarnings)],
+        ["Account status", ui.badge("account", report.reportedUserStatus)],
+      ]);
+    }
+    return hasNotebook
+      ? ui.details([
+          ["Notebook", report.notebookTitle],
+          ["Notebook status", ui.badge("notebook", report.notebookStatus)],
+          ["Author", report.reportedUser ? `@${report.reportedUser}` : "—"],
+          ["Account status", ui.badge("account", report.reportedUserStatus)],
+          ["Description", report.notebookDescription || "No description."],
+          ["File", ui.safeLink(report.notebookFileUrl, "Open notebook file")],
+        ])
+      : el("p", { class: "admin-muted" }, "The reported notebook has been deleted by its author.");
+  }
+
   function reportDetails(report) {
     const isOpen = report.status === "open";
+    const isUserReport = report.reportType === "user";
     const hasNotebook = Boolean(report.notebookTitle);
 
     const removeButton = ui.button("Remove Notebook", {
@@ -152,21 +178,16 @@
         ["Resolved By", report.resolvedBy ? `@${report.resolvedBy}` : "—"],
       ]),
       ui.section("Complaint", el("p", { class: "admin-report-text" }, report.complaint || "—")),
-      ui.section(
-        "Reported content",
-        hasNotebook
-          ? ui.details([
-              ["Notebook", report.notebookTitle],
-              ["Notebook status", ui.badge("notebook", report.notebookStatus)],
-              ["Author", report.reportedUser ? `@${report.reportedUser}` : "—"],
-              ["Account status", ui.badge("account", report.reportedUserStatus)],
-              ["Description", report.notebookDescription || "No description."],
-              ["File", ui.safeLink(report.notebookFileUrl, "Open notebook file")],
-            ])
-          : el("p", { class: "admin-muted" }, "The reported notebook has been deleted by its author."),
-      ),
+      ui.section("Reported content", reportedContent(report, hasNotebook)),
       isOpen
-        ? el("div", { class: "admin-actions" }, removeButton, suspendButton, disregardButton)
+        ? el(
+            "div",
+            { class: "admin-actions" },
+            // Remove Notebook only applies to notebook reports.
+            ...(isUserReport ? [] : [removeButton]),
+            suspendButton,
+            disregardButton,
+          )
         : el(
             "p",
             { class: "admin-muted admin-actions-note" },

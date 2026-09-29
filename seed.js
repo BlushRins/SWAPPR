@@ -342,7 +342,7 @@ async function seed() {
     `CREATE TABLE Notebooks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, department TEXT, course_code TEXT, author_id INTEGER, file_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, status TEXT DEFAULT 'active', report_count INTEGER DEFAULT 0, word_count INTEGER, page_count INTEGER, diagram_count INTEGER)`,
   );
   await run(
-    `CREATE TABLE Reports (report_ID INTEGER PRIMARY KEY AUTOINCREMENT, reporter_ID INTEGER, notebook_ID INTEGER, resolved_by INTEGER, reason TEXT, complaint TEXT, status TEXT DEFAULT 'open', date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE Reports (report_ID INTEGER PRIMARY KEY AUTOINCREMENT, reporter_ID INTEGER, notebook_ID INTEGER, resolved_by INTEGER, reason TEXT, complaint TEXT, status TEXT DEFAULT 'open', date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP, reported_user_ID INTEGER)`,
   );
   await run(
     `CREATE TABLE Likes (user_id INTEGER, notebook_id INTEGER, PRIMARY KEY (user_id, notebook_id))`,
