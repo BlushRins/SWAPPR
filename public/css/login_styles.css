@@ -470,3 +470,115 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ── Validation (FUNC-001 REQT-008, FUNC-002 REQT-006) ──────────────────── */
+/* An empty or rejected field turns red. */
+.input-field.error,
+.input-field.error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+/* "Back to Log In" under the Register button (FUNC-002 REQT-002). */
+.back-to-login {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  color: #6d28d9;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.back-to-login:hover {
+  text-decoration: underline;
+}
+
+.otp-prompt {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+/* ── Dark theme (FUNC-005): follows localStorage["theme"] set on the
+   other pages. ───────────────────────────────────────────────────────── */
+.dark body {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%);
+}
+.dark .bg-particle {
+  opacity: 0.35;
+}
+.dark .login-card,
+.dark .modal-content,
+.dark .custom-select-list {
+  background: #110e20;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.dark .login-title,
+.dark .modal-title {
+  color: #f0eaff;
+}
+.dark .login-subtitle,
+.dark .modal-subtitle,
+.dark .otp-prompt {
+  color: #a79bd0;
+}
+.dark .input-field {
+  background: #1e1b4b;
+  border-color: #312e81;
+  color: #e5e7eb;
+}
+.dark .input-field::placeholder {
+  color: #7a6fa3;
+}
+.dark .input-field:focus {
+  border-color: #8b5cf6;
+  background: #1e1b4b;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
+}
+.dark .input-field.error,
+.dark .input-field.error:focus {
+  border-color: #f87171;
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.16);
+}
+.dark .custom-select-group {
+  color: #a79bd0;
+}
+.dark .custom-select-option {
+  color: #e5e7eb;
+}
+.dark .custom-select-option:hover,
+.dark .custom-select-option.highlighted {
+  background: rgba(139, 92, 246, 0.18);
+}
+.dark .divider {
+  color: #7a6fa3;
+}
+.dark .divider::before,
+.dark .divider::after,
+.dark .modal-header {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.dark .modal-close {
+  background: #1e1b4b;
+  color: #c4b5fd;
+}
+.dark .modal-close:hover {
+  background: #312e81;
+  color: #f0eaff;
+}
+.dark .error-msg {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+.dark .success-msg {
+  background: rgba(5, 150, 105, 0.15);
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+.dark .back-to-login {
+  color: #c4b5fd;
+}

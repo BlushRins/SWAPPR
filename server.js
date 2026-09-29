@@ -54,6 +54,20 @@ function normalizeEmail(email) {
     .toLowerCase();
 }
 
+// FUNC-002 REQT-005 wording, also used by Edit Profile.
+const USERNAME_TAKEN_MESSAGE = "Username already taken. Please choose a different one.";
+
+// A username is taken by a student (other than `exceptUserId`) or by an
+// administrator: login checks students first, so a student with an admin's
+// username would lock that admin out.
+async function isUsernameTaken(username, exceptUserId = null) {
+  const [student, admin] = await Promise.all([
+    dbGet(`SELECT id FROM Users WHERE username = ? AND id IS NOT ?`, [username, exceptUserId]),
+    dbGet(`SELECT admin_ID FROM Admin WHERE username = ?`, [username]),
+  ]);
+  return Boolean(student || admin);
+}
+
 function isValidSchoolEmail(email) {
   return /^\d+@usc\.edu\.ph$/i.test(email);
 }
@@ -534,6 +548,15 @@ app.post("/api/send-otp", async (req, res) => {
       });
     }
 
+    // FUNC-002 REQT-005: Register checks the username before a code is sent
+    // (a resend doesn't send one, so it skips this).
+    const username = String(req.body.username ?? "").trim();
+    if (username && (await isUsernameTaken(username))) {
+      return res
+        .status(409)
+        .json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
+    }
+
     const existingOtp = await dbGet(`SELECT * FROM EmailOtps WHERE email = ?`, [
       email,
     ]);
@@ -688,10 +711,22 @@ app.post("/api/register", async (req, res) => {
   } = req.body;
   const cleanEmail = normalizeEmail(email);
 
-  if (!name || !username || !password || !studentId) {
+  // FUNC-002 REQT-003 / REQT-006: every field is required.
+  if (!name || !username || !password || !studentId || !course || !email) {
     return res.status(400).json({
       success: false,
-      message: "Missing required fields",
+      message: "Input required data.",
+    });
+  }
+  if (!isCourse(course)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Please select a course from the list." });
+  }
+  if (String(password).trim().length < PASSWORD_MIN_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
     });
   }
 
@@ -720,19 +755,16 @@ app.post("/api/register", async (req, res) => {
       });
     }
 
-    // Admin usernames count as taken: login checks students first, so a
-    // student with an admin's username would lock that admin out.
-    const [existingUsername, existingAdmin, existingEmail] = await Promise.all([
-      dbGet(`SELECT id FROM Users WHERE username = ?`, [username]),
-      dbGet(`SELECT admin_ID FROM Admin WHERE username = ?`, [username]),
+    // Checked again here: the name may have been taken since Register.
+    const [usernameTaken, existingEmail] = await Promise.all([
+      isUsernameTaken(username),
       dbGet(`SELECT id FROM Users WHERE email = ?`, [cleanEmail]),
     ]);
 
-    if (existingUsername || existingAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: "Username already taken",
-      });
+    if (usernameTaken) {
+      return res
+        .status(400)
+        .json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
     }
 
     if (existingEmail) {
@@ -742,7 +774,8 @@ app.post("/api/register", async (req, res) => {
       });
     }
 
-    const finalDept = department || course || "";
+    // LOG002: department isn't asked for; it comes from the course.
+    const finalDept = COURSE_TO_DEPARTMENT[course] || department || course;
     const finalCourse = course || "";
     const finalYear = yearLevel || "";
     const hashedPassword = hashPassword(password);
@@ -792,7 +825,12 @@ app.post("/api/register", async (req, res) => {
 // One login form serves both roles: the username is looked up among students
 // first, then administrators, and the response says which one matched.
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
+  const username = String(req.body.username ?? "").trim();
+  const password = String(req.body.password ?? "").trim();
+  // FUNC-001 REQT-003 / REQT-008
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Input required data." });
+  }
 
   try {
     const user = await dbGet(`SELECT * FROM Users WHERE username = ?`, [
@@ -802,7 +840,7 @@ app.post("/api/login", async (req, res) => {
       if (!verifyPassword(password, user.password)) {
         return res
           .status(401)
-          .json({ success: false, message: "Incorrect password" });
+          .json({ success: false, message: "The password is incorrect." });
       }
       if (user.account_status && user.account_status !== "active") {
         return res.status(403).json({
@@ -829,7 +867,7 @@ app.post("/api/login", async (req, res) => {
       if (!verifyPassword(password, admin.password)) {
         return res
           .status(401)
-          .json({ success: false, message: "Incorrect password" });
+          .json({ success: false, message: "The password is incorrect." });
       }
       if (!isHashed(admin.password)) {
         await dbRun(`UPDATE Admin SET password = ? WHERE admin_ID = ?`, [
@@ -842,7 +880,8 @@ app.post("/api/login", async (req, res) => {
       return res.json({ success: true, role: "admin", user: publicAdmin(admin) });
     }
 
-    res.status(401).json({ success: false, message: "User not found" });
+    // FUNC-001 REQT-006
+    res.status(401).json({ success: false, message: "No account matches this username." });
   } catch (err) {
     console.error("[LOGIN] error:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -975,13 +1014,12 @@ app.patch("/api/profile", requireAuth, async (req, res) => {
 
   try {
     // Admin usernames count as taken, as they do at registration.
-    const [takenByStudent, takenByAdmin, current] = await Promise.all([
-      dbGet(`SELECT id FROM Users WHERE username = ? AND id != ?`, [username, me]),
-      dbGet(`SELECT admin_ID FROM Admin WHERE username = ?`, [username]),
+    const [taken, current] = await Promise.all([
+      isUsernameTaken(username, me),
       dbGet(`SELECT course, department FROM Users WHERE id = ?`, [me]),
     ]);
-    if (takenByStudent || takenByAdmin) {
-      return res.status(400).json({ success: false, message: "Username already taken" });
+    if (taken) {
+      return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
     }
 
     // The department belongs to the course, so it follows a course change.
@@ -1008,7 +1046,7 @@ app.patch("/api/profile", requireAuth, async (req, res) => {
     // Two students saving the same new username at once: the UNIQUE
     // constraint catches the second.
     if (String(err.message).includes("UNIQUE constraint failed: Users.username")) {
-      return res.status(400).json({ success: false, message: "Username already taken" });
+      return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
     }
     console.error("Profile update failed:", err);
     res.status(500).json({ success: false, message: "Could not update profile." });

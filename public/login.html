@@ -10,6 +10,14 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/login_styles.css" />
+    <script>
+      // FUNC-005 REQT-001 / REQT-004: follow the theme chosen on the other pages.
+      try {
+        if (localStorage.getItem("theme") === "dark") {
+          document.documentElement.classList.add("dark");
+        }
+      } catch {}
+    </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/auth-storage.js"></script>
     <script src="js/course-options.js"></script>
@@ -101,7 +109,7 @@
 
           <div id="loginError" class="error-msg"></div>
 
-          <form id="loginForm" onsubmit="handleLogin(event)">
+          <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
             <input
               type="text"
               id="loginUsername"
@@ -159,7 +167,7 @@
           <div id="registerSuccess" class="success-msg"></div>
 
           <!-- ── STEP 1: Full registration form ── -->
-          <form id="registerForm" onsubmit="handleRegister(event)">
+          <form id="registerForm" onsubmit="handleRegister(event)" novalidate>
             <input
               type="email"
               id="regEmail"
@@ -198,7 +206,7 @@
                 aria-haspopup="listbox"
                 aria-expanded="false"
               >
-                <span class="custom-select-label">Select your school</span>
+                <span class="custom-select-label">Select your course</span>
                 <span class="custom-select-icon">▾</span>
               </button>
               <div id="regCourseList" class="custom-select-list hidden" role="listbox" tabindex="0"></div>
@@ -222,13 +230,17 @@
               minlength="4"
             />
             <button type="submit" class="btn-signup" id="registerBtn">
-              Continue
+              Register
+            </button>
+            <!-- FUNC-002 REQT-002 -->
+            <button type="button" class="back-to-login" onclick="closeRegisterModal()">
+              Back to Log In
             </button>
           </form>
 
           <!-- ── STEP 2: OTP verification ── -->
           <div id="regStep2" style="display:none;">
-            <p style="font-size:13px;color:#6b7280;margin-bottom:4px;">Enter the 6-digit code sent to</p>
+            <p class="otp-prompt">Enter the 6-digit code sent to</p>
             <p id="otpEmailLabel" style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:20px;word-break:break-all;"></p>
 
             <div id="otpBoxes" style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;">
@@ -278,6 +290,15 @@
         border-color: #6d28d9;
         background: #fff;
       }
+      .dark .otp-box {
+        background: #1e1b4b;
+        border-color: #312e81;
+        color: #c4b5fd;
+      }
+      .dark .otp-box:focus {
+        border-color: #8b5cf6;
+        background: #1e1b4b;
+      }
     </style>
 
     <script>
@@ -291,6 +312,48 @@
 
       function homePageFor(role) {
         return role === "admin" ? "admin.html" : "index.html";
+      }
+
+      // FUNC-001 REQT-010: shown when a request times out or the server
+      // can't be reached.
+      const NETWORK_ERROR =
+        "A network error (such as timeout, interrupted connection or unreachable host) has occurred.";
+      const REQUEST_TIMEOUT_MS = 15000;
+
+      // POSTs JSON and returns the parsed reply. Throws NetworkError when the
+      // request times out, can't reach the server or gets no JSON back.
+      class NetworkError extends Error {}
+      async function postJson(url, body) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          });
+          return await res.json();
+        } catch {
+          throw new NetworkError(NETWORK_ERROR);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      function showMessage(el, text) {
+        el.textContent = text;
+        el.style.display = "block";
+      }
+
+      function hideMessage(el) {
+        el.style.display = "none";
+      }
+
+      // FUNC-001 REQT-008, FUNC-002 REQT-006: an empty or rejected field turns red.
+      function setFieldError(field, hasError) {
+        field?.classList.toggle("error", hasError);
       }
 
       // ── OTP box auto-advance ──────────────────────────────────────────────
@@ -360,12 +423,7 @@
         btn.disabled = true;
         errorEl.style.display = "none";
         try {
-          const res = await fetch("/api/send-otp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: verifiedEmail }),
-          });
-          const data = await res.json();
+          const data = await postJson("/api/send-otp", { email: verifiedEmail });
           if (data.success) {
             document.querySelectorAll(".otp-box").forEach((b) => (b.value = ""));
             startResendTimer(60);
@@ -378,8 +436,7 @@
             }
           }
         } catch {
-          errorEl.textContent = "Server error. Please try again.";
-          errorEl.style.display = "block";
+          showMessage(errorEl, NETWORK_ERROR);
         } finally {
           btn.disabled = false;
         }
@@ -398,17 +455,12 @@
         }
 
         btn.disabled = true;
-        btn.textContent = "Verifying…";
+        btn.textContent = "Verifying...";
         errorEl.style.display = "none";
 
         try {
           // Verify the OTP
-          const vRes = await fetch("/api/verify-otp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: verifiedEmail, otp }),
-          });
-          const vData = await vRes.json();
+          const vData = await postJson("/api/verify-otp", { email: verifiedEmail, otp });
           if (!vData.success) {
             errorEl.textContent = vData.message || "Incorrect code.";
             errorEl.style.display = "block";
@@ -418,13 +470,10 @@
           }
 
           // OTP good — now register
-          const rRes = await fetch("/api/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ ...pendingFormData, email: verifiedEmail }),
+          const rData = await postJson("/api/register", {
+            ...pendingFormData,
+            email: verifiedEmail,
           });
-          const rData = await rRes.json();
 
           if (rData.success) {
             if (rData.user?.username) {
@@ -444,8 +493,7 @@
             btn.textContent = "Verify & Create Account";
           }
         } catch {
-          errorEl.textContent = "Server error. Please try again.";
-          errorEl.style.display = "block";
+          showMessage(errorEl, NETWORK_ERROR);
           btn.disabled = false;
           btn.textContent = "Verify & Create Account";
         }
@@ -508,7 +556,7 @@
 
         const updateButtonLabel = () => {
           const selected = options.find((opt) => opt.value === courseSelect.value);
-          const labelText = selected ? selected.label : "Select your school";
+          const labelText = selected ? selected.label : "Select your course";
           const textSpan = courseButton.querySelector(".custom-select-label");
           if (textSpan) {
             textSpan.textContent = labelText;
@@ -562,7 +610,12 @@
         const setSelected = (value) => {
           courseSelect.value = value;
           updateButtonLabel();
+          if (value) setFieldError(courseButton, false);
         };
+
+        // registerForm.reset() empties the hidden select; show that on the
+        // button too, instead of the course picked last time.
+        courseSelect.form?.addEventListener("reset", () => setTimeout(updateButtonLabel));
 
         const findMatch = (query) => {
           const normalized = query.trim().toLowerCase();
@@ -796,6 +849,9 @@
         modal.classList.add("active");
         document.getElementById("registerForm").reset();
         document.getElementById("regEmail").value = "";
+        document
+          .querySelectorAll("#registerForm .error")
+          .forEach((field) => setFieldError(field, false));
         verifiedEmail = "";
         showRegStep(1);
         setTimeout(() => {
@@ -821,128 +877,147 @@
         }
       });
 
-      // Login handler
+      // A red field clears as soon as the student types in it, and the
+      // login message hides again (LOG001).
+      document.addEventListener("DOMContentLoaded", () => {
+        ["loginUsername", "loginPassword"].forEach((id) =>
+          document.getElementById(id).addEventListener("input", (event) => {
+            if (event.target.value.trim()) setFieldError(event.target, false);
+            hideMessage(document.getElementById("loginError"));
+          }),
+        );
+        ["regEmail", "regName", "regStudentId", "regUsername", "regPassword"].forEach((id) =>
+          document.getElementById(id).addEventListener("input", (event) => {
+            if (event.target.value.trim()) setFieldError(event.target, false);
+          }),
+        );
+      });
+
+      // Login handler (FUNC-001 REQT-003 to REQT-010)
       async function handleLogin(e) {
         e.preventDefault();
-        const username = document.getElementById("loginUsername").value.trim();
-        const password = document.getElementById("loginPassword").value.trim();
+        const usernameInput = document.getElementById("loginUsername");
+        const passwordInput = document.getElementById("loginPassword");
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
         const errorEl = document.getElementById("loginError");
         const loginBtn = document.getElementById("loginBtn");
 
-        errorEl.style.display = "none";
-
+        hideMessage(errorEl);
+        setFieldError(usernameInput, !username);
+        setFieldError(passwordInput, !password);
         if (!username || !password) {
-          errorEl.textContent = "Please fill in all fields.";
-          errorEl.style.display = "block";
+          showMessage(errorEl, "Input required data.");
+          (username ? passwordInput : usernameInput).focus();
           return;
         }
 
-        // Disable button during request
         loginBtn.disabled = true;
         loginBtn.textContent = "Logging in...";
 
         try {
-          const res = await fetch("/api/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ username, password }),
-          });
-          const data = await res.json();
-
+          const data = await postJson("/api/login", { username, password });
           if (data.success && data.user && data.user.username) {
             window.SWAPPR.auth.setUser({ ...data.user, role: data.role });
             window.location.replace(homePageFor(data.role));
-          } else {
-            errorEl.textContent =
-              data.message || "Invalid username or password.";
-            errorEl.style.display = "block";
-            loginBtn.disabled = false;
-            loginBtn.textContent = "Log In";
+            return;
           }
-        } catch (err) {
-          console.error("Login error:", err);
-          errorEl.textContent = "Server error. Please try again.";
-          errorEl.style.display = "block";
-          loginBtn.disabled = false;
-          loginBtn.textContent = "Log In";
+          // "No account matches this username.", "The password is
+          // incorrect." or the suspended-account message, from the server.
+          showMessage(errorEl, data.message || NETWORK_ERROR);
+        } catch {
+          showMessage(errorEl, NETWORK_ERROR);
         }
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Log In";
       }
 
       // Register handler — Step 1: validate form, send OTP, advance to step 2
+      // (FUNC-002 REQT-003, REQT-005, REQT-006).
       async function handleRegister(e) {
         e.preventDefault();
-        const email = document.getElementById("regEmail").value.trim();
-        const name = document.getElementById("regName").value.trim();
-        const studentId = document.getElementById("regStudentId").value.trim();
-        const course = document.getElementById("regCourse").value.trim();
-        const username = document.getElementById("regUsername").value.trim();
-        const password = document.getElementById("regPassword").value.trim();
+        const fields = {
+          email: document.getElementById("regEmail"),
+          name: document.getElementById("regName"),
+          studentId: document.getElementById("regStudentId"),
+          course: document.getElementById("regCourse"),
+          username: document.getElementById("regUsername"),
+          password: document.getElementById("regPassword"),
+        };
+        const courseButton = document.getElementById("regCourseButton");
+        const values = Object.fromEntries(
+          Object.entries(fields).map(([key, field]) => [key, field.value.trim()]),
+        );
         const errorEl = document.getElementById("registerError");
         const registerBtn = document.getElementById("registerBtn");
+        const markRed = (key, hasError) =>
+          setFieldError(key === "course" ? courseButton : fields[key], hasError);
+        const fail = (key, message) => {
+          markRed(key, true);
+          showMessage(errorEl, message);
+          (key === "course" ? courseButton : fields[key]).focus();
+        };
 
-        errorEl.style.display = "none";
+        hideMessage(errorEl);
+        Object.keys(fields).forEach((key) => markRed(key, false));
 
-        // Validate USC email
-        if (!/^\d+@usc\.edu\.ph$/i.test(email)) {
-          errorEl.textContent = "Email must be in the format: numbers@usc.edu.ph";
-          errorEl.style.display = "block";
+        // Every empty field turns red and nothing is sent (REQT-006).
+        const missing = Object.keys(fields).filter((key) => !values[key]);
+        if (missing.length) {
+          missing.forEach((key) => markRed(key, true));
+          showMessage(errorEl, "Input required data.");
+          (missing[0] === "course" ? courseButton : fields[missing[0]]).focus();
           return;
         }
-
-        if (!name || !studentId || !course || !username || !password) {
-          errorEl.textContent = "Please fill in all fields.";
-          errorEl.style.display = "block";
-          return;
+        if (!/^\d+@usc\.edu\.ph$/i.test(values.email)) {
+          return fail("email", "Email must be in the format: numbers@usc.edu.ph");
         }
-
-        if (!/^[0-9]+$/.test(studentId)) {
-          errorEl.textContent = "Student ID must contain numbers only.";
-          errorEl.style.display = "block";
-          return;
+        if (!/^[0-9]+$/.test(values.studentId)) {
+          return fail("studentId", "Student ID must contain numbers only.");
         }
-
-        if (password.length < 4) {
-          errorEl.textContent = "Password must be at least 4 characters.";
-          errorEl.style.display = "block";
-          return;
+        if (values.password.length < 4) {
+          return fail("password", "Password must be at least 4 characters.");
         }
 
         registerBtn.disabled = true;
-        registerBtn.textContent = "Sending code…";
+        registerBtn.textContent = "Sending code...";
 
         try {
-          const res = await fetch("/api/send-otp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
+          // The username is checked here, before a code is sent (REQT-005).
+          const data = await postJson("/api/send-otp", {
+            email: values.email,
+            username: values.username,
           });
-          const data = await res.json();
 
           if (data.success) {
             // Store form data and email for use after OTP verification
-            verifiedEmail = email;
-            pendingFormData = { name, studentId, course, username, password };
+            verifiedEmail = values.email;
+            pendingFormData = {
+              name: values.name,
+              studentId: values.studentId,
+              course: values.course,
+              username: values.username,
+              password: values.password,
+            };
 
-            document.getElementById("otpEmailLabel").textContent = email;
+            document.getElementById("otpEmailLabel").textContent = values.email;
             document.querySelectorAll(".otp-box").forEach((b) => (b.value = ""));
             showRegStep(2);
             startResendTimer(60);
             setTimeout(() => document.querySelector(".otp-box")?.focus(), 100);
           } else {
-            errorEl.textContent = data.message || "Failed to send code. Try again.";
-            errorEl.style.display = "block";
+            if (data.field === "username") markRed("username", true);
+            if (/email/i.test(data.message || "")) markRed("email", true);
+            showMessage(errorEl, data.message || "Failed to send code. Try again.");
             if (data.retryAfterSeconds) {
               startResendTimer(data.retryAfterSeconds);
             }
           }
-        } catch (err) {
-          console.error("OTP send error:", err);
-          errorEl.textContent = "Server error. Please try again.";
-          errorEl.style.display = "block";
+        } catch {
+          showMessage(errorEl, NETWORK_ERROR);
         } finally {
           registerBtn.disabled = false;
-          registerBtn.textContent = "Continue";
+          registerBtn.textContent = "Register";
         }
       }
     </script>

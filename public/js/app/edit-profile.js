@@ -112,7 +112,7 @@
     try {
       data = await app.api.updateProfile(values);
     } catch (err) {
-      if (err.message === "Username already taken") markField(fields.username, true);
+      if (err.message?.startsWith("Username already taken")) markField(fields.username, true);
       showError(err.message || "Could not update profile. Please try again.");
       return;
     } finally {
