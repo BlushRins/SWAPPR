@@ -1,8 +1,16 @@
 (function (root) {
   const app = (root.SWAPPR = root.SWAPPR || {});
 
+  // On desktop the feed list scrolls on its own, so a new view, search or
+  // page starts at the top instead of keeping the last list's position.
+  function scrollFeedToTop() {
+    const grid = document.getElementById("notebookGrid");
+    if (grid) grid.scrollTop = 0;
+  }
+
   app.resetPagination = function resetPagination() {
     app.state.currentPage = 1;
+    scrollFeedToTop();
   };
 
   app.getPaginatedItems = function getPaginatedItems(items) {
@@ -19,6 +27,7 @@
   app.changePage = function changePage(page) {
     app.state.currentPage = page;
     app.renderNotebooks();
+    scrollFeedToTop();
     document
       .getElementById("sectionTitle")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });

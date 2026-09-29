@@ -989,13 +989,18 @@ body {
   min-height: 0;
 }
 
+/* The feed column is a fixed height on desktop, so the list scrolls inside
+   it and the pagination bar sits below it rather than over the cards. The
+   inline padding, cancelled by the negative margin, keeps card shadows from
+   being cut off at the scroll edge. */
 .subjects-list {
   display: block;
   min-height: 0;
   flex: 1 1 auto;
-  overflow: hidden;
-  padding: 1rem 0;
-  padding-bottom: 5.4rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0 -0.75rem;
+  padding: 1rem 0.75rem;
 }
 
 .subjects-list > * + * {
@@ -1017,8 +1022,8 @@ body {
   .subjects-list {
     min-height: calc(100vh - 18rem);
     overflow: visible;
+    margin: 0;
     padding: 0.75rem 0;
-    padding-bottom: 4.6rem;
   }
 
   .subject-card-inner {
@@ -1099,18 +1104,15 @@ body {
 }
 
 .pagination {
-  /* Pinned to the bottom of <main> so it holds its place even when the
-     current page renders only a couple of cards. <main> is position:relative
-     with pb-24 reserving space so content never sits under the bar. */
-  position: absolute;
-  left: 2rem;
-  right: 2rem;
-  bottom: 2rem;
+  /* Sits below the feed list in normal flow. The list grows to fill the
+     column, so the bar stays at the bottom even when a page has only a
+     couple of cards, and it never covers one. */
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin: 0;
+  margin: 1rem 0 0;
   padding: 1rem;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.78);
@@ -1425,9 +1427,6 @@ body {
   .pagination {
     align-items: stretch;
     flex-direction: row;
-    left: 1rem;
-    right: 1rem;
-    bottom: 1rem;
     gap: 0.5rem;
     max-height: 4.5rem;
     padding: 0.55rem;
@@ -1627,11 +1626,19 @@ body {
 }
 
 /* Selected-subject notebook gallery */
+/* Scrolls inside the feed column like .subjects-list; align-content keeps
+   rows at their own height instead of stretching to fill it. */
 .notebooks-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
   gap: 2rem;
-  padding: 2rem 0 1rem;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0 -0.75rem;
+  padding: 2rem 0.75rem 1rem;
 }
 
 .notebooks-grid .notebook-card {
@@ -1739,7 +1746,9 @@ body {
   .notebooks-grid {
     grid-template-columns: 1fr;
     gap: 1.25rem;
-    padding-top: 1rem;
+    overflow: visible;
+    margin: 0;
+    padding: 1rem 0;
   }
 }
 
@@ -1987,12 +1996,6 @@ body {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Admin tables sit in normal page flow, unlike the pinned feed pagination. */
-.pagination.admin-pagination {
-  position: static;
-  margin-top: 1rem;
 }
 
 .admin-badge {
