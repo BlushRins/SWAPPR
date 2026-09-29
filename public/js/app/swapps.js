@@ -74,7 +74,8 @@
   // ── Requests page (IDX005, FUNC-011) ────────────────────────────────────
 
   function sentLabel(swapp) {
-    const sent = root.SWAPPRDates?.formatDateTime(swapp.date_created);
+    // IDX005: Sent Sep 29, 2026, 10:14 AM
+    const sent = root.SWAPPRDates?.formatLongDateTime(swapp.date_created);
     return sent
       ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Sent ${escapeHtml(sent)}</p>`
       : "";

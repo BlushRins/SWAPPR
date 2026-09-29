@@ -33,8 +33,8 @@
   ui.openVerb = (openOn) =>
     openOn === "dblclick" && !ui.isTouch() ? "Double-click" : ui.isTouch() ? "Tap" : "Click";
 
-  // The design spec displays dates as m/d/yyyy (see js/date-format.js).
-  ui.formatDate = (value) => root.SWAPPRDates.formatDate(value) || "—";
+  // The design spec displays dates as MMM d, yyyy (see js/date-format.js).
+  ui.formatDate = (value) => root.SWAPPRDates.formatLongDate(value) || "—";
 
   const REASONS = {
     inappropriate: "Inappropriate or offensive content",

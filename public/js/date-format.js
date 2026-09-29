@@ -18,7 +18,7 @@
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
-  // m/d/yyyy, the date format used by the design spec.
+  // m/d/yyyy (kept for callers that want the short form).
   function formatDate(value) {
     const date = parseDbDate(value);
     if (!date) return "";
@@ -37,12 +37,24 @@
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // MMM d, yyyy (e.g. Sep 29, 2026), used by Notebook Details (MOD004).
+  // MMM d, yyyy (e.g. Sep 29, 2026): the design's date format (MOD004,
+  // CHT001, ADM001, ADM002, ADM004).
   function formatLongDate(value) {
     const date = parseDbDate(value);
     if (!date) return "";
     return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   }
 
-  return { parseDbDate, formatDate, formatDateTime, formatLongDate };
+  // MMM d, yyyy, h:mm a (e.g. Sep 29, 2026, 10:14 AM), used for a
+  // request's Sent date (IDX005).
+  function formatLongDateTime(value) {
+    const date = parseDbDate(value);
+    if (!date) return "";
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const period = hours < 12 ? "AM" : "PM";
+    return `${formatLongDate(value)}, ${hours % 12 || 12}:${minutes} ${period}`;
+  }
+
+  return { parseDbDate, formatDate, formatDateTime, formatLongDate, formatLongDateTime };
 });

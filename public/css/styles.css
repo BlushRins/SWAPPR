@@ -1,6 +1,6 @@
 /* ── Font ──────────────────────────────────────────────────────────────────── */
 body {
-  font-family: "Montserrat", sans-serif;
+  font-family: "Inter", sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   color: #1f2937;
 }
@@ -29,7 +29,7 @@ body {
   border: 2px solid #e5e7eb;
   color: #1f2937;
   border-radius: 12px;
-  font-family: "Montserrat", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.875rem;
   outline: none;
   transition:
@@ -88,7 +88,7 @@ body {
   border-radius: 12px;
   color: white;
   font-weight: 700;
-  font-family: "Montserrat", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.8rem;
   letter-spacing: 0.03em;
   border: none;
@@ -628,7 +628,7 @@ body.mobile-menu-open {
   color: #7b2fbe;
   background: transparent;
   cursor: pointer;
-  font-family: "Montserrat", sans-serif;
+  font-family: "Inter", sans-serif;
   transition: background 0.15s;
 }
 .edit-btn:hover {
@@ -650,7 +650,7 @@ body.mobile-menu-open {
   color: #ef4444;
   background: transparent;
   cursor: pointer;
-  font-family: "Montserrat", sans-serif;
+  font-family: "Inter", sans-serif;
   transition: background 0.15s;
 }
 .delete-btn:hover {

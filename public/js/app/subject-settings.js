@@ -2,6 +2,14 @@
   const app = (root.SWAPPR = root.SWAPPR || {});
   const LS_KEY = "swappr_subject_pref";
 
+  // Subjects ticked while the modal is open. Kept here rather than read
+  // from the checkboxes, so a search that re-renders the list keeps them.
+  let pendingSubjects = new Set();
+
+  function showSelectionError(show) {
+    document.getElementById("subjectSettingsError")?.classList.toggle("hidden", !show);
+  }
+
   app.getSubjectPref = function () {
     try {
       return JSON.parse(localStorage.getItem(LS_KEY)) || { mode: "own" };
@@ -24,6 +32,8 @@
       r.checked = r.value === pref.mode;
     });
 
+    pendingSubjects = new Set(pref.subjects || []);
+    showSelectionError(false);
     app._syncSubjectModeUI(pref.mode);
     modal.classList.remove("hidden");
     root.lucide?.createIcons();
@@ -49,7 +59,7 @@
     const list = document.getElementById("subjectCheckboxList");
     if (!list) return;
 
-    const selected = new Set(pref?.subjects || []);
+    const selected = pendingSubjects;
     const q = (query ?? "").toLowerCase().trim();
     let subjects = app.state._allSubjects || [];
 
@@ -116,10 +126,12 @@
   app.applySubjectSettings = function () {
     const mode =
       document.querySelector("[name=subjectMode]:checked")?.value || "own";
-    const subjects =
-      mode === "custom"
-        ? [...document.querySelectorAll(".subj-cb:checked")].map((c) => c.value)
-        : [];
+    const subjects = mode === "custom" ? [...pendingSubjects] : [];
+    // MOD002: Choose subjects needs at least one ticked subject.
+    if (mode === "custom" && subjects.length === 0) {
+      showSelectionError(true);
+      return;
+    }
     app.saveSubjectPref({ mode, subjects });
     app.closeSubjectSettings();
     app.loadSubjects();
@@ -129,6 +141,7 @@
     document.querySelectorAll("[name=subjectMode]").forEach((radio) => {
       radio.addEventListener("change", () => {
         app._syncSubjectModeUI(radio.value);
+        showSelectionError(false);
         // Re-render with current search query when switching to custom
         if (radio.value === "custom") {
           const q = document.getElementById("subjectSearch")?.value || "";
@@ -142,6 +155,14 @@
       ?.addEventListener("input", (e) => {
         app._renderSubjectCheckboxes(app.getSubjectPref(), e.target.value);
       });
+
+    // Ticking or unticking updates the pending selection.
+    document.getElementById("subjectCheckboxList")?.addEventListener("change", (e) => {
+      if (!e.target.classList.contains("subj-cb")) return;
+      if (e.target.checked) pendingSubjects.add(e.target.value);
+      else pendingSubjects.delete(e.target.value);
+      if (pendingSubjects.size) showSelectionError(false);
+    });
   });
 
   root.openSubjectSettings = () => app.openSubjectSettings();

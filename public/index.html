@@ -6,7 +6,15 @@
     <title>SWAPPR — Study Together</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = { darkMode: "class" };
+      // General Logic: Inter on every page (Tailwind's font-sans included).
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] },
+          },
+        },
+      };
     </script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
@@ -733,6 +741,11 @@
             <!-- populated by subject-settings.js -->
           </div>
         </div>
+
+        <!-- MOD002: Choose subjects saved with nothing ticked -->
+        <p id="subjectSettingsError" class="report-error hidden mb-3" role="alert">
+          Select at least one subject.
+        </p>
 
         <div class="flex justify-end gap-3">
           <button

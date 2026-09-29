@@ -116,7 +116,7 @@
       if (err.code === "NO_NOTEBOOKS") {
         promptUpload();
       } else {
-        app.showToast(err.message || "Failed to send request");
+        app.showToast(err.message || "Could not send the request. Please try again.");
       }
       // The request may have been refused because the SWAPP state changed
       // (e.g. sent from another tab), so show the current state.
