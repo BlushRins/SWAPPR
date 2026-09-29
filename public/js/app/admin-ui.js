@@ -42,8 +42,13 @@
     plagiarism: "Plagiarized / not original work",
     harassment: "Harassment or abuse",
     other: "Other",
+    auto_screening: "Automatic screening",
   };
   ui.reasonLabel = (reason) => REASONS[reason] || reason || "—";
+
+  // Automatic screening files reports with no reporter (FUNC-008 REQT-008).
+  ui.reporterLabel = (report) =>
+    report.reporter ? `@${report.reporter}` : "Automatic screening";
 
   const STATUSES = {
     notebook: {

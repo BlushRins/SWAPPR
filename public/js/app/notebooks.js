@@ -414,10 +414,9 @@
     const fileUrl = document.getElementById("newFileUrl").value;
     const editingNotebookId = app.state.editingNotebookId;
 
-    if (!title) return alert("Title required");
-
+    const fieldsValid = app.validateNotebookFields();
     const counts = app.readNotebookCounts();
-    if (!counts) return;
+    if (!fieldsValid || !counts) return;
 
     try {
       const payload = {
@@ -434,19 +433,30 @@
         ? await app.api.updatePortfolio(editingNotebookId, payload)
         : await app.api.createPortfolio(payload);
 
-      if (!data.success) {
-        app.showToast(data.message || "Failed to save notebook");
-        return;
+      // FUNC-009 REQT-006 / FUNC-008 REQT-007 and REQT-008.
+      const flagged = data.status === "under_review";
+      if (editingNotebookId) app.showToast("Successfully edited notebook.");
+      if (!editingNotebookId && !flagged) app.showToast("Notebook published.");
+      if (flagged) {
+        app.showToast("Notebook submitted. It will appear once an admin has reviewed it.");
       }
-
-      app.showToast(editingNotebookId ? "Notebook updated!" : "Notebook created!");
       app.closeAddModal();
       app.state.editingNotebookId = null;
       app.loadNotebooks();
+      app.loadSubjects();
       app.loadSidebar();
     } catch (err) {
-      console.error(err);
-      app.showToast("Server error");
+      // The server names the field it refused ("Missing input.").
+      if (err.field) {
+        app.setNotebookFieldError(err.field, true);
+        return;
+      }
+      console.error("Could not save the notebook:", err);
+      app.showToast(
+        err.message === "Enter a whole number."
+          ? err.message
+          : "Could not save the notebook. Please try again.",
+      );
     }
   };
 

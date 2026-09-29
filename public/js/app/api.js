@@ -18,6 +18,8 @@
       const error = new Error(data.message || "Request failed");
       // Lets callers react to specific failures, e.g. NO_NOTEBOOKS.
       error.code = data.code;
+      // Which form field the server rejected, e.g. "fileUrl".
+      error.field = data.field;
       throw error;
     }
     return data;

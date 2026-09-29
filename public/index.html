@@ -530,6 +530,7 @@
               placeholder="e.g. Data Structures Notes"
               required
             />
+            <p id="newTitleError" class="report-error hidden">Missing input.</p>
           </div>
           <div>
             <label class="field-section-label">Short Description</label>
@@ -552,7 +553,8 @@
               >File URL
               <span class="text-purple-400 font-normal normal-case"
                 >(Google Drive, Notion, etc.)</span
-              ></label
+              >
+              <span class="text-red-500">*</span></label
             >
             <input
               type="url"
@@ -560,6 +562,7 @@
               class="input-field"
               placeholder="https://drive.google.com/…"
             />
+            <p id="newFileUrlError" class="report-error hidden">Missing input.</p>
           </div>
           <!-- Optional counts: drive the card's size label and reading time (FUNC-007 REQT-002) -->
           <div class="grid grid-cols-3 gap-3">

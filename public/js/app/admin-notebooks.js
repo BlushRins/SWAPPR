@@ -54,7 +54,7 @@
       el(
         "div",
         { class: "admin-report-meta" },
-        el("strong", {}, `@${report.reporter || "unknown"}`),
+        el("strong", {}, ui.reporterLabel(report)),
         el("span", {}, ui.reasonLabel(report.reason)),
         el("span", {}, ui.formatDate(report.dateSubmitted)),
         ui.badge("report", report.status),

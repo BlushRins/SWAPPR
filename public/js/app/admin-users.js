@@ -284,7 +284,7 @@
               "div",
               { class: "admin-report-meta" },
               el("strong", {}, report.notebookTitle || "Notebook"),
-              el("span", {}, `by @${report.reporter || "unknown"}`),
+              el("span", {}, report.reporter ? `by @${report.reporter}` : "Automatic screening"),
               el("span", {}, ui.formatDate(report.dateSubmitted)),
               ui.badge("report", report.status),
             ),

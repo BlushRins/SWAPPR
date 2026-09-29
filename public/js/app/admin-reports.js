@@ -24,7 +24,7 @@
       emptyMessage: "No reports have been submitted yet.",
       searchFields: [
         "id",
-        "reporter",
+        (row) => ui.reporterLabel(row),
         "notebookTitle",
         "reportedUser",
         "complaint",
@@ -34,7 +34,12 @@
       ],
       columns: [
         { key: "id", label: "Report ID", className: "admin-col-id" },
-        { key: "reporter", label: "Reporter", render: (row) => `@${row.reporter || "unknown"}` },
+        {
+          key: "reporter",
+          label: "Reporter",
+          value: (row) => ui.reporterLabel(row),
+          render: (row) => ui.reporterLabel(row),
+        },
         {
           key: "reported",
           label: "Reported Notebook / User",
@@ -140,7 +145,7 @@
       { class: "admin-detail" },
       ui.details([
         ["Report ID", String(report.id)],
-        ["Reporter", `@${report.reporter || "unknown"}`],
+        ["Reporter", ui.reporterLabel(report)],
         ["Reason", ui.reasonLabel(report.reason)],
         ["Date Submitted", ui.formatDate(report.dateSubmitted)],
         ["Status", ui.badge("report", report.status)],

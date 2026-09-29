@@ -30,6 +30,39 @@
     return valid ? counts : null;
   };
 
+  // Title and File URL are required (FUNC-008 REQT-003 / REQT-004).
+  const REQUIRED_FIELDS = { title: "newTitle", fileUrl: "newFileUrl" };
+
+  app.setNotebookFieldError = function setNotebookFieldError(field, hasError) {
+    const id = REQUIRED_FIELDS[field];
+    document.getElementById(id)?.classList.toggle("error", hasError);
+    document.getElementById(`${id}Error`)?.classList.toggle("hidden", !hasError);
+  };
+
+  // A valid http(s) link, the same rule the server applies.
+  app.isHttpUrl = function isHttpUrl(value) {
+    try {
+      const url = new URL(String(value).trim());
+      return (url.protocol === "http:" || url.protocol === "https:") && Boolean(url.hostname);
+    } catch {
+      return false;
+    }
+  };
+
+  // Marks the title and File URL red when they're missing or invalid, and
+  // focuses the first one. Returns true when both are fine.
+  app.validateNotebookFields = function validateNotebookFields() {
+    const title = document.getElementById("newTitle");
+    const fileUrl = document.getElementById("newFileUrl");
+    const titleMissing = !title.value.trim();
+    const urlInvalid = !app.isHttpUrl(fileUrl.value);
+    app.setNotebookFieldError("title", titleMissing);
+    app.setNotebookFieldError("fileUrl", urlInvalid);
+    if (titleMissing) title.focus();
+    else if (urlInvalid) fileUrl.focus();
+    return !titleMissing && !urlInvalid;
+  };
+
   app.clearPortfolioForm = function clearPortfolioForm() {
     const titleInput = document.getElementById("newTitle");
     const descriptionInput = document.getElementById("newDescription");
@@ -46,6 +79,7 @@
       if (input) input.value = "";
       setCountError(key, false);
     });
+    Object.keys(REQUIRED_FIELDS).forEach((field) => app.setNotebookFieldError(field, false));
     if (actionBtn) actionBtn.textContent = "Publish Notebook";
   };
 
@@ -97,6 +131,7 @@
       if (input) input.value = notebook[key] ?? "";
       setCountError(key, false);
     });
+    Object.keys(REQUIRED_FIELDS).forEach((field) => app.setNotebookFieldError(field, false));
 
     const actionBtn = document.getElementById("portfolioActionBtn");
     if (actionBtn) actionBtn.textContent = "Save Changes";
@@ -107,6 +142,14 @@
 
   // A count stops being red once it's valid again.
   document.addEventListener("DOMContentLoaded", () => {
+    // A required field stops being red once it's filled in correctly.
+    document.getElementById("newTitle")?.addEventListener("input", (event) => {
+      if (event.target.value.trim()) app.setNotebookFieldError("title", false);
+    });
+    document.getElementById("newFileUrl")?.addEventListener("input", (event) => {
+      if (app.isHttpUrl(event.target.value)) app.setNotebookFieldError("fileUrl", false);
+    });
+
     Object.entries(COUNT_FIELDS).forEach(([key, id]) => {
       document.getElementById(id)?.addEventListener("input", (event) => {
         const parsed = root.SWAPPRMetrics.parseCount(

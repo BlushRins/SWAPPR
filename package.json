@@ -4,7 +4,7 @@
   "description": "",
   "main": "seed.js",
   "scripts": {
-    "test": "node lib/cleanDepartments.test.js && node lib/course_mapper.test.js && node lib/subjects.test.js && node lib/otpPolicy.test.js && node lib/passwordHash.test.js && node lib/trustScore.test.js && node public/js/pagination.test.js && node public/js/date-format.test.js && node public/js/course-options.test.js && node public/js/notebook-metrics.test.js && node public/js/app/notebooks.xss.test.js && node seed.test.js",
+    "test": "node lib/cleanDepartments.test.js && node lib/course_mapper.test.js && node lib/subjects.test.js && node lib/otpPolicy.test.js && node lib/passwordHash.test.js && node lib/trustScore.test.js && node lib/contentScreening.test.js && node public/js/pagination.test.js && node public/js/date-format.test.js && node public/js/course-options.test.js && node public/js/notebook-metrics.test.js && node public/js/app/notebooks.xss.test.js && node seed.test.js",
     "start": "node server.js"
   },
   "keywords": [],

@@ -24,6 +24,7 @@ const {
 } = require("./lib/constants");
 const { isCourse } = require("./public/js/course-options");
 const { COUNT_DIGITS, parseCount } = require("./public/js/notebook-metrics");
+const { isHttpUrl, screenNotebook, screeningComplaint } = require("./lib/contentScreening");
 const {
   TRUST_CHANGE,
   TRUST_SCORE_DEFAULT,
@@ -1117,109 +1118,128 @@ app.get("/api/portfolios/recent", requireAuth, (req, res) => {
   );
 });
 
-app.post("/api/portfolios", requireAuth, (req, res) => {
-  console.log("[CREATE NOTEBOOK]", req.body);
+// FUNC-008 REQT-003 / REQT-004, FUNC-009 REQT-004: the title and a valid
+// http(s) File URL are required. Returns the cleaned fields, or an error.
+function validateNotebookInput(body) {
+  const title = String(body.title ?? "").trim();
+  const fileUrl = String(body.fileUrl ?? "").trim();
+  if (!title) return { error: { message: "Missing input.", field: "title" } };
+  if (!isHttpUrl(fileUrl)) return { error: { message: "Missing input.", field: "fileUrl" } };
 
-  const {
-    title,
-    description,
-    department,
-    courseCode,
-    fileUrl,
-  } = req.body;
-  const actualAuthor = req.currentUser.username;
+  const counts = readNotebookCounts(body);
+  if (!counts) return { error: { message: "Enter a whole number." } };
 
-  if (!title || !actualAuthor) {
-    return res.status(400).json({
-      success: false,
-      message: "Title and author are required",
-    });
-  }
-
-  const counts = readNotebookCounts(req.body);
-  if (!counts) {
-    return res.status(400).json({ success: false, message: "Enter a whole number." });
-  }
-
-  db.get(
-    `SELECT id FROM Users WHERE username=?`,
-    [actualAuthor],
-    (err, user) => {
-      if (err) {
-        console.error("DB error:", err);
-        return res
-          .status(500)
-          .json({ success: false, message: "Database error" });
-      }
-
-      if (!user) {
-        return res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
-
-      db.run(
-        `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url,
-                                word_count, page_count, diagram_count)
-       VALUES (?,?,?,?,?,?,?,?,?)`,
-        [
-          title,
-          description || null,
-          department || null,
-          courseCode || null,
-          user.id,
-          fileUrl || null,
-          counts.wordCount,
-          counts.pageCount,
-          counts.diagramCount,
-        ],
-        function onInsert(insertErr) {
-          if (insertErr) {
-            console.error("Insert error:", insertErr);
-            return res
-              .status(500)
-              .json({ success: false, message: insertErr.message });
-          }
-
-          res.json({ success: true, id: this.lastID });
-        },
-      );
+  return {
+    notebook: {
+      title,
+      description: String(body.description ?? "").trim() || null,
+      department: body.department || null,
+      courseCode: body.courseCode || null,
+      fileUrl,
+      ...counts,
     },
+  };
+}
+
+// FUNC-008 REQT-006 to REQT-008: a flagged notebook gets one open automatic
+// report (no reporter), which puts it in Flagged Notebooks (ADM001).
+async function fileScreeningReport(notebookId, hits) {
+  const open = await dbGet(
+    `SELECT report_ID FROM Reports
+     WHERE notebook_ID = ? AND reason = 'auto_screening' AND status = 'open'`,
+    [notebookId],
   );
+  if (open) return;
+  await dbRun(
+    `INSERT INTO Reports (reporter_ID, notebook_ID, reason, complaint) VALUES (NULL, ?, 'auto_screening', ?)`,
+    [notebookId, screeningComplaint(hits)],
+  );
+  await dbRun(
+    `UPDATE Notebooks SET report_count = COALESCE(report_count, 0) + 1 WHERE id = ?`,
+    [notebookId],
+  );
+}
+
+// FUNC-008: publish a notebook. Screening decides whether it goes live
+// (active) or waits for an administrator (under_review).
+app.post("/api/portfolios", requireAuth, async (req, res) => {
+  const { notebook, error } = validateNotebookInput(req.body);
+  if (error) return res.status(400).json({ success: false, ...error });
+
+  const screening = screenNotebook(notebook);
+  // Saved as under_review first, so a flagged notebook is never visible,
+  // even for a moment, and stays hidden if the report can't be written.
+  const status = screening.flagged ? "under_review" : "active";
+
+  try {
+    const result = await dbRun(
+      `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url,
+                              status, word_count, page_count, diagram_count)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [
+        notebook.title,
+        notebook.description,
+        notebook.department,
+        notebook.courseCode,
+        req.currentUser.id,
+        notebook.fileUrl,
+        status,
+        notebook.wordCount,
+        notebook.pageCount,
+        notebook.diagramCount,
+      ],
+    );
+    if (screening.flagged) await fileScreeningReport(result.lastID, screening.hits);
+    res.json({ success: true, id: result.lastID, status });
+  } catch (err) {
+    console.error("[NOTEBOOKS] create failed:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Could not save the notebook. Please try again." });
+  }
 });
 
-app.put("/api/portfolios/:id", requireAuth, (req, res) => {
-  const { title, description, department, courseCode, fileUrl } = req.body;
-  const counts = readNotebookCounts(req.body);
-  if (!counts) {
-    return res.status(400).json({ success: false, message: "Enter a whole number." });
+// FUNC-009: the author edits a notebook. Screening runs again; a clean edit
+// leaves the status alone, since an administrator decides anything already
+// under review.
+app.put("/api/portfolios/:id", requireAuth, async (req, res) => {
+  const { notebook, error } = validateNotebookInput(req.body);
+  if (error) return res.status(400).json({ success: false, ...error });
+
+  const screening = screenNotebook(notebook);
+  try {
+    const result = await dbRun(
+      `UPDATE Notebooks SET title=?, description=?, department=?, course_code=?, file_url=?,
+                            word_count=?, page_count=?, diagram_count=?,
+                            status = CASE WHEN ? THEN 'under_review' ELSE status END
+       WHERE id=? AND author_id=?`,
+      [
+        notebook.title,
+        notebook.description,
+        notebook.department,
+        notebook.courseCode,
+        notebook.fileUrl,
+        notebook.wordCount,
+        notebook.pageCount,
+        notebook.diagramCount,
+        screening.flagged ? 1 : 0,
+        req.params.id,
+        req.currentUser.id,
+      ],
+    );
+    if (!result.changes) {
+      return res.status(404).json({ success: false, message: "Notebook not found" });
+    }
+    if (screening.flagged) await fileScreeningReport(Number(req.params.id), screening.hits);
+
+    const saved = await dbGet(`SELECT status FROM Notebooks WHERE id = ?`, [req.params.id]);
+    res.json({ success: true, status: saved?.status || "active" });
+  } catch (err) {
+    console.error("[NOTEBOOKS] update failed:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Could not save the notebook. Please try again." });
   }
-  db.run(
-    `UPDATE Notebooks SET title=?, description=?, department=?, course_code=?, file_url=?,
-                          word_count=?, page_count=?, diagram_count=?
-     WHERE id=? AND author_id=?`,
-    [
-      title,
-      description || null,
-      department || null,
-      courseCode || null,
-      fileUrl || null,
-      counts.wordCount,
-      counts.pageCount,
-      counts.diagramCount,
-      req.params.id,
-      req.currentUser.id,
-    ],
-    function onUpdate(err) {
-      if (err) return res.json({ success: false, message: err.message });
-      if (!this.changes) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Notebook not found" });
-      }
-      res.json({ success: true });
-    },
-  );
 });
 
 app.post("/api/portfolios/delete", requireAuth, async (req, res) => {
