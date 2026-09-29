@@ -26,6 +26,8 @@
     root.filterBy = app.filterBy;
     root.openProfilePanel = app.openProfilePanel;
     root.closeProfilePanel = app.closeProfilePanel;
+    root.openEditProfileModal = app.openEditProfileModal;
+    root.closeEditProfileModal = app.closeEditProfileModal;
     root.openAddModal = app.openAddModal;
     root.openEditNotebookModal = app.openEditNotebookModal;
     root.closeAddModal = app.closeAddModal;
@@ -51,6 +53,7 @@
     app.startChatNotifications();
     app.startSwappUpdates();
     attachStaticEventListeners();
+    app.openEditProfileIfRequested();
   };
 
   exposeCompatibilityGlobals();

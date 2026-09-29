@@ -493,16 +493,7 @@
       <!-- ── About ─────────────────────────────────────────────────────────── -->
       <div class="card" id="aboutCard">
         <div class="section-body">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="section-heading" style="margin-bottom: 0">About</h2>
-            <button
-              id="editBioBtn"
-              class="text-xs font-bold text-purple-400 hover:text-purple-600 transition hidden"
-              onclick="openEditModal()"
-            >
-              ✏️ Edit
-            </button>
-          </div>
+          <h2 class="section-heading">About</h2>
           <p class="about-text" id="bioText">—</p>
         </div>
       </div>
@@ -563,191 +554,6 @@
             class="grid grid-cols-1 sm:grid-cols-2 gap-3"
           ></div>
           <p id="noMatches" class="empty-state hidden">No SWAPP matches yet.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Edit Profile Modal ─────────────────────────────────────────────── -->
-    <div id="editModal" class="modal-overlay" onclick="closeEditModal(event)">
-      <div class="modal-box">
-        <h3
-          class="text-lg font-extrabold mb-5 text-purple-900 dark:text-purple-100"
-        >
-          Edit Profile
-        </h3>
-        <div class="space-y-4">
-          <div>
-            <label class="field-section-label">Display Name</label>
-            <input
-              type="text"
-              id="editName"
-              class="input-field"
-              placeholder="Your full name"
-            />
-          </div>
-          <div>
-            <label class="field-section-label">Course / Program</label>
-            <select id="editCourse" class="input-field">
-              <option value="">Select your course</option>
-              <option value="AB Anthropology">AB Anthropology</option>
-              <option value="AB History">AB History</option>
-              <option value="AB Literature">AB Literature</option>
-              <option value="AB Philosophy">AB Philosophy</option>
-              <option value="AB Sociology">AB Sociology</option>
-              <option value="Bachelor of Elementary Education">
-                Bachelor of Elementary Education
-              </option>
-              <option value="Bachelor of Fine Arts in Advertising Arts">
-                Bachelor of Fine Arts in Advertising Arts
-              </option>
-              <option value="Bachelor of Fine Arts major in Cinema">
-                Bachelor of Fine Arts major in Cinema
-              </option>
-              <option value="Bachelor of Landscape Architecture">
-                Bachelor of Landscape Architecture
-              </option>
-              <option value="Bachelor of Secondary Education">
-                Bachelor of Secondary Education
-              </option>
-              <option value="Bachelor of Science in Architecture">
-                Bachelor of Science in Architecture
-              </option>
-              <option value="Bachelor of Science in Interior Design">
-                Bachelor of Science in Interior Design
-              </option>
-              <option value="BS Accountancy">BS Accountancy</option>
-              <option value="BS Architecture">BS Architecture</option>
-              <option value="BS Biology">BS Biology</option>
-              <option value="BS Business Administration">
-                BS Business Administration
-              </option>
-              <option value="BS Chemical Engineering">
-                BS Chemical Engineering
-              </option>
-              <option value="BS Chemistry">BS Chemistry</option>
-              <option value="BS Civil Engineering">BS Civil Engineering</option>
-              <option value="BS Communication">BS Communication</option>
-              <option value="BS Computer Engineering">
-                BS Computer Engineering
-              </option>
-              <option value="BS Computer Science">BS Computer Science</option>
-              <option value="BS Economics">BS Economics</option>
-              <option value="BS Electrical Engineering">
-                BS Electrical Engineering
-              </option>
-              <option value="BS Electronics Engineering">
-                BS Electronics Engineering
-              </option>
-              <option value="BS Fine Arts">BS Fine Arts</option>
-              <option value="BS Hospitality Management">
-                BS Hospitality Management
-              </option>
-              <option value="BS Industrial Engineering">
-                BS Industrial Engineering
-              </option>
-              <option value="BS Information Technology">
-                BS Information Technology
-              </option>
-              <option value="BS Mathematics">BS Mathematics</option>
-              <option value="BS Mechanical Engineering">
-                BS Mechanical Engineering
-              </option>
-              <option value="BS Nursing">BS Nursing</option>
-              <option value="BS Nutrition and Dietetics">
-                BS Nutrition and Dietetics
-              </option>
-              <option value="BS Pharmacy">BS Pharmacy</option>
-              <option value="BS Physics">BS Physics</option>
-              <option value="BS Political Science">BS Political Science</option>
-              <option value="BS Psychology">BS Psychology</option>
-              <option value="JD Law">JD Law</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-section-label">Bio</label>
-            <textarea
-              id="editBio"
-              class="input-field"
-              rows="4"
-              placeholder="Tell others what you're studying, your goals, what you love learning..."
-            ></textarea>
-          </div>
-          <div>
-            <label class="field-section-label">Department</label>
-            <select id="editDept" class="input-field">
-              <option value="">Select department</option>
-              <option value="Accountancy">Accountancy</option>
-              <option value="Anthropology, Sociology, and History">
-                Anthropology, Sociology, and History
-              </option>
-              <option value="Architecture">Architecture</option>
-              <option value="Biology">Biology</option>
-              <option value="Business Administration">
-                Business Administration
-              </option>
-              <option value="Chemical Engineering">Chemical Engineering</option>
-              <option value="Chemistry">Chemistry</option>
-              <option value="Civil Engineering">Civil Engineering</option>
-              <option value="Communications, Linguistics, and Literature">
-                Communications, Linguistics, and Literature
-              </option>
-              <option value="Computer Engineering">Computer Engineering</option>
-              <option value="Computer, Information Sciences, and Mathematics">
-                Computer, Information Sciences, and Mathematics
-              </option>
-              <option value="Economics">Economics</option>
-              <option value="Electrical and Electronics Engineering">
-                Electrical and Electronics Engineering
-              </option>
-              <option value="Fine Arts">Fine Arts</option>
-              <option value="General Education and Mission">
-                General Education and Mission
-              </option>
-              <option value="Hospitality Management">
-                Hospitality Management
-              </option>
-              <option value="Industrial Engineering">
-                Industrial Engineering
-              </option>
-              <option value="Law">Law</option>
-              <option value="Mechanical and Manufacturing Engineering">
-                Mechanical and Manufacturing Engineering
-              </option>
-              <option value="Nursing">Nursing</option>
-              <option value="Nutrition and Dietetics">
-                Nutrition and Dietetics
-              </option>
-              <option value="Pharmacy">Pharmacy</option>
-              <option value="Philosophy">Philosophy</option>
-              <option value="Physics">Physics</option>
-              <option value="Political Science">Political Science</option>
-              <option value="Psychology">Psychology</option>
-              <option value="Teacher Education">Teacher Education</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-section-label">Year Level</label>
-            <select id="editYear" class="input-field">
-              <option value="">Select year level</option>
-              <option value="1st Year">1st Year</option>
-              <option value="2nd Year">2nd Year</option>
-              <option value="3rd Year">3rd Year</option>
-              <option value="4th Year">4th Year</option>
-              <option value="5th Year">5th Year</option>
-              <option value="Graduate">Graduate</option>
-            </select>
-          </div>
-          <div class="flex justify-end gap-3 pt-2">
-            <button
-              onclick="closeEditModal()"
-              class="text-sm font-semibold text-purple-300 hover:text-purple-600 transition"
-            >
-              Cancel
-            </button>
-            <button onclick="saveProfile()" class="btn-primary">
-              Save Changes
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -895,19 +701,14 @@
             : "No skills listed yet";
 
         // Bio
-        document.getElementById("bioText").textContent =
-          p.bio ||
-          (isOwn
-            ? "Add a bio to tell others about yourself..."
-            : "No bio yet.");
+        document.getElementById("bioText").textContent = p.bio || "No bio yet.";
 
         // Own controls
         if (isOwn) {
           document.getElementById("ownBadge").style.display = "inline-flex";
-          document.getElementById("editBioBtn").classList.remove("hidden");
           document.getElementById("addNotebookBtn").classList.remove("hidden");
           document.getElementById("profileActions").innerHTML = `
-            <button onclick="openEditModal()" class="btn-action btn-action-primary">✏️ Edit Profile</button>`;
+            <button onclick="editProfile()" class="btn-action btn-action-primary">✏️ Edit Profile</button>`;
         } else {
           document.getElementById("profileActions").innerHTML = `
             <button onclick="goHome()" class="btn-action btn-action-outline">← Back</button>`;
@@ -1035,56 +836,12 @@
         }
       }
 
-      // ── Edit Modal ────────────────────────────────────────────────────────────
-      function openEditModal() {
-        if (!profileData) return;
-        document.getElementById("editName").value = profileData.name || "";
-        document.getElementById("editCourse").value = profileData.course || "";
-        document.getElementById("editBio").value = profileData.bio || "";
-        document.getElementById("editDept").value =
-          profileData.department || "";
-        document.getElementById("editYear").value = profileData.yearLevel || "";
-        document.getElementById("editModal").classList.add("open");
-      }
-
-      function closeEditModal(e) {
-        if (!e || e.target === document.getElementById("editModal"))
-          document.getElementById("editModal").classList.remove("open");
-      }
-
-      async function saveProfile() {
-        const name = document.getElementById("editName").value.trim();
-        const course = document.getElementById("editCourse").value;
-        const bio = document.getElementById("editBio").value.trim();
-        const department = document.getElementById("editDept").value;
-        const yearLevel = document.getElementById("editYear").value;
-        try {
-          const res = await fetch("/api/profile", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({
-              name,
-              course,
-              bio,
-              department,
-              yearLevel,
-            }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            const updated = { ...currentUser, ...data.user };
-            window.SWAPPR.auth.setUser(updated);
-            profileData = { ...profileData, ...data.user };
-            renderProfile(profileData);
-            document.getElementById("editModal").classList.remove("open");
-            showToast("Profile updated! ✨", "green");
-          } else {
-            showToast(data.message || "Failed to save.", "red");
-          }
-        } catch {
-          showToast("Failed to save.", "red");
-        }
+      // ── Edit Profile ──────────────────────────────────────────────────────────
+      // FUNC-014 REQT-005: editing happens in the Profile panel's Edit Profile
+      // modal, so hand off to it the same way editNotebook() does.
+      function editProfile() {
+        sessionStorage.setItem("openEditProfile", "1");
+        window.location.href = "index.html";
       }
 
       // ── Notebook actions ──────────────────────────────────────────────────────

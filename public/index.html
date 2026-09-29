@@ -410,7 +410,7 @@
         </button>
       </div>
 
-      <div class="panel-hero mb-6">
+      <div class="panel-hero mb-4">
         <div class="profile-avatar mx-auto mb-3">
           <span id="profileInitials">US</span>
         </div>
@@ -424,6 +424,16 @@
         ></p>
         <p class="text-xs text-purple-400 text-center mt-2" id="profileBio"></p>
       </div>
+
+      <!-- FUNC-014 REQT-005 -->
+      <button
+        type="button"
+        onclick="openEditProfileModal()"
+        class="w-full mb-6 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-purple-200 dark:border-purple-500/30 text-sm font-semibold text-purple-700 dark:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition"
+      >
+        <i data-lucide="pencil" class="w-4 h-4"></i>
+        Edit Profile
+      </button>
 
       <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="stat-card">
@@ -774,6 +784,100 @@
       </div>
     </div>
 
+    <!-- Edit Profile Modal (PRF002 / FUNC-014 REQT-005 to REQT-009) -->
+    <div
+      id="editProfileModal"
+      class="modal-overlay hidden"
+      onclick="closeEditProfileModal(event)"
+    >
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="editProfileHeading">
+        <button
+          type="button"
+          onclick="closeEditProfileModal()"
+          class="report-modal-close"
+          aria-label="Close"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <h3
+          id="editProfileHeading"
+          class="text-xl font-extrabold mb-5 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2"
+        >
+          <i data-lucide="pencil" class="w-5 h-5"></i>
+          Edit Profile
+        </h3>
+
+        <form id="editProfileForm" class="space-y-4" novalidate>
+          <div>
+            <label for="editProfileName" class="field-section-label">
+              Full Name <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="editProfileName"
+              type="text"
+              class="input-field"
+              autocomplete="name"
+            />
+          </div>
+
+          <div>
+            <label for="editProfileUsername" class="field-section-label">
+              Username <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="editProfileUsername"
+              type="text"
+              class="input-field"
+              autocomplete="username"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+          </div>
+
+          <div>
+            <label for="editProfileCourse" class="field-section-label">
+              Course <span class="text-red-500">*</span>
+            </label>
+            <select id="editProfileCourse" class="input-field">
+              <option value="">Select your course</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="editProfilePassword" class="field-section-label">
+              Password <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="editProfilePassword"
+              type="password"
+              class="input-field"
+              autocomplete="new-password"
+              placeholder="New password, or your current one to keep it"
+            />
+          </div>
+
+          <p id="editProfileError" class="report-error hidden" role="alert"></p>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onclick="closeEditProfileModal()"
+              class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+            >
+              Cancel
+            </button>
+            <button
+              id="editProfileSaveBtn"
+              type="submit"
+              class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Select notebooks to offer (FUNC-010 REQT-003, REQT-004 / UC-04 step 2) -->
     <div
       id="swappRequestModal"
@@ -822,6 +926,7 @@
 
     <script src="js/pagination.js"></script>
     <script src="js/date-format.js"></script>
+    <script src="js/course-options.js"></script>
     <script src="js/auth-storage.js"></script>
     <script src="js/app/state.js"></script>
     <script src="js/app/api.js"></script>
@@ -837,6 +942,7 @@
     <script src="js/app/swapp-request-modal.js"></script>
     <script src="js/app/sidebar.js"></script>
     <script src="js/app/profile-panel.js"></script>
+    <script src="js/app/edit-profile.js"></script>
     <script src="js/app/notebook-modal.js"></script>
     <script src="js/app/toast.js"></script>
     <script src="js/mobile-menu.js"></script>

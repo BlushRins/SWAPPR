@@ -17,9 +17,12 @@ const {
 const { subjectsForCourse, filterSubjects } = require("./lib/subjects");
 const { hashPassword, isHashed, verifyPassword } = require("./lib/passwordHash");
 const {
+  COURSE_TO_DEPARTMENT,
+  PASSWORD_MIN_LENGTH,
   REPORT_UNDER_REVIEW_THRESHOLD,
   WARNING_HIGHLIGHT_THRESHOLD,
 } = require("./lib/constants");
+const { isCourse } = require("./public/js/course-options");
 const {
   TRUST_CHANGE,
   TRUST_SCORE_DEFAULT,
@@ -913,23 +916,72 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
   );
 });
 
-app.patch("/api/profile", requireAuth, (req, res) => {
-  const { name, bio, course, department, yearLevel } = req.body;
-  const dept = department || course || "";
-  const crs = course || department || "";
-  db.run(
-    `UPDATE Users SET name=?, bio=?, course=?, department=?, yearLevel=? WHERE username=?`,
-    [name, bio, crs, dept, yearLevel, req.currentUser.username],
-    function onUpdate(err) {
-      if (err) return res.json({ success: false, message: err.message });
-      req.currentUser.name = name;
-      req.currentUser.course = crs;
-      res.json({
-        success: true,
-        user: { name, bio, course: crs, department: dept, yearLevel },
-      });
-    },
-  );
+// FUNC-014 REQT-005 to REQT-008: a student edits their own full name,
+// username, course and password. Every field is required (REQT-006). The
+// password field sets the password, so typing the current one keeps it.
+// Trust score, warnings and account status can't be changed here (REQT-010).
+app.patch("/api/profile", requireAuth, async (req, res) => {
+  const me = req.currentUser.id;
+  const name = String(req.body.name ?? "").trim();
+  const username = String(req.body.username ?? "").trim();
+  const course = String(req.body.course ?? "").trim();
+  const password = String(req.body.password ?? "").trim();
+
+  if (!name || !username || !course || !password) {
+    return res.status(400).json({ success: false, message: "Missing Input" });
+  }
+  if (!isCourse(course)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Please select a course from the list." });
+  }
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+    });
+  }
+
+  try {
+    // Admin usernames count as taken, as they do at registration.
+    const [takenByStudent, takenByAdmin, current] = await Promise.all([
+      dbGet(`SELECT id FROM Users WHERE username = ? AND id != ?`, [username, me]),
+      dbGet(`SELECT admin_ID FROM Admin WHERE username = ?`, [username]),
+      dbGet(`SELECT course, department FROM Users WHERE id = ?`, [me]),
+    ]);
+    if (takenByStudent || takenByAdmin) {
+      return res.status(400).json({ success: false, message: "Username already taken" });
+    }
+
+    // The department belongs to the course, so it follows a course change.
+    const department =
+      course === current.course
+        ? current.department
+        : COURSE_TO_DEPARTMENT[course] || course;
+
+    await dbRun(
+      `UPDATE Users SET name = ?, username = ?, course = ?, department = ?, password = ? WHERE id = ?`,
+      [name, username, course, department, hashPassword(password), me],
+    );
+
+    // Every open session of this student, on any device, carries the new
+    // name, username and course, so username-keyed routes keep working.
+    for (const session of sessions.values()) {
+      if (session.role === "student" && session.user.id === me) {
+        Object.assign(session.user, { name, username, course });
+      }
+    }
+
+    res.json({ success: true, user: publicUser(req.currentUser) });
+  } catch (err) {
+    // Two students saving the same new username at once: the UNIQUE
+    // constraint catches the second.
+    if (String(err.message).includes("UNIQUE constraint failed: Users.username")) {
+      return res.status(400).json({ success: false, message: "Username already taken" });
+    }
+    console.error("Profile update failed:", err);
+    res.status(500).json({ success: false, message: "Could not update profile." });
+  }
 });
 
 app.get("/api/departments", (req, res) => {

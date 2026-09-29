@@ -47,6 +47,7 @@
     getRecentPortfolios: () => get("/portfolios/recent"),
     getSwapps: (username) => get(`/swapps/${encodeURIComponent(username)}`),
     getProfile: (username) => get(`/profile/${encodeURIComponent(username)}`),
+    updateProfile: (payload) => send("/profile", "PATCH", payload),
     createPortfolio: (payload) => send("/portfolios", "POST", payload),
     updatePortfolio: (id, payload) => send(`/portfolios/${id}`, "PUT", payload),
     likeNotebook: (payload) => send("/portfolios/like", "POST", payload),

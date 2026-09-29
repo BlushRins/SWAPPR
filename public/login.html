@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/login_styles.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/auth-storage.js"></script>
+    <script src="js/course-options.js"></script>
   </head>
 
   <body>
@@ -189,153 +190,6 @@
             <div class="custom-select-wrapper" style="position: relative; width: 100%; margin-bottom: 1rem;">
               <select id="regCourse" class="input-field" style="display: none;">
                 <option value="">Select your course</option>
-                <optgroup label="School of Architecture, Fine Arts, and Design">
-                  <option value="Bachelor of Science in Architecture">
-                    Bachelor of Science in Architecture
-                  </option>
-                  <option value="Bachelor of Landscape Architecture">
-                    Bachelor of Landscape Architecture
-                  </option>
-                  <option value="Bachelor of Science in Interior Design">
-                    Bachelor of Science in Interior Design
-                  </option>
-                  <option value="Bachelor of Fine Arts major in Advertising Arts">
-                    Bachelor of Fine Arts major in Advertising Arts
-                  </option>
-                  <option value="Bachelor of Fine Arts major in Cinema">
-                    Bachelor of Fine Arts major in Cinema
-                  </option>
-                </optgroup>
-                <optgroup label="School of Arts and Sciences">
-                  <option value="Bachelor of Arts in Anthropology">
-                    Bachelor of Arts in Anthropology
-                  </option>
-                  <option value="Bachelor of Science in Biology">
-                    Bachelor of Science in Biology
-                  </option>
-                  <option value="Bachelor of Science in Marine Biology">
-                    Bachelor of Science in Marine Biology
-                  </option>
-                  <option value="Bachelor of Science in Chemistry">
-                    Bachelor of Science in Chemistry
-                  </option>
-                  <option value="Bachelor of Arts in English Language Studies">
-                    Bachelor of Arts in English Language Studies
-                  </option>
-                  <option value="Bachelor of Arts in Literary and Cultural Studies with Creative Writing">
-                    Bachelor of Arts in Literary and Cultural Studies with Creative Writing
-                  </option>
-                  <option value="Bachelor of Arts in Communication major in Media">
-                    Bachelor of Arts in Communication major in Media
-                  </option>
-                  <option value="Bachelor of Science in Computer Science">
-                    Bachelor of Science in Computer Science
-                  </option>
-                  <option value="Bachelor of Science in Information Systems">
-                    Bachelor of Science in Information Systems
-                  </option>
-                  <option value="Bachelor of Science in Information Technology">
-                    Bachelor of Science in Information Technology
-                  </option>
-                  <option value="Bachelor of Science in Data Science">
-                    Bachelor of Science in Data Science
-                  </option>
-                  <option value="Bachelor of Philosophy">Bachelor of Philosophy</option>
-                  <option value="Bachelor of Science in Applied Physics">
-                    Bachelor of Science in Applied Physics
-                  </option>
-                  <option value="Bachelor of Science in Psychology">
-                    Bachelor of Science in Psychology
-                  </option>
-                </optgroup>
-                <optgroup label="School of Business and Economics">
-                  <option value="Bachelor of Science in Business Administration major in Financial Management">
-                    Bachelor of Science in Business Administration major in Financial Management
-                  </option>
-                  <option value="Bachelor of Science in Business Administration major in Human Resource Management">
-                    Bachelor of Science in Business Administration major in Human Resource Management
-                  </option>
-                  <option value="Bachelor of Science in Business Administration major in Marketing Management">
-                    Bachelor of Science in Business Administration major in Marketing Management
-                  </option>
-                  <option value="Bachelor of Science in Business Administration major in Operations Management">
-                    Bachelor of Science in Business Administration major in Operations Management
-                  </option>
-                  <option value="Bachelor of Science in Management Accounting">
-                    Bachelor of Science in Management Accounting
-                  </option>
-                  <option value="Bachelor of Science in Internal Auditing">
-                    Bachelor of Science in Internal Auditing
-                  </option>
-                  <option value="Bachelor of Science in Entrepreneurship">
-                    Bachelor of Science in Entrepreneurship
-                  </option>
-                  <option value="Bachelor of Science in Economics">
-                    Bachelor of Science in Economics
-                  </option>
-                  <option value="Bachelor of Science in Hospitality Management">
-                    Bachelor of Science in Hospitality Management
-                  </option>
-                  <option value="Bachelor of Science in Tourism Management">
-                    Bachelor of Science in Tourism Management
-                  </option>
-                  <option value="Diploma in Culinary Arts">
-                    Diploma in Culinary Arts
-                  </option>
-                </optgroup>
-                <optgroup label="School of Education">
-                  <option value="Bachelor of Secondary Education major in Science">
-                    Bachelor of Secondary Education major in Science
-                  </option>
-                  <option value="Bachelor of Secondary Education major in Mathematics">
-                    Bachelor of Secondary Education major in Mathematics
-                  </option>
-                  <option value="Bachelor of Special Needs Education specialization in Early Childhood Education-Montessori Education">
-                    Bachelor of Special Needs Education specialization in Early Childhood Education-Montessori Education
-                  </option>
-                </optgroup>
-                <optgroup label="School of Engineering">
-                  <option value="Bachelor of Science in Chemical Engineering">
-                    Bachelor of Science in Chemical Engineering
-                  </option>
-                  <option value="Bachelor of Science in Civil Engineering">
-                    Bachelor of Science in Civil Engineering
-                  </option>
-                  <option value="Bachelor of Science in Computer Engineering">
-                    Bachelor of Science in Computer Engineering
-                  </option>
-                  <option value="Bachelor of Science in Electrical Engineering">
-                    Bachelor of Science in Electrical Engineering
-                  </option>
-                  <option value="Bachelor of Science in Electronics Engineering">
-                    Bachelor of Science in Electronics Engineering
-                  </option>
-                  <option value="Bachelor of Science in Industrial Engineering">
-                    Bachelor of Science in Industrial Engineering
-                  </option>
-                  <option value="Bachelor of Science in Mechanical Engineering">
-                    Bachelor of Science in Mechanical Engineering
-                  </option>
-                </optgroup>
-                <optgroup label="School of Health Care Professions">
-                  <option value="Bachelor of Science in Nursing">
-                    Bachelor of Science in Nursing
-                  </option>
-                  <option value="Bachelor of Science in Nutrition and Dietetics">
-                    Bachelor of Science in Nutrition and Dietetics
-                  </option>
-                  <option value="Bachelor of Science in Pharmacy">
-                    Bachelor of Science in Pharmacy
-                  </option>
-                </optgroup>
-                <optgroup label="School of Law and Governance">
-                  <option value="Bachelor of Arts in Political Science major in International Relations and Foreign Service">
-                    Bachelor of Arts in Political Science major in International Relations and Foreign Service
-                  </option>
-                  <option value="Bachelor of Arts in Political Science major in Law and Policy Studies">
-                    Bachelor of Arts in Political Science major in Law and Policy Studies
-                  </option>
-                </optgroup>
               </select>
               <button
                 type="button"
@@ -603,6 +457,9 @@
         const courseButton = document.getElementById("regCourseButton");
         const courseList = document.getElementById("regCourseList");
         if (!courseSelect || !courseButton || !courseList) return;
+
+        // The options come from the shared list Edit Profile also uses.
+        window.SWAPPRCourses.fillCourseSelect(courseSelect);
 
         const topLevelOptions = Array.from(courseSelect.children)
           .filter((child) => child.tagName.toLowerCase() === "option")
