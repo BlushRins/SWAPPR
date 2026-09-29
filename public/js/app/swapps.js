@@ -317,7 +317,9 @@
     }
     const changed = swappsLoaded && signature(swapps) !== swappsSignature;
     storeSwapps(swapps);
-    if (changed) await app.loadNotebooks?.();
+    // The page's own data refresh: the feed on index.html, the profile on
+    // profile.html.
+    if (changed) await (app.reloadAfterSwappChange || app.loadNotebooks)?.();
     await showCancelNotices(swapps);
   };
 

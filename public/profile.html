@@ -331,7 +331,7 @@
           id="themeToggle"
           class="w-8 h-8 rounded-full flex items-center justify-center text-sm border bg-[#faf5ff] dark:bg-[#181428] border-[#ddd6fe] dark:border-white/[0.06] transition"
         >
-          🌙
+          <i data-lucide="moon" class="w-4 h-4"></i>
         </button>
         <button
           onclick="handleLogout()"
@@ -463,22 +463,19 @@
 
     <script src="js/auth-storage.js"></script>
     <script src="js/mobile-menu.js"></script>
-    <!-- The shared Report dialog (RPT001) and what it needs -->
+    <!-- PRF001: the same header scripts as index.html (theme, toast, chat and
+         SWAPP checks), plus the shared Report dialog (RPT001) -->
     <script src="js/app/state.js"></script>
     <script src="js/app/api.js"></script>
+    <script src="js/app/theme.js"></script>
+    <script src="js/app/toast.js"></script>
+    <script src="js/app/swapps.js"></script>
+    <script src="js/app/chat.js"></script>
     <script src="js/app/report-modal.js"></script>
     <script>
       // ── Theme ────────────────────────────────────────────────────────────────
-      const savedTheme = localStorage.getItem("theme");
-      if (savedTheme === "dark") document.documentElement.classList.add("dark");
-      const themeToggle = document.getElementById("themeToggle");
-      themeToggle.textContent = savedTheme === "dark" ? "☀️" : "🌙";
-      themeToggle.addEventListener("click", () => {
-        document.documentElement.classList.toggle("dark");
-        const isDark = document.documentElement.classList.contains("dark");
-        localStorage.setItem("theme", isDark ? "dark" : "light");
-        themeToggle.textContent = isDark ? "☀️" : "🌙";
-      });
+      // Same toggle as index.html (js/app/theme.js, localStorage["theme"]).
+      window.SWAPPR.attachThemeToggle();
 
       // ── Auth ─────────────────────────────────────────────────────────────────
       let currentUser = null;
@@ -501,11 +498,9 @@
         });
       }
 
-      function showToast(msg, type = "") {
-        const t = document.getElementById("toast");
-        t.textContent = msg;
-        t.className = `toast ${type} show`;
-        setTimeout(() => t.classList.remove("show"), 2800);
+      // The shared toast queue (js/app/toast.js), as on index.html.
+      function showToast(message) {
+        window.SWAPPR.showToast(message);
       }
 
       // PNL001 colour bands for a trust score: 95%+ green, 85%+ yellow,
@@ -547,18 +542,18 @@
 
       async function loadProfile() {
         try {
-          const res = await fetch(`/api/profile/${viewUser}`, {
+          const res = await fetch(`/api/profile/${encodeURIComponent(viewUser)}`, {
             credentials: "same-origin",
           });
           const data = await res.json();
           if (!data.success) {
-            showToast("Profile not found.", "red");
+            showToast("Profile not found.");
             return;
           }
           profileData = data.profile;
           renderProfile(profileData);
         } catch {
-          showToast("Failed to load profile.", "red");
+          showToast("Failed to load profile.");
         }
       }
 
@@ -735,10 +730,10 @@
             window.location.href = "index.html";
           } else {
             // e.g. FUNC-009 REQT-011: the notebook is in an open SWAPP.
-            showToast(data.message || "Failed to delete.", "red");
+            showToast(data.message || "Failed to delete.");
           }
         } catch {
-          showToast("Failed to delete.", "red");
+          showToast("Failed to delete.");
         }
       }
 
@@ -756,10 +751,14 @@
         viewUser = params.get("user") || currentUser.username;
         isOwn = viewUser === currentUser.username;
         loadProfile();
-      }
 
-      // The Report dialog shows its notices with this page's toast.
-      window.SWAPPR.showToast = (message) => showToast(message);
+        // New-message and cancelled-SWAPP popups, as on index.html. A SWAPP
+        // change (accepted, cancelled) reloads this profile's matches.
+        window.SWAPPR.state.currentUser = currentUser;
+        window.SWAPPR.reloadAfterSwappChange = loadProfile;
+        window.SWAPPR.startChatNotifications();
+        window.SWAPPR.startSwappUpdates();
+      }
 
       initProfile();
     </script>
