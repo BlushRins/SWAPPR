@@ -35,6 +35,14 @@
     } catch (err) {
       console.error("Failed to load subjects:", err);
       app.state.subjects = [];
+      // IDX001: tell the student instead of leaving the loading spinner.
+      const grid = document.getElementById("notebookGrid");
+      if (grid && app.state.currentFilter === "all" && !app.state.selectedSubject) {
+        const message = document.createElement("p");
+        message.className = "text-sm text-purple-400";
+        message.textContent = "Could not load subjects. Please try again.";
+        grid.replaceChildren(message);
+      }
     }
   };
 
@@ -115,9 +123,13 @@
     });
 
     if (cardSubjects.length === 0) {
-      grid.innerHTML = query
-        ? `<p class="text-sm text-purple-400">No subjects match "${query}".</p>`
-        : `<p class="text-sm text-purple-400">No subjects with shared notebooks yet.</p>`;
+      // textContent: the query is whatever the student typed.
+      const empty = document.createElement("p");
+      empty.className = "text-sm text-purple-400";
+      empty.textContent = query
+        ? `No subjects match "${query}".`
+        : "No subjects with shared notebooks yet.";
+      grid.replaceChildren(empty);
       app.renderPagination(0);
       return;
     }

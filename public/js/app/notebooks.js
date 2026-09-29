@@ -19,6 +19,48 @@
     );
   }
 
+  // Subtitles the design gives specific views (IDX004, IDX006).
+  const VIEW_SUBTITLES = {
+    matched: "Notebooks unlocked through your SWAPPs.",
+    top: "The most active departments first.",
+  };
+
+  // What a view shows when it has nothing at all (IDX003, IDX004, IDX006,
+  // IDX007). When a search empties it, FUNC-007 REQT-003 applies instead.
+  const EMPTY_MESSAGES = {
+    mine: "You have not shared any notebooks yet.",
+    matched: "You have no SWAPP matches yet.",
+    top: "No notebooks have been shared yet.",
+    recent: "No notebooks have been shared yet.",
+  };
+  const NO_SEARCH_MATCH = "No notebooks match your search. Try adjusting your filters.";
+  const RECENT_LIMIT = 20;
+
+  // Newest upload first; the id breaks ties (notebooks saved the same second).
+  function newestFirst(a, b) {
+    return String(b.created_at || "").localeCompare(String(a.created_at || "")) || b.id - a.id;
+  }
+
+  // IDX006: departments with the most active notebooks first, ties by
+  // department name, newest notebook first within a department. Activity is
+  // counted over every active notebook, not just the ones a search leaves.
+  function byDepartmentActivity(notebooks) {
+    const activity = new Map();
+    app.state.notebooks.forEach((notebook) => {
+      const department = notebook.department || "";
+      activity.set(department, (activity.get(department) || 0) + 1);
+    });
+    return [...notebooks].sort((a, b) => {
+      const left = a.department || "";
+      const right = b.department || "";
+      if (left === right) return newestFirst(a, b);
+      // Notebooks without a department go last.
+      if (!left) return 1;
+      if (!right) return -1;
+      return activity.get(right) - activity.get(left) || left.localeCompare(right);
+    });
+  }
+
   function updateSectionTitle() {
     const sectionTitle = document.getElementById("sectionTitle");
     const sectionSubtitle = document.getElementById("sectionSubtitle");
@@ -44,6 +86,7 @@
       app.state.titles[app.state.currentFilter] || "Subjects";
     if (sectionSubtitle) {
       sectionSubtitle.textContent =
+        VIEW_SUBTITLES[app.state.currentFilter] ||
         "Browse shared subjects and study resources in a Reddit-style feed.";
     }
   }
@@ -99,21 +142,12 @@
     }
 
     if (app.state.currentFilter === "top") {
-      const userCounts = {};
-      app.state.notebooks.forEach((notebook) => {
-        userCounts[notebook.username] = (userCounts[notebook.username] || 0) + 1;
-      });
-
-      const topUsers = Object.entries(userCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([username]) => username);
-
-      filtered = filtered.filter((notebook) => topUsers.includes(notebook.username));
+      filtered = byDepartmentActivity(filtered);
     }
 
+    // IDX007: the 20 most recently published, newest first.
     if (app.state.currentFilter === "recent") {
-      filtered = [...filtered].reverse().slice(0, 20);
+      filtered = [...filtered].sort(newestFirst).slice(0, RECENT_LIMIT);
     }
 
     return filtered;
@@ -383,7 +417,15 @@
 
     const filtered = filterNotebooks(searchQuery);
     if (filtered.length === 0) {
-      grid.innerHTML = `<p class="text-sm text-purple-400">No results found.</p>`;
+      const empty = document.createElement("p");
+      empty.className = "text-sm text-purple-400";
+      // A search that empties the view gets the SRS wording; a view that has
+      // nothing at all gets its own message.
+      empty.textContent =
+        searchQuery && filterNotebooks("").length
+          ? NO_SEARCH_MATCH
+          : EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH;
+      grid.appendChild(empty);
       app.renderPagination(0);
       return;
     }
@@ -417,6 +459,12 @@
     const fieldsValid = app.validateNotebookFields();
     const counts = app.readNotebookCounts();
     if (!fieldsValid || !counts) return;
+
+    // FUNC-009 REQT-005 / REQT-007: "No" returns to the modal with the
+    // edits kept; nothing is sent.
+    if (editingNotebookId && !confirm("Are you sure you want to edit this notebook?")) {
+      return;
+    }
 
     try {
       const payload = {

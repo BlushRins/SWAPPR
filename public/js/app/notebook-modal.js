@@ -142,6 +142,14 @@
 
   // A count stops being red once it's valid again.
   document.addEventListener("DOMContentLoaded", () => {
+    // Escape closes the modal without saving, like Close (x) (MOD001).
+    document.addEventListener("keydown", (event) => {
+      const modal = document.getElementById("addModal");
+      if (event.key === "Escape" && modal && !modal.classList.contains("hidden")) {
+        app.closeAddModal();
+      }
+    });
+
     // A required field stops being red once it's filled in correctly.
     document.getElementById("newTitle")?.addEventListener("input", (event) => {
       if (event.target.value.trim()) app.setNotebookFieldError("title", false);
