@@ -2544,3 +2544,72 @@ body {
 .dark .profile-standing dd {
   color: #ede9fe;
 }
+
+/* Notebook titles open Notebook Details (MOD004). The button keeps the
+   heading's look and only underlines on hover/focus. */
+.card-title-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.card-title-link:hover,
+.card-title-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Notebook Details (MOD004) ─────────────────────────────────────────── */
+.modal-box.notebook-details-box {
+  max-width: 560px;
+}
+.notebook-details-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  font-size: 0.85rem;
+}
+.notebook-details-meta dt {
+  font-weight: 700;
+  color: #7c3aed;
+}
+.notebook-details-meta dd {
+  margin: 0;
+  color: #374151;
+  overflow-wrap: anywhere;
+}
+.dark .notebook-details-meta dt {
+  color: #c4b5fd;
+}
+.dark .notebook-details-meta dd {
+  color: #e9e3ff;
+}
+.notebook-details-description {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid #fbcfe8;
+  color: #db2777;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background-color 0.15s ease;
+}
+.like-btn:hover {
+  background: #fdf2f8;
+}
+.dark .like-btn {
+  border-color: rgba(244, 114, 182, 0.35);
+  color: #f472b6;
+}
+.dark .like-btn:hover {
+  background: rgba(244, 114, 182, 0.1);
+}

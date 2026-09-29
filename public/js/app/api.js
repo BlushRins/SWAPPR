@@ -51,6 +51,7 @@
     createPortfolio: (payload) => send("/portfolios", "POST", payload),
     updatePortfolio: (id, payload) => send(`/portfolios/${id}`, "PUT", payload),
     likeNotebook: (payload) => send("/portfolios/like", "POST", payload),
+    deletePortfolio: (id) => send("/portfolios/delete", "POST", { id }),
     sendSwapp: (payload) => send("/swapps", "POST", payload),
     respondSwapp: (id, payload) => send(`/swapps/${id}/respond`, "PUT", payload),
     cancelSwapp: (id) => send(`/swapps/${id}/cancel`, "POST", {}),

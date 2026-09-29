@@ -27,6 +27,8 @@
     root.openProfilePanel = app.openProfilePanel;
     root.closeProfilePanel = app.closeProfilePanel;
     root.openEditProfileModal = app.openEditProfileModal;
+    root.openNotebookDetails = app.openNotebookDetails;
+    root.closeNotebookDetails = app.closeNotebookDetails;
     root.closeEditProfileModal = app.closeEditProfileModal;
     root.openAddModal = app.openAddModal;
     root.openEditNotebookModal = app.openEditNotebookModal;

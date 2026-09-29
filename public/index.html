@@ -561,6 +561,24 @@
               placeholder="https://drive.google.com/…"
             />
           </div>
+          <!-- Optional counts: drive the card's size label and reading time (FUNC-007 REQT-002) -->
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label for="newWordCount" class="field-section-label">Word count</label>
+              <input id="newWordCount" type="text" inputmode="numeric" maxlength="7" class="input-field" placeholder="6200" />
+              <p id="newWordCountError" class="report-error hidden">Enter a whole number.</p>
+            </div>
+            <div>
+              <label for="newPageCount" class="field-section-label">Page count</label>
+              <input id="newPageCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="40" />
+              <p id="newPageCountError" class="report-error hidden">Enter a whole number.</p>
+            </div>
+            <div>
+              <label for="newDiagramCount" class="field-section-label">Diagram count</label>
+              <input id="newDiagramCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="12" />
+              <p id="newDiagramCountError" class="report-error hidden">Enter a whole number.</p>
+            </div>
+          </div>
           <div class="flex justify-end gap-3 pt-2">
             <button
               onclick="closeAddModal()"
@@ -784,6 +802,76 @@
       </div>
     </div>
 
+    <!-- Notebook Details (MOD004 / FUNC-007 REQT-005, FUNC-009, FUNC-014 REQT-004) -->
+    <div
+      id="notebookDetailsModal"
+      class="modal-overlay hidden"
+      onclick="closeNotebookDetails(event)"
+    >
+      <div
+        class="modal-box notebook-details-box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notebookDetailsHeading"
+      >
+        <button
+          type="button"
+          onclick="closeNotebookDetails()"
+          class="report-modal-close"
+          aria-label="Close"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <p
+          id="notebookDetailsHeading"
+          class="text-xs font-bold uppercase tracking-widest mb-3 pr-8 text-purple-400"
+        >
+          Notebook Details
+        </p>
+
+        <h3
+          id="detailsTitle"
+          class="text-xl font-extrabold leading-tight text-purple-900 dark:text-purple-100 break-words"
+        ></h3>
+        <a
+          id="detailsAuthor"
+          href="#"
+          class="inline-block mt-1 text-sm font-semibold text-purple-600 dark:text-purple-300 hover:underline"
+        ></a>
+
+        <p
+          id="detailsDescription"
+          class="notebook-details-description mt-4 text-sm text-gray-600 dark:text-gray-300"
+        ></p>
+
+        <dl class="notebook-details-meta mt-5">
+          <dt>Subject</dt>
+          <dd id="detailsSubject"></dd>
+          <dt>Department</dt>
+          <dd id="detailsDepartment"></dd>
+          <dt>Uploaded</dt>
+          <dd id="detailsUploaded"></dd>
+          <dt id="detailsStatusLabel" class="hidden">Status</dt>
+          <dd id="detailsStatus" class="hidden"></dd>
+        </dl>
+
+        <div id="detailsMetrics" class="mt-4 flex flex-wrap items-center gap-2"></div>
+
+        <div
+          id="detailsTrust"
+          class="mt-4 inline-flex items-center gap-1.5 text-sm font-bold"
+        >
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          <span id="detailsTrustText"></span>
+        </div>
+
+        <div
+          id="detailsActions"
+          class="mt-6 pt-4 border-t border-purple-100 dark:border-white/[0.08] flex flex-wrap items-center gap-2"
+        ></div>
+      </div>
+    </div>
+
     <!-- Edit Profile Modal (PRF002 / FUNC-014 REQT-005 to REQT-009) -->
     <div
       id="editProfileModal"
@@ -927,6 +1015,7 @@
     <script src="js/pagination.js"></script>
     <script src="js/date-format.js"></script>
     <script src="js/course-options.js"></script>
+    <script src="js/notebook-metrics.js"></script>
     <script src="js/auth-storage.js"></script>
     <script src="js/app/state.js"></script>
     <script src="js/app/api.js"></script>
@@ -944,6 +1033,7 @@
     <script src="js/app/profile-panel.js"></script>
     <script src="js/app/edit-profile.js"></script>
     <script src="js/app/notebook-modal.js"></script>
+    <script src="js/app/notebook-details.js"></script>
     <script src="js/app/toast.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/app/main.js"></script>

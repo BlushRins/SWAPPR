@@ -286,6 +286,19 @@
       .dark .notebook-title {
         color: #f0eaff;
       }
+      .notebook-title-link {
+        display: block;
+        padding: 0;
+        border: none;
+        background: none;
+        text-align: left;
+        cursor: pointer;
+        overflow-wrap: anywhere;
+      }
+      .notebook-title-link:hover,
+      .notebook-title-link:focus-visible {
+        text-decoration: underline;
+      }
       .notebook-dept {
         font-size: 0.75rem;
         color: #8878b8;
@@ -748,7 +761,7 @@
             <div class="notebook-item">
               <div class="flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
-                  <p class="notebook-title">${escapeHtml(n.title)}</p>
+                  <button type="button" onclick="openNotebook(${Number(n.id)})" class="notebook-title notebook-title-link">${escapeHtml(n.title)}</button>
                   <p class="notebook-dept">${escapeHtml(n.department || "No department")}</p>
                   ${
                     moderationNote(n.status)
@@ -845,6 +858,13 @@
       }
 
       // ── Notebook actions ──────────────────────────────────────────────────────
+      // FUNC-014 REQT-004: a title opens Notebook Details (MOD004) on the
+      // main page, handed off like editNotebook() below.
+      function openNotebook(notebookId) {
+        sessionStorage.setItem("openNotebookId", notebookId);
+        window.location.href = "index.html";
+      }
+
       function editNotebook(notebookId) {
         sessionStorage.setItem("editNotebookId", notebookId);
         window.location.href = "index.html";

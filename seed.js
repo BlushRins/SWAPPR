@@ -72,6 +72,10 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Computer Science",
     course_code: "CIS 2101",
     file_url: "https://drive.google.com/example/ana-dsa",
+    // Optional counts an author enters in MOD001 (FUNC-007 REQT-002).
+    word_count: 9400,
+    page_count: 64,
+    diagram_count: 22,
   },
   {
     author: "ana_reyes",
@@ -80,6 +84,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Computer Science",
     course_code: "CIS 2103",
     file_url: "https://drive.google.com/example/ana-oop",
+    word_count: 6200,
+    page_count: 41,
+    diagram_count: 12,
   },
   {
     author: "marco_s",
@@ -88,6 +95,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Information Technology",
     course_code: "CIS 1202",
     file_url: "https://drive.google.com/example/marco-webdev",
+    word_count: 3400,
+    page_count: 24,
+    diagram_count: 9,
   },
   {
     author: "marco_s",
@@ -96,6 +106,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Information Technology",
     course_code: "CIS 1204",
     file_url: "https://drive.google.com/example/marco-dbms",
+    word_count: 7100,
+    page_count: 48,
+    diagram_count: 15,
   },
   {
     author: "lia_cruz",
@@ -104,6 +117,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Electrical Engineering",
     course_code: "EE 2101",
     file_url: "https://drive.google.com/example/lia-circuits",
+    word_count: 5300,
+    page_count: 36,
+    diagram_count: 28,
   },
   {
     author: "josh_m",
@@ -112,6 +128,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Secondary Education major in Mathematics",
     course_code: "MAT 3101",
     file_url: "https://drive.google.com/example/josh-calc1",
+    word_count: 8600,
+    page_count: 58,
+    diagram_count: 19,
   },
   {
     author: "josh_m",
@@ -120,6 +139,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Secondary Education major in Mathematics",
     course_code: "MATHED 1202",
     file_url: "https://drive.google.com/example/josh-linalg",
+    word_count: 2800,
+    page_count: 18,
+    diagram_count: 31,
   },
   {
     author: "cami_tan",
@@ -128,6 +150,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Psychology",
     course_code: "PSY 3216",
     file_url: "https://drive.google.com/example/cami-abpsych",
+    word_count: 4700,
+    page_count: 33,
+    diagram_count: 6,
   },
   {
     author: "renz_v",
@@ -136,6 +161,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Computer Science",
     course_code: "CS 3104N",
     file_url: "https://drive.google.com/example/renz-os",
+    word_count: 10200,
+    page_count: 72,
+    diagram_count: 18,
   },
   {
     author: "sofia_dc",
@@ -144,6 +172,9 @@ const NOTEBOOKS = [
     course: "Bachelor of Science in Nursing",
     course_code: "NCM 1203",
     file_url: "https://drive.google.com/example/sofia-nursing",
+    word_count: 3900,
+    page_count: 27,
+    diagram_count: 11,
   },
 ];
 
@@ -235,7 +266,7 @@ async function seedBulkNotebooks(count, userIds) {
 
   await run("BEGIN");
   const stmt = db.prepare(
-    `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url) VALUES (?,?,?,?,?,?)`,
+    `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url, word_count, page_count, diagram_count) VALUES (?,?,?,?,?,?,?,?,?)`,
   );
   for (let i = 0; i < count; i++) {
     const c = courseRows[i % courseRows.length];
@@ -247,6 +278,10 @@ async function seedBulkNotebooks(count, userIds) {
       c.course_code,
       userIdList[i % userIdList.length],
       `https://drive.google.com/example/nb-${i}`,
+      // Varied but repeatable counts, so every size label appears.
+      2000 + ((i * 1370) % 9000),
+      10 + ((i * 7) % 60),
+      (i * 3) % 25,
     );
   }
   await new Promise((res, rej) =>
@@ -304,7 +339,7 @@ async function seed() {
     `CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT UNIQUE, password TEXT, bio TEXT, course TEXT, department TEXT, yearLevel TEXT, trust_score INTEGER DEFAULT 100, warning_count INTEGER DEFAULT 0, account_status TEXT DEFAULT 'active')`,
   );
   await run(
-    `CREATE TABLE Notebooks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, department TEXT, course_code TEXT, author_id INTEGER, file_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, status TEXT DEFAULT 'active', report_count INTEGER DEFAULT 0)`,
+    `CREATE TABLE Notebooks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, department TEXT, course_code TEXT, author_id INTEGER, file_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, status TEXT DEFAULT 'active', report_count INTEGER DEFAULT 0, word_count INTEGER, page_count INTEGER, diagram_count INTEGER)`,
   );
   await run(
     `CREATE TABLE Reports (report_ID INTEGER PRIMARY KEY AUTOINCREMENT, reporter_ID INTEGER, notebook_ID INTEGER, resolved_by INTEGER, reason TEXT, complaint TEXT, status TEXT DEFAULT 'open', date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP)`,
@@ -336,7 +371,7 @@ async function seed() {
   for (const nb of NOTEBOOKS) {
     const mappedDepartment = COURSE_TO_DEPARTMENT[nb.course] || nb.course;
     const res = await run(
-      `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url) VALUES (?,?,?,?,?,?)`,
+      `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url, word_count, page_count, diagram_count) VALUES (?,?,?,?,?,?,?,?,?)`,
       [
         nb.title,
         nb.description,
@@ -344,6 +379,9 @@ async function seed() {
         nb.course_code,
         userIds[nb.author],
         nb.file_url,
+        nb.word_count,
+        nb.page_count,
+        nb.diagram_count,
       ],
     );
     notebookIds.push(res.lastID);

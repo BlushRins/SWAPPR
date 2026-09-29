@@ -36,4 +36,11 @@ assert.ok(
   "chat messages must be rendered with textContent, not innerHTML",
 );
 
+const detailsSource = fs.readFileSync(path.join(__dirname, "notebook-details.js"), "utf8");
+
+assert.ok(
+  !detailsSource.includes("innerHTML"),
+  "Notebook Details must render notebook text with textContent, not innerHTML",
+);
+
 console.log("notebooks.xss.test.js OK");

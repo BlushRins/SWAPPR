@@ -142,6 +142,7 @@
       "inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-lg border border-gray-200 dark:border-purple-500/30 text-gray-400 dark:text-purple-300 hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-400/40 transition";
     reportBtn.title = "Report";
     reportBtn.setAttribute("aria-label", "Report this notebook");
+    reportBtn.dataset.action = "report";
     reportBtn.addEventListener("click", () => app.openReportModal(notebook));
     actionContainer.appendChild(reportBtn);
 
@@ -150,6 +151,7 @@
       accessBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4"></i> Access';
       accessBtn.className =
         "text-sm px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition shadow-sm";
+      accessBtn.dataset.action = "access";
       accessBtn.addEventListener("click", () => {
         if (notebook.fileUrl || notebook.file_url) {
           window.open(notebook.fileUrl || notebook.file_url, "_blank");
@@ -165,6 +167,7 @@
       chatBtn.className =
         "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm ml-2";
       chatBtn.dataset.chatSwapp = String(accessSwapp.id);
+      chatBtn.dataset.action = "chat";
 
       const unread = app.getChatUnreadForSwapp?.(accessSwapp.id) || 0;
       const chatBadge = document.createElement("span");
@@ -213,9 +216,39 @@
       '<i data-lucide="repeat-2" class="w-4 h-4"></i> Request Swap';
     swapBtn.className =
       "text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm";
+    swapBtn.dataset.action = "swap";
     swapBtn.addEventListener("click", () => app.openSwappRequestModal(notebook));
     actionContainer.appendChild(swapBtn);
   }
+
+  // The size label, count pills and reading time for a notebook. Each is left
+  // out when the author didn't enter that count (IDX002). MOD004 uses the
+  // same helper, so the card and the details always agree.
+  app.notebookMetrics = function notebookMetrics(notebook) {
+    const metricsApi = root.SWAPPRMetrics;
+    const has = (value) => value !== null && value !== undefined && value !== "";
+    const pills = [];
+    if (has(notebook.wordCount)) {
+      pills.push({ icon: "file-text", text: `${Number(notebook.wordCount).toLocaleString()} words` });
+    }
+    if (has(notebook.diagramCount)) {
+      pills.push({ icon: "image", text: `${Number(notebook.diagramCount).toLocaleString()} diagrams` });
+    }
+    if (has(notebook.pageCount)) {
+      pills.push({ icon: "book-open", text: `${Number(notebook.pageCount).toLocaleString()} pages` });
+    }
+    const minutes = metricsApi.readingMinutes(notebook.wordCount);
+    return {
+      size: metricsApi.sizeLabel(notebook.wordCount),
+      pills,
+      readTime: minutes === null ? null : `${minutes} min read`,
+    };
+  };
+
+  // The card's action controls, also used by Notebook Details (MOD004).
+  app.renderNotebookActions = function renderNotebookActions(notebook, container) {
+    createActionControls(notebook, container);
+  };
 
   function createNotebookCard(notebook) {
     const card = document.createElement("div");
@@ -226,64 +259,60 @@
         : notebook.description
       : "No description provided";
 
-    const wordCount = notebook.wordCount || Math.floor(Math.random() * 12000) + 2000;
-    const subjectLabel = escapeHtml(notebook.department || notebook.course || "General");
+    const subjectLabel = escapeHtml(
+      [notebook.department || "General", notebook.course_code, "Reviewer"]
+        .filter(Boolean)
+        .join(" \u2022 "),
+    );
     // FUNC-007 REQT-002: the author's stored trust score.
     const trustScore = escapeHtml(notebook.trustScore ?? 100);
     const trustTone = app.trustTone(Number(notebook.trustScore ?? 100));
-    const levelTag =
-      notebook.level ||
-      (wordCount > 15000
-        ? "COMPREHENSIVE"
-        : wordCount > 8000
-          ? "COMPREHENSIVE"
-          : wordCount > 4000
-            ? "STANDARD"
-            : "QUICK REVIEW");
     const title = escapeHtml(notebook.title || "Untitled Notebook");
     const username = escapeHtml(notebook.username || "anonymous");
     const description = escapeHtml(displayDesc);
-    const levelTagText = escapeHtml(levelTag);
-    const wordCountText = escapeHtml(wordCount.toLocaleString());
+    const metrics = app.notebookMetrics(notebook);
 
     card.className = "notebook-card fade-in";
     card.innerHTML = `
       <div class="card-top">
         <div>
-          <h3 class="card-title">${title}</h3>
+          <h3 class="card-title">
+            <button type="button" class="card-title-link">${title}</button>
+          </h3>
           <p class="card-username">by @${username}</p>
           <p class="card-description">${description}</p>
         </div>
       </div>
 
       <div class="card-subject-row">
-        <span class="card-subject-text">${subjectLabel} &bull; COURSE &bull; Reviewer</span>
+        <span class="card-subject-text">${subjectLabel}</span>
       </div>
 
-      <div class="card-badge-row">
-        <span class="card-badge">${levelTagText}</span>
-      </div>
+      ${metrics.size ? `<div class="card-badge-row"><span class="card-badge">${escapeHtml(metrics.size)}</span></div>` : ""}
 
-      <div class="metadata-dashboard">
+      ${
+        metrics.pills.length
+          ? `<div class="metadata-dashboard">${metrics.pills
+              .map(
+                (pill) => `
         <div class="meta-pill">
-          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-          ${wordCountText} words
-        </div>
-        <div class="meta-pill">
-          <i data-lucide="image" class="w-3.5 h-3.5"></i>
-          ${escapeHtml(notebook.imageCount || 18)} diagrams
-        </div>
-        <div class="meta-pill">
-          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-          ${escapeHtml(notebook.pageCount || 72)} pages
-        </div>
-      </div>
+          <i data-lucide="${pill.icon}" class="w-3.5 h-3.5"></i>
+          ${escapeHtml(pill.text)}
+        </div>`,
+              )
+              .join("")}</div>`
+          : ""
+      }
 
       <div class="meta-bottom-row">
-        <div class="read-time">
+        ${
+          metrics.readTime
+            ? `<div class="read-time">
           <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-          ${escapeHtml(notebook.readTime || 48)} min read
-        </div>
+          ${escapeHtml(metrics.readTime)}
+        </div>`
+            : "<div></div>"
+        }
         <div class="trust-score trust-${trustTone}">
           <i data-lucide="shield-check" class="w-4 h-4"></i>
           ${trustScore}% Trust Score
@@ -296,6 +325,10 @@
       </div>
     `;
 
+    // FUNC-007 REQT-005: the title opens Notebook Details (MOD004).
+    card
+      .querySelector(".card-title-link")
+      .addEventListener("click", () => app.openNotebookDetails(notebook.id));
     createActionControls(notebook, card.querySelector(".action-container"));
     return card;
   }
@@ -313,6 +346,7 @@
         );
         if (notebook) app.openEditNotebookModal(notebook);
       }
+      app.openNotebookDetailsIfRequested();
 
       app.renderNotebooks();
     } catch (err) {
@@ -382,6 +416,9 @@
 
     if (!title) return alert("Title required");
 
+    const counts = app.readNotebookCounts();
+    if (!counts) return;
+
     try {
       const payload = {
         title,
@@ -389,6 +426,7 @@
         department,
         courseCode,
         fileUrl,
+        ...counts,
         username: app.state.currentUser.username,
       };
 

@@ -35,5 +35,14 @@
     return `${formatDate(value)} ${hours % 12 || 12}:${minutes} ${period}`;
   }
 
-  return { parseDbDate, formatDate, formatDateTime };
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  // MMM d, yyyy (e.g. Sep 29, 2026), used by Notebook Details (MOD004).
+  function formatLongDate(value) {
+    const date = parseDbDate(value);
+    if (!date) return "";
+    return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  }
+
+  return { parseDbDate, formatDate, formatDateTime, formatLongDate };
 });

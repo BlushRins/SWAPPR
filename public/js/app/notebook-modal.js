@@ -1,6 +1,35 @@
 (function (root) {
   const app = (root.SWAPPR = root.SWAPPR || {});
 
+  // The optional count inputs, keyed by the name the API expects.
+  const COUNT_FIELDS = {
+    wordCount: "newWordCount",
+    pageCount: "newPageCount",
+    diagramCount: "newDiagramCount",
+  };
+
+  function setCountError(key, hasError) {
+    document.getElementById(COUNT_FIELDS[key])?.classList.toggle("error", hasError);
+    document.getElementById(`${COUNT_FIELDS[key]}Error`)?.classList.toggle("hidden", !hasError);
+  }
+
+  // Reads the counts; marks each one that isn't a whole number. Returns null
+  // if any is invalid, otherwise { wordCount, pageCount, diagramCount }.
+  app.readNotebookCounts = function readNotebookCounts() {
+    const counts = {};
+    let valid = true;
+    for (const [key, id] of Object.entries(COUNT_FIELDS)) {
+      const parsed = root.SWAPPRMetrics.parseCount(
+        document.getElementById(id)?.value,
+        root.SWAPPRMetrics.COUNT_DIGITS[key],
+      );
+      setCountError(key, !parsed.ok);
+      if (parsed.ok) counts[key] = parsed.value;
+      else valid = false;
+    }
+    return valid ? counts : null;
+  };
+
   app.clearPortfolioForm = function clearPortfolioForm() {
     const titleInput = document.getElementById("newTitle");
     const descriptionInput = document.getElementById("newDescription");
@@ -12,6 +41,11 @@
     if (descriptionInput) descriptionInput.value = "";
     if (subjectInput) subjectInput.value = "";
     if (fileUrlInput) fileUrlInput.value = "";
+    Object.entries(COUNT_FIELDS).forEach(([key, id]) => {
+      const input = document.getElementById(id);
+      if (input) input.value = "";
+      setCountError(key, false);
+    });
     if (actionBtn) actionBtn.textContent = "Publish Notebook";
   };
 
@@ -58,6 +92,11 @@
     document.getElementById("newDescription").value = notebook.description || "";
     selectSubject(notebook.course_code || "");
     document.getElementById("newFileUrl").value = notebook.file_url || "";
+    Object.entries(COUNT_FIELDS).forEach(([key, id]) => {
+      const input = document.getElementById(id);
+      if (input) input.value = notebook[key] ?? "";
+      setCountError(key, false);
+    });
 
     const actionBtn = document.getElementById("portfolioActionBtn");
     if (actionBtn) actionBtn.textContent = "Save Changes";
@@ -65,6 +104,19 @@
     document.getElementById("addModal").classList.remove("hidden");
     setTimeout(() => root.lucide?.createIcons(), 100);
   };
+
+  // A count stops being red once it's valid again.
+  document.addEventListener("DOMContentLoaded", () => {
+    Object.entries(COUNT_FIELDS).forEach(([key, id]) => {
+      document.getElementById(id)?.addEventListener("input", (event) => {
+        const parsed = root.SWAPPRMetrics.parseCount(
+          event.target.value,
+          root.SWAPPRMetrics.COUNT_DIGITS[key],
+        );
+        if (parsed.ok) setCountError(key, false);
+      });
+    });
+  });
 
   app.closeAddModal = function closeAddModal(event) {
     if (!event || event.target.id === "addModal") {

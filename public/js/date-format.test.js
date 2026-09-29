@@ -3,7 +3,7 @@
 process.env.TZ = "Asia/Manila";
 
 const assert = require("assert");
-const { parseDbDate, formatDate, formatDateTime } = require("./date-format");
+const { parseDbDate, formatDate, formatDateTime, formatLongDate } = require("./date-format");
 
 // SQLite timestamps are UTC: 16:19 UTC is 00:19 the next day in Manila.
 assert.strictEqual(
@@ -12,6 +12,9 @@ assert.strictEqual(
   "SQLite timestamps are read as UTC",
 );
 assert.strictEqual(formatDate("2026-09-28 16:19:12"), "9/29/2026");
+assert.strictEqual(formatLongDate("2026-09-28 16:19:12"), "Sep 29, 2026");
+assert.strictEqual(formatLongDate("2026-01-05 03:00:00"), "Jan 5, 2026");
+assert.strictEqual(formatLongDate(null), "");
 assert.strictEqual(formatDateTime("2026-09-28 16:19:12"), "9/29/2026 12:19 AM");
 assert.strictEqual(formatDateTime("2026-09-29 04:05:00"), "9/29/2026 12:05 PM");
 assert.strictEqual(formatDateTime("2026-09-29 06:30:00"), "9/29/2026 2:30 PM");

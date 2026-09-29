@@ -14,6 +14,10 @@
     mid: ["text-yellow-500", "dark:text-yellow-400"],
     low: ["text-red-500", "dark:text-red-400"],
   };
+  // Also used by Notebook Details for the author's trust score.
+  app.trustToneClasses = function trustToneClasses(score) {
+    return TRUST_TONE_CLASSES[app.trustTone(score)];
+  };
   const ACCOUNT_STATUS_LABELS = { active: "Active", suspended: "Suspended" };
 
   app.openProfilePanel = async function openProfilePanel() {
@@ -88,11 +92,20 @@
   function renderProfileLists(profile) {
     const portfolioList = document.getElementById("profilePortfolioList");
     portfolioList.innerHTML = "";
+    // FUNC-014 REQT-004: each entry opens Notebook Details (MOD004).
     profile.portfolios.forEach((portfolio) => {
-      const div = document.createElement("div");
+      const div = document.createElement("button");
+      div.type = "button";
       div.className =
-        "text-sm py-1 border-b border-purple-100 dark:border-white/[0.05]";
+        "block w-full text-left text-sm py-1 border-b border-purple-100 dark:border-white/[0.05] hover:text-purple-700 dark:hover:text-purple-200 transition";
       div.textContent = portfolio.title;
+      div.addEventListener("click", () =>
+        app.openNotebookDetails(portfolio.id, {
+          ...portfolio,
+          username: profile.username,
+          trustScore: profile.trustScore,
+        }),
+      );
       const statusLabel = MODERATION_LABELS[portfolio.status];
       if (statusLabel) {
         const label = document.createElement("span");

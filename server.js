@@ -23,6 +23,7 @@ const {
   WARNING_HIGHLIGHT_THRESHOLD,
 } = require("./lib/constants");
 const { isCourse } = require("./public/js/course-options");
+const { COUNT_DIGITS, parseCount } = require("./public/js/notebook-metrics");
 const {
   TRUST_CHANGE,
   TRUST_SCORE_DEFAULT,
@@ -416,6 +417,11 @@ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     await addColumnIfMissing("Users", "account_status TEXT DEFAULT 'active'");
     await addColumnIfMissing("Notebooks", "status TEXT DEFAULT 'active'");
     await addColumnIfMissing("Notebooks", "report_count INTEGER DEFAULT 0");
+    // Optional counts the author enters; they drive the card's size label
+    // and reading time (FUNC-007 REQT-002).
+    await addColumnIfMissing("Notebooks", "word_count INTEGER");
+    await addColumnIfMissing("Notebooks", "page_count INTEGER");
+    await addColumnIfMissing("Notebooks", "diagram_count INTEGER");
     await dbRun(`CREATE TABLE IF NOT EXISTS Admin (
 admin_ID INTEGER PRIMARY KEY AUTOINCREMENT,
 username TEXT UNIQUE,
@@ -858,6 +864,7 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
               Notebooks.department, Notebooks.course_code, Notebooks.author_id,
               ${NB_FILE_URL_FOR_VIEWER} AS file_url,
               Notebooks.created_at, Notebooks.status, Notebooks.report_count,
+              ${NB_COUNT_COLUMNS},
               COUNT(Likes.notebook_id) as likes
       FROM Notebooks LEFT JOIN Likes ON Notebooks.id = Likes.notebook_id
       WHERE author_id=? ${isOwner ? "" : "AND COALESCE(Notebooks.status, 'active') = 'active'"}
@@ -1039,6 +1046,22 @@ const NB_FILE_URL_FOR_VIEWER = `
       ) THEN Notebooks.file_url ELSE NULL END`;
 
 // Takes the viewer's user id three times (see NB_FILE_URL_FOR_VIEWER).
+// Reads the optional word / page / diagram counts from a notebook form.
+// Returns null when any of them isn't a whole number.
+function readNotebookCounts(body) {
+  const counts = {};
+  for (const [key, digits] of Object.entries(COUNT_DIGITS)) {
+    const parsed = parseCount(body[key], digits);
+    if (!parsed.ok) return null;
+    counts[key] = parsed.value;
+  }
+  return counts;
+}
+
+const NB_COUNT_COLUMNS = `Notebooks.word_count AS wordCount,
+      Notebooks.page_count AS pageCount,
+      Notebooks.diagram_count AS diagramCount`;
+
 const NB_SELECT = `
       SELECT 
       Notebooks.id, 
@@ -1048,6 +1071,7 @@ const NB_SELECT = `
       Notebooks.course_code,
       ${NB_FILE_URL_FOR_VIEWER} AS file_url,
       Notebooks.created_at,
+      ${NB_COUNT_COLUMNS},
       Users.username,
       COALESCE(Users.trust_score, ${TRUST_SCORE_DEFAULT}) AS trustScore,
       COUNT(Likes.notebook_id) AS likes
@@ -1112,6 +1136,11 @@ app.post("/api/portfolios", requireAuth, (req, res) => {
     });
   }
 
+  const counts = readNotebookCounts(req.body);
+  if (!counts) {
+    return res.status(400).json({ success: false, message: "Enter a whole number." });
+  }
+
   db.get(
     `SELECT id FROM Users WHERE username=?`,
     [actualAuthor],
@@ -1130,8 +1159,9 @@ app.post("/api/portfolios", requireAuth, (req, res) => {
       }
 
       db.run(
-        `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url)
-       VALUES (?,?,?,?,?,?)`,
+        `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url,
+                                word_count, page_count, diagram_count)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
         [
           title,
           description || null,
@@ -1139,6 +1169,9 @@ app.post("/api/portfolios", requireAuth, (req, res) => {
           courseCode || null,
           user.id,
           fileUrl || null,
+          counts.wordCount,
+          counts.pageCount,
+          counts.diagramCount,
         ],
         function onInsert(insertErr) {
           if (insertErr) {
@@ -1157,8 +1190,13 @@ app.post("/api/portfolios", requireAuth, (req, res) => {
 
 app.put("/api/portfolios/:id", requireAuth, (req, res) => {
   const { title, description, department, courseCode, fileUrl } = req.body;
+  const counts = readNotebookCounts(req.body);
+  if (!counts) {
+    return res.status(400).json({ success: false, message: "Enter a whole number." });
+  }
   db.run(
-    `UPDATE Notebooks SET title=?, description=?, department=?, course_code=?, file_url=?
+    `UPDATE Notebooks SET title=?, description=?, department=?, course_code=?, file_url=?,
+                          word_count=?, page_count=?, diagram_count=?
      WHERE id=? AND author_id=?`,
     [
       title,
@@ -1166,6 +1204,9 @@ app.put("/api/portfolios/:id", requireAuth, (req, res) => {
       department || null,
       courseCode || null,
       fileUrl || null,
+      counts.wordCount,
+      counts.pageCount,
+      counts.diagramCount,
       req.params.id,
       req.currentUser.id,
     ],
