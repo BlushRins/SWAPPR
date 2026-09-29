@@ -137,6 +137,16 @@
           : "SWAPPR Chat";
       }
 
+      // FUNC-013 REQT-003 / REQT-005: when the workspace opened and closes.
+      const dates = document.getElementById("chatDates");
+      if (dates && data.chat) {
+        const format = root.SWAPPRDates.formatLongDate;
+        dates.textContent =
+          data.chat.status === "active"
+            ? `Started ${format(data.chat.created_at)} · Closes ${format(data.chat.expires_at)}`
+            : `Ended ${format(data.chat.archived_at)}`;
+      }
+
       const ended = data.chat?.status !== "active";
       setEndedState(ended);
       if (ended) stopPolling();
@@ -152,6 +162,9 @@
 
   app.openChat = async function openChat(chatId) {
     activeChatId = chatId;
+    // Don't show the previous chat's dates while this one loads.
+    const dates = document.getElementById("chatDates");
+    if (dates) dates.textContent = "";
     document.getElementById("chatPanel")?.classList.remove("hidden");
     root.lucide?.createIcons();
     await loadMessages(chatId);

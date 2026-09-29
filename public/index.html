@@ -606,7 +606,11 @@
       <div class="chat-panel-header">
         <span class="flex items-center gap-2 min-w-0">
           <i data-lucide="message-circle" class="w-4 h-4 shrink-0"></i>
-          <span id="chatPanelHeader" class="truncate">SWAPPR Chat</span>
+          <span class="flex flex-col min-w-0">
+            <span id="chatPanelHeader" class="truncate">SWAPPR Chat</span>
+            <!-- FUNC-013 REQT-003: when the workspace opened and closes -->
+            <span id="chatDates" class="chat-panel-dates"></span>
+          </span>
         </span>
         <div class="flex items-center gap-3 shrink-0">
           <button id="chatEndBtn" onclick="endChat()" class="chat-panel-end">

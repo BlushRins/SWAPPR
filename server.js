@@ -17,6 +17,7 @@ const {
 const { subjectsForCourse, filterSubjects } = require("./lib/subjects");
 const { hashPassword, isHashed, verifyPassword } = require("./lib/passwordHash");
 const {
+  CHAT_RETENTION_DAYS,
   COURSE_TO_DEPARTMENT,
   PASSWORD_MIN_LENGTH,
   REPORT_UNDER_REVIEW_THRESHOLD,
@@ -43,6 +44,9 @@ const OTP_DEV_MODE =
 const SESSION_COOKIE = "swappr_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const sessions = new Map();
+// SQLite datetime() modifier for a chat's retention timestamp, e.g. '+14 days'.
+const CHAT_EXPIRY_OFFSET = `'+${CHAT_RETENTION_DAYS} days'`;
+const MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
 
 function normalizeEmail(email) {
   return String(email || "")
@@ -346,7 +350,6 @@ updatedAt INTEGER NOT NULL
     ).catch((err) => {
       if (!/duplicate column name/i.test(err.message)) throw err;
     });
-    await dbRun(`DELETE FROM EmailOtps WHERE expiresAt <= ?`, [Date.now()]);
     await dbRun(`CREATE TABLE IF NOT EXISTS Notebooks (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 title TEXT,
@@ -392,7 +395,9 @@ status TEXT DEFAULT 'active',
 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 archived_at DATETIME,
 user_a_last_read INTEGER DEFAULT 0,
-user_b_last_read INTEGER DEFAULT 0
+user_b_last_read INTEGER DEFAULT 0,
+expires_at DATETIME,
+archived_reason TEXT
 )`);
     await dbRun(
       `ALTER TABLE Chats ADD COLUMN user_a_last_read INTEGER DEFAULT 0`,
@@ -404,6 +409,21 @@ user_b_last_read INTEGER DEFAULT 0
     ).catch((err) => {
       if (!/duplicate column name/i.test(err.message)) throw err;
     });
+    // FUNC-013 REQT-005: the retention timestamp, and why a chat closed
+    // (ended / expired / swapp_cancelled).
+    await addColumnIfMissing("Chats", "expires_at DATETIME");
+    await addColumnIfMissing("Chats", "archived_reason TEXT");
+    await dbRun(
+      `UPDATE Chats SET expires_at = datetime(created_at, ${CHAT_EXPIRY_OFFSET})
+       WHERE expires_at IS NULL`,
+    );
+    await dbRun(
+      `UPDATE Chats SET archived_reason = CASE
+         WHEN (SELECT status FROM Swapps WHERE Swapps.id = Chats.swapp_id) = 'cancelled'
+           THEN 'swapp_cancelled'
+         ELSE 'ended' END
+       WHERE status = 'archived' AND archived_reason IS NULL`,
+    );
     await dbRun(`CREATE TABLE IF NOT EXISTS ChatMessages (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 chat_id INTEGER,
@@ -441,8 +461,8 @@ date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
     // Backfill: swapps accepted before chats existed get their chat now.
     await dbRun(
-      `INSERT INTO Chats (swapp_id, user_a_id, user_b_id)
-       SELECT id, sender_id, receiver_id FROM Swapps
+      `INSERT INTO Chats (swapp_id, user_a_id, user_b_id, expires_at)
+       SELECT id, sender_id, receiver_id, datetime(CURRENT_TIMESTAMP, ${CHAT_EXPIRY_OFFSET}) FROM Swapps
        WHERE status = 'accepted'
          AND id NOT IN (SELECT swapp_id FROM Chats WHERE swapp_id IS NOT NULL)`,
     );
@@ -1647,7 +1667,8 @@ app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
       ]);
       if (!existing) {
         await dbRun(
-          `INSERT INTO Chats (swapp_id, user_a_id, user_b_id) VALUES (?, ?, ?)`,
+          `INSERT INTO Chats (swapp_id, user_a_id, user_b_id, expires_at)
+           VALUES (?, ?, ?, datetime(CURRENT_TIMESTAMP, ${CHAT_EXPIRY_OFFSET}))`,
           [swapp.id, swapp.sender_id, swapp.receiver_id],
         );
         console.log(`[CHAT] Created chat for swapp ${swapp.id}`);
@@ -1706,7 +1727,8 @@ app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
       });
     }
     await dbRun(
-      `UPDATE Chats SET status = 'archived', archived_at = CURRENT_TIMESTAMP
+      `UPDATE Chats SET status = 'archived', archived_at = CURRENT_TIMESTAMP,
+                        archived_reason = 'swapp_cancelled'
        WHERE swapp_id = ? AND status = 'active'`,
       [swapp.id],
     );
@@ -1761,6 +1783,7 @@ function lastReadColumn(chat, userId) {
 app.get("/api/chats", requireAuth, async (req, res) => {
   const me = req.currentUser.id;
   try {
+    await archiveExpiredChats();
     const chats = await dbAll(
       `SELECT Chats.*,
 CASE WHEN user_a_id = ? THEN ub.username ELSE ua.username END AS otherUsername,
@@ -1786,6 +1809,7 @@ ORDER BY Chats.id DESC`,
 
 app.get("/api/chats/:id/messages", requireAuth, async (req, res) => {
   try {
+    await archiveExpiredChats();
     const chat = await findChatForUser(req.params.id, req.currentUser.id);
     if (!chat) {
       return res
@@ -1826,6 +1850,7 @@ ORDER BY ChatMessages.id ASC`,
 
 app.post("/api/chats/:id/messages", requireAuth, async (req, res) => {
   try {
+    await archiveExpiredChats();
     const chat = await findChatForUser(req.params.id, req.currentUser.id);
     if (!chat) {
       return res
@@ -1870,22 +1895,12 @@ app.post("/api/chats/:id/archive", requireAuth, async (req, res) => {
         .json({ success: false, message: "Chat not found" });
     }
     const update = await dbRun(
-      `UPDATE Chats SET status='archived', archived_at=CURRENT_TIMESTAMP
+      `UPDATE Chats SET status='archived', archived_at=CURRENT_TIMESTAMP, archived_reason='ended'
        WHERE id=? AND status='active'`,
       [chat.id],
     );
-    // Ending the chat completes its SWAPP (FUNC-011 REQT-011): both students
-    // gain trust, once. A chat closed by a cancellation never gets here.
-    if (update.changes) {
-      const swapp = await dbGet(
-        `SELECT sender_id, receiver_id FROM Swapps WHERE id=? AND status='accepted'`,
-        [chat.swapp_id],
-      );
-      if (swapp) {
-        await adjustTrustScore(swapp.sender_id, TRUST_CHANGE.swappCompleted);
-        await adjustTrustScore(swapp.receiver_id, TRUST_CHANGE.swappCompleted);
-      }
-    }
+    // Only the request that actually closed the chat rewards it.
+    if (update.changes) await completeSwappOf(chat);
     console.log(
       `[CHAT] Chat ${chat.id} archived by user ${req.currentUser.id}`,
     );
@@ -1895,6 +1910,55 @@ app.post("/api/chats/:id/archive", requireAuth, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// A closed chat completes its SWAPP (FUNC-011 REQT-011): both students gain
+// trust. Callers only get here when their UPDATE actually closed the chat,
+// so a SWAPP is rewarded once. A cancelled SWAPP isn't 'accepted' any more.
+async function completeSwappOf(chat) {
+  const swapp = await dbGet(
+    `SELECT sender_id, receiver_id FROM Swapps WHERE id = ? AND status = 'accepted'`,
+    [chat.swapp_id],
+  );
+  if (!swapp) return;
+  await adjustTrustScore(swapp.sender_id, TRUST_CHANGE.swappCompleted);
+  await adjustTrustScore(swapp.receiver_id, TRUST_CHANGE.swappCompleted);
+}
+
+// FUNC-013 REQT-005 / REQT-006: archive every chat whose retention timestamp
+// has passed. Runs from the background job and whenever a chat is read or
+// written, so a chat closes on time rather than at the next hourly run.
+async function archiveExpiredChats() {
+  const expired = await dbAll(
+    `SELECT id, swapp_id FROM Chats
+     WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP`,
+  );
+  let closed = 0;
+  for (const chat of expired) {
+    const update = await dbRun(
+      `UPDATE Chats SET status = 'archived', archived_at = CURRENT_TIMESTAMP,
+                        archived_reason = 'expired'
+       WHERE id = ? AND status = 'active'`,
+      [chat.id],
+    );
+    if (update.changes) {
+      closed += 1;
+      await completeSwappOf(chat);
+    }
+  }
+  if (closed) console.log(`[CHAT] ${closed} expired chat(s) archived`);
+}
+
+// Background jobs: at start and then every hour (Software Architecture,
+// "Background Jobs"). A failure is logged and retried next time.
+async function runMaintenance() {
+  try {
+    await archiveExpiredChats();
+    const purged = await dbRun(`DELETE FROM EmailOtps WHERE expiresAt <= ?`, [Date.now()]);
+    if (purged.changes) console.log(`[OTP] ${purged.changes} expired code(s) purged`);
+  } catch (err) {
+    console.error("[MAINTENANCE] failed:", err.message);
+  }
+}
 
 // ── Admin panel (FUNC-016 to FUNC-018) ──────────────────────────────────────
 // Report statuses: open → notebook_removed | user_suspended | disregarded.
@@ -2277,8 +2341,10 @@ app.post("/api/admin/users/:id/reinstate", requireAdminAuth, (req, res) =>
   setAccountStatus(req, res, "active"),
 );
 
-initializeDatabase().then((success) => {
+initializeDatabase().then(async (success) => {
   if (success) {
+    await runMaintenance();
+    setInterval(runMaintenance, MAINTENANCE_INTERVAL_MS).unref();
     app.listen(PORT, HOST, () => {
       console.log(`SWAPPR running on http://${HOST}:${PORT}`);
       console.log(`This is also localhost:3000 if you are running it locally.`);

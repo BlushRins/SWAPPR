@@ -2613,3 +2613,16 @@ body {
 .dark .like-btn:hover {
   background: rgba(244, 114, 182, 0.1);
 }
+
+/* Chat header dates: "Started {date} · Closes {date}" (FUNC-013 REQT-003). */
+.chat-panel-dates {
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.8);
+  /* Wraps rather than cutting "Closes {date}" off beside End Chat. */
+  white-space: normal;
+}
+.chat-panel-dates:empty {
+  display: none;
+}
