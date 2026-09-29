@@ -45,6 +45,25 @@
     root.endChat = app.endChat;
   }
 
+  // profile.html hands over to this page through sessionStorage: open the
+  // New Notebook modal (+ Add Notebook), show My Subjects after a delete, and
+  // the toast that goes with it.
+  function applyProfileHandoffs() {
+    if (sessionStorage.getItem("openAddNotebook") === "1") {
+      sessionStorage.removeItem("openAddNotebook");
+      app.openAddModal();
+    }
+    if (sessionStorage.getItem("openView") === "mine") {
+      sessionStorage.removeItem("openView");
+      app.filterBy("mine");
+    }
+    const message = sessionStorage.getItem("flashMessage");
+    if (message) {
+      sessionStorage.removeItem("flashMessage");
+      app.showToast(message);
+    }
+  }
+
   app.init = async function init() {
     await app.loadUser();
     app.loadDepartments();
@@ -56,6 +75,7 @@
     app.startSwappUpdates();
     attachStaticEventListeners();
     app.openEditProfileIfRequested();
+    applyProfileHandoffs();
   };
 
   exposeCompatibilityGlobals();

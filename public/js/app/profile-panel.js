@@ -63,6 +63,7 @@
       setTimeout(() => root.lucide?.createIcons(), 100);
     } catch (err) {
       console.error("Failed to load profile:", err);
+      app.showToast("Could not load your profile. Please try again.");
     }
   };
 

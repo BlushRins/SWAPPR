@@ -188,79 +188,6 @@
         color: #c0b8d8;
       }
 
-      /* ── Top skills strip ────────────────────────────────────────────────── */
-      .top-skills-strip {
-        margin-top: 16px;
-        padding: 14px 16px;
-        background: #faf5ff;
-        border-radius: 10px;
-        border: 1px solid #ede9fe;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-        transition: background 0.15s;
-        text-decoration: none;
-      }
-      .dark .top-skills-strip {
-        background: rgba(108, 96, 184, 0.08);
-        border-color: rgba(108, 96, 184, 0.18);
-      }
-      .top-skills-strip:hover {
-        background: #f3e8ff;
-      }
-      .dark .top-skills-strip:hover {
-        background: rgba(108, 96, 184, 0.15);
-      }
-      .top-skills-text {
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: #4a0080;
-        flex: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .dark .top-skills-text {
-        color: #b8aee8;
-      }
-
-      /* ── Skills grid ─────────────────────────────────────────────────────── */
-      .skills-group-label {
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 10px;
-      }
-      .skill-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 5px 13px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        font-family: "Montserrat", sans-serif;
-        margin: 0 4px 6px 0;
-      }
-      .pill-strength {
-        background: #dcfce7;
-        color: #166534;
-      }
-      .dark .pill-strength {
-        background: rgba(22, 101, 52, 0.22);
-        color: #86efac;
-      }
-      .pill-weakness {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      .dark .pill-weakness {
-        background: rgba(153, 27, 27, 0.22);
-        color: #fca5a5;
-      }
-
       /* ── Notebook card ───────────────────────────────────────────────────── */
       .notebook-item {
         padding: 16px;
@@ -484,23 +411,6 @@
             <!-- Action buttons -->
             <div class="flex gap-2 shrink-0 pt-1" id="profileActions"></div>
           </div>
-
-          <!-- Top skills strip (quick preview) -->
-          <div
-            class="top-skills-strip"
-            id="topSkillsStrip"
-            onclick="
-              document
-                .getElementById('skillsSection')
-                .scrollIntoView({ behavior: 'smooth' })
-            "
-          >
-            <span style="font-size: 1rem">💎</span>
-            <span class="top-skills-text" id="topSkillsPreview"
-              >Loading skills...</span
-            >
-            <span style="color: #9b8ec4; font-size: 0.8rem">→</span>
-          </div>
         </div>
       </div>
 
@@ -512,29 +422,6 @@
         </div>
       </div>
 
-      <!-- ── Skills ────────────────────────────────────────────────────────── -->
-      <div class="card" id="skillsSection">
-        <div class="section-body">
-          <h2 class="section-heading">Skills</h2>
-
-          <div class="mb-5">
-            <p class="skills-group-label text-green-700 dark:text-green-400">
-              Strengths
-            </p>
-            <div id="strengthsList"></div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div>
-            <p class="skills-group-label text-red-600 dark:text-red-400">
-              Wants to Learn
-            </p>
-            <div id="weaknessesList"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- ── Notebooks ──────────────────────────────────────────────────────── -->
       <div class="card">
         <div class="section-body">
@@ -543,7 +430,7 @@
             <button
               id="addNotebookBtn"
               class="btn-action btn-action-primary hidden"
-              onclick="window.location.href = 'index.html'"
+              onclick="addNotebook()"
             >
               + Add Notebook
             </button>
@@ -557,7 +444,7 @@
       <div class="card">
         <div class="section-body">
           <h2 class="section-heading">
-            Connections
+            SWAPP Matches
             <span
               id="matchCount"
               class="text-sm font-semibold text-purple-400 ml-2"
@@ -716,17 +603,6 @@
           `<span>${warnings} Warning${warnings !== 1 ? "s" : ""}</span>` +
           `<span>${status}</span>`;
 
-        // Top skills preview strip
-        const allStrengths = [
-          ...new Set(
-            p.portfolios.flatMap((n) => n.strengths || n.topics || []),
-          ),
-        ];
-        document.getElementById("topSkillsPreview").textContent =
-          allStrengths.length
-            ? allStrengths.slice(0, 5).join(" · ")
-            : "No skills listed yet";
-
         // Bio
         document.getElementById("bioText").textContent = p.bio || "No bio yet.";
 
@@ -742,26 +618,6 @@
             <button onclick="reportProfileUser()" class="btn-action btn-action-outline">🚩 Report</button>
             <button onclick="goHome()" class="btn-action btn-action-outline">← Back</button>`;
         }
-
-        // Skills
-        const allWeaknesses = [
-          ...new Set(p.portfolios.flatMap((n) => n.weaknesses || [])),
-        ];
-
-        document.getElementById("strengthsList").innerHTML = allStrengths.length
-          ? allStrengths
-              .map((s) => `<span class="skill-pill pill-strength">${escapeHtml(s)}</span>`)
-              .join("")
-          : `<p class="empty-state">No strengths listed yet.</p>`;
-
-        document.getElementById("weaknessesList").innerHTML =
-          allWeaknesses.length
-            ? allWeaknesses
-                .map(
-                  (w) => `<span class="skill-pill pill-weakness">${escapeHtml(w)}</span>`,
-                )
-                .join("")
-            : `<p class="empty-state">No learning goals listed yet.</p>`;
 
         // Notebooks
         const notebooksList = document.getElementById("notebooksList");
@@ -799,38 +655,6 @@
                     : ""
                 }
               </div>
-              ${
-                (n.strengths || n.topics || []).length
-                  ? `
-                <div class="mt-3">
-                  <p class="text-xs font-bold uppercase tracking-wider text-green-600 dark:text-green-400 mb-1.5">Strengths</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    ${(n.strengths || n.topics || [])
-                      .map(
-                        (s) =>
-                          `<span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">${escapeHtml(s)}</span>`,
-                      )
-                      .join("")}
-                  </div>
-                </div>`
-                  : ""
-              }
-              ${
-                (n.weaknesses || []).length
-                  ? `
-                <div class="mt-3">
-                  <p class="text-xs font-bold uppercase tracking-wider text-red-500 dark:text-red-400 mb-1.5">Wants to Learn</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    ${(n.weaknesses || [])
-                      .map(
-                        (w) =>
-                          `<span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">${escapeHtml(w)}</span>`,
-                      )
-                      .join("")}
-                  </div>
-                </div>`
-                  : ""
-              }
             </div>`,
             )
             .join("");
@@ -881,6 +705,12 @@
         window.location.href = "index.html";
       }
 
+      // PRF001: + Add Notebook opens the New Notebook modal on index.html.
+      function addNotebook() {
+        sessionStorage.setItem("openAddNotebook", "1");
+        window.location.href = "index.html";
+      }
+
       function editNotebook(notebookId) {
         sessionStorage.setItem("editNotebookId", notebookId);
         window.location.href = "index.html";
@@ -898,8 +728,11 @@
           });
           const data = await res.json();
           if (data.success) {
-            showToast("Notebook deleted.", "red");
-            loadProfile();
+            // FUNC-009 REQT-009: "Notebook deleted." then My Subjects on
+            // index.html, which shows the toast when it opens.
+            sessionStorage.setItem("openView", "mine");
+            sessionStorage.setItem("flashMessage", "Notebook deleted.");
+            window.location.href = "index.html";
           } else {
             // e.g. FUNC-009 REQT-011: the notebook is in an open SWAPP.
             showToast(data.message || "Failed to delete.", "red");

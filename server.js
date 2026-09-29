@@ -457,6 +457,17 @@ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     await addColumnIfMissing("Notebooks", "word_count INTEGER");
     await addColumnIfMissing("Notebooks", "page_count INTEGER");
     await addColumnIfMissing("Notebooks", "diagram_count INTEGER");
+    // The join and filter keys of every feed query (DB Design, Notebooks).
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_notebooks_author ON Notebooks(author_id)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_notebooks_course ON Notebooks(course_code)`);
+    // Older seeds stored the student ID in yearLevel. Move it to studentId
+    // (when that's empty) so profiles don't show an ID as the year of study.
+    await dbRun(
+      `UPDATE Users
+       SET studentId = CASE WHEN COALESCE(TRIM(studentId), '') = '' THEN yearLevel ELSE studentId END,
+           yearLevel = NULL
+       WHERE yearLevel GLOB '[0-9]*' AND yearLevel NOT GLOB '*[^0-9]*'`,
+    );
     await dbRun(`CREATE TABLE IF NOT EXISTS Admin (
 admin_ID INTEGER PRIMARY KEY AUTOINCREMENT,
 username TEXT UNIQUE,
@@ -472,10 +483,13 @@ reason TEXT,
 complaint TEXT,
 status TEXT DEFAULT 'open',
 date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP,
-reported_user_ID INTEGER
+reported_user_ID INTEGER,
+date_resolved DATETIME
 )`);
     // FUNC-015 REQT-001: a report targets a notebook or a student account.
     await addColumnIfMissing("Reports", "reported_user_ID INTEGER");
+    // FUNC-016 REQT-011, FUNC-017 REQT-008: when an administrator closed it.
+    await addColumnIfMissing("Reports", "date_resolved DATETIME");
     // Backfill: swapps accepted before chats existed get their chat now.
     await dbRun(
       `INSERT INTO Chats (swapp_id, user_a_id, user_b_id, expires_at)
@@ -965,7 +979,8 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
                 course: user.course || user.department || "",
                 department: user.department || user.course || "",
                 yearLevel: user.yearLevel || "",
-                studentId: user.studentId || "",
+                // PRF001: the student ID is shown on your own profile only.
+                studentId: isOwner ? user.studentId || "" : "",
                 trustScore: user.trust_score ?? TRUST_SCORE_DEFAULT,
                 warningCount: user.warning_count ?? 0,
                 accountStatus: user.account_status || "active",
@@ -2055,7 +2070,7 @@ function parseId(value) {
 
 async function closeOpenReports(notebookId, status, adminId) {
   await dbRun(
-    `UPDATE Reports SET status = ?, resolved_by = ?
+    `UPDATE Reports SET status = ?, resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
      WHERE notebook_ID = ? AND status = 'open'`,
     [status, adminId, notebookId],
   );
@@ -2273,12 +2288,14 @@ app.post("/api/admin/reports/:id/resolve", requireAdminAuth, async (req, res) =>
       ]);
       endSessionsForUser(suspendId);
       await dbRun(
-        `UPDATE Reports SET status = 'user_suspended', resolved_by = ? WHERE report_ID = ?`,
+        `UPDATE Reports SET status = 'user_suspended', resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
+         WHERE report_ID = ?`,
         [adminId, id],
       );
     } else {
       await dbRun(
-        `UPDATE Reports SET status = 'disregarded', resolved_by = ? WHERE report_ID = ?`,
+        `UPDATE Reports SET status = 'disregarded', resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
+         WHERE report_ID = ?`,
         [adminId, id],
       );
       // With no complaints left, a notebook under review goes back to the feed.

@@ -19,6 +19,7 @@ const USERS = [
     password: "pass1234",
     course: "Bachelor of Science in Computer Science",
     studentId: "2021100001",
+    yearLevel: "3rd Year",
   },
   {
     name: "Marco Santos",
@@ -26,6 +27,7 @@ const USERS = [
     password: "pass1234",
     course: "Bachelor of Science in Information Technology",
     studentId: "2021100002",
+    yearLevel: "3rd Year",
   },
   {
     name: "Lia Cruz",
@@ -33,6 +35,7 @@ const USERS = [
     password: "pass1234",
     course: "Bachelor of Science in Electrical Engineering",
     studentId: "2020100003",
+    yearLevel: "4th Year",
   },
   {
     name: "Josh Mendoza",
@@ -40,6 +43,7 @@ const USERS = [
     password: "pass1234",
     course: "Bachelor of Secondary Education major in Mathematics",
     studentId: "2022100004",
+    yearLevel: "2nd Year",
   },
   {
     name: "Camille Tan",
@@ -47,6 +51,7 @@ const USERS = [
     password: "pass1234",
     course: "Bachelor of Science in Psychology",
     studentId: "2021100005",
+    yearLevel: "3rd Year",
   },
   {
     name: "Renz Villanueva",
@@ -54,6 +59,7 @@ const USERS = [
     password: "pass1234",
     course: "Bachelor of Science in Computer Science",
     studentId: "2023100006",
+    yearLevel: "1st Year",
   },
   {
     name: "Sofia dela Cruz",
@@ -61,6 +67,7 @@ const USERS = [
     password: "pass1234",
     course: "Bachelor of Science in Nursing",
     studentId: "2020100007",
+    yearLevel: "4th Year",
   },
 ];
 
@@ -336,13 +343,13 @@ async function seed() {
   await run(`DROP TABLE IF EXISTS Transaction_Manifest`);
 
   await run(
-    `CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT UNIQUE, password TEXT, bio TEXT, course TEXT, department TEXT, yearLevel TEXT, trust_score INTEGER DEFAULT 100, warning_count INTEGER DEFAULT 0, account_status TEXT DEFAULT 'active')`,
+    `CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT UNIQUE, password TEXT, bio TEXT, course TEXT, department TEXT, yearLevel TEXT, email TEXT, studentId TEXT, trust_score INTEGER DEFAULT 100, warning_count INTEGER DEFAULT 0, account_status TEXT DEFAULT 'active')`,
   );
   await run(
     `CREATE TABLE Notebooks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, department TEXT, course_code TEXT, author_id INTEGER, file_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, status TEXT DEFAULT 'active', report_count INTEGER DEFAULT 0, word_count INTEGER, page_count INTEGER, diagram_count INTEGER)`,
   );
   await run(
-    `CREATE TABLE Reports (report_ID INTEGER PRIMARY KEY AUTOINCREMENT, reporter_ID INTEGER, notebook_ID INTEGER, resolved_by INTEGER, reason TEXT, complaint TEXT, status TEXT DEFAULT 'open', date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP, reported_user_ID INTEGER)`,
+    `CREATE TABLE Reports (report_ID INTEGER PRIMARY KEY AUTOINCREMENT, reporter_ID INTEGER, notebook_ID INTEGER, resolved_by INTEGER, reason TEXT, complaint TEXT, status TEXT DEFAULT 'open', date_submitted DATETIME DEFAULT CURRENT_TIMESTAMP, reported_user_ID INTEGER, date_resolved DATETIME)`,
   );
   await run(
     `CREATE TABLE Likes (user_id INTEGER, notebook_id INTEGER, PRIMARY KEY (user_id, notebook_id))`,
@@ -358,8 +365,8 @@ async function seed() {
   for (const u of USERS) {
     const department = COURSE_TO_DEPARTMENT[u.course] || u.course;
     const res = await run(
-      `INSERT INTO Users (name, username, password, course, department, yearLevel) VALUES (?,?,?,?,?,?)`,
-      [u.name, u.username, u.password, u.course, department, u.studentId],
+      `INSERT INTO Users (name, username, password, course, department, yearLevel, studentId) VALUES (?,?,?,?,?,?,?)`,
+      [u.name, u.username, u.password, u.course, department, u.yearLevel, u.studentId],
     );
     userIds[u.username] = res.lastID;
   }

@@ -16,6 +16,12 @@ for (const user of USERS) {
   );
 }
 
+// yearLevel is a year of study, never the student ID (DB Design, Users).
+for (const user of USERS) {
+  assert.match(user.yearLevel, /^[1-5](st|nd|rd|th) Year$/, `${user.username} has a year of study`);
+  assert.match(user.studentId, /^\d+$/, `${user.username} has a numeric student ID`);
+}
+
 for (const notebook of NOTEBOOKS) {
   assert.ok(
     COURSE_TO_DEPARTMENT[notebook.course],
