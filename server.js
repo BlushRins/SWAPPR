@@ -2,6 +2,9 @@ require("dotenv").config();
 
 const crypto = require("crypto");
 const express = require("express");
+const helmet = require("helmet");
+const { isIPv6 } = require("node:net");
+const { Address6 } = require("ip-address");
 const path = require("path");
 const sqlite3 = require("sqlite3").verbose();
 const nodemailer = require("nodemailer");
@@ -15,11 +18,10 @@ const {
   verifyOtpHash,
 } = require("./lib/otpPolicy");
 const { subjectsForCourse, filterSubjects } = require("./lib/subjects");
-const { hashPassword, isHashed, verifyPassword } = require("./lib/passwordHash");
+const { hashPassword, isHashed, passwordError, verifyPassword } = require("./lib/passwordHash");
 const {
   CHAT_RETENTION_DAYS,
   COURSE_TO_DEPARTMENT,
-  PASSWORD_MIN_LENGTH,
   REPORT_UNDER_REVIEW_THRESHOLD,
   WARNING_HIGHLIGHT_THRESHOLD,
 } = require("./lib/constants");
@@ -34,16 +36,32 @@ const {
 } = require("./lib/trustScore");
 
 const app = express();
+const IS_PRODUCTION = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+const SESSION_SECRET = process.env.SESSION_SECRET;
+const APP_ORIGIN = process.env.APP_ORIGIN;
+if (IS_PRODUCTION && Buffer.byteLength(SESSION_SECRET || "") < 32) {
+  throw new Error("Production requires a random SESSION_SECRET of at least 32 bytes.");
+}
+if (APP_ORIGIN && new URL(APP_ORIGIN).origin !== APP_ORIGIN ||
+    IS_PRODUCTION && !APP_ORIGIN?.startsWith("https://")) {
+  throw new Error("APP_ORIGIN must be the site's origin, using HTTPS in production.");
+}
+if (process.env.TRUST_PROXY) {
+  const proxies = process.env.TRUST_PROXY.split(",").map((proxy) => proxy.trim());
+  if (proxies.some((proxy) => !proxy || proxy === "true" || /^\d+$/.test(proxy))) {
+    throw new Error("TRUST_PROXY must contain trusted proxy addresses or CIDRs.");
+  }
+  app.set("trust proxy", proxies);
+}
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "127.0.0.1";
 // Dev-only escape hatch: print OTPs to the server console instead of emailing
 // them, so registration works locally without SMTP credentials. Never active
 // when NODE_ENV=production, regardless of what .env says.
 const OTP_DEV_MODE =
-  process.env.OTP_DEV_MODE === "true" && process.env.NODE_ENV !== "production";
+  process.env.OTP_DEV_MODE === "true" && !IS_PRODUCTION;
 const SESSION_COOKIE = "swappr_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const sessions = new Map();
 // SQLite datetime() modifier for a chat's retention timestamp, e.g. '+14 days'.
 const CHAT_EXPIRY_OFFSET = `'+${CHAT_RETENTION_DAYS} days'`;
 const MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
@@ -69,7 +87,7 @@ async function isUsernameTaken(username, exceptUserId = null) {
 }
 
 function isValidSchoolEmail(email) {
-  return /^\d+@usc\.edu\.ph$/i.test(email);
+  return email.length <= 254 && /^\d+@usc\.edu\.ph$/i.test(email);
 }
 
 function publicUser(user) {
@@ -89,78 +107,126 @@ function publicAdmin(admin) {
   };
 }
 
-function parseCookies(header = "") {
-  return Object.fromEntries(
-    header
-      .split(";")
-      .map((part) => part.trim().split("="))
-      .filter(([key, value]) => key && value)
-      .map(([key, value]) => [key, decodeURIComponent(value)]),
-  );
+const sessionCookieOptions = {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: IS_PRODUCTION,
+  path: "/",
+};
+
+function credentialDigest(token) {
+  const hash = SESSION_SECRET
+    ? crypto.createHmac("sha256", SESSION_SECRET)
+    : crypto.createHash("sha256");
+  return hash.update(token).digest("hex");
 }
 
-function setSessionCookie(res, token, maxAgeMs = SESSION_TTL_MS) {
-  res.cookie(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: maxAgeMs,
-    path: "/",
-  });
-}
-
-// A session belongs to either a student ({ role: "student", user }) or an
-// administrator ({ role: "admin", admin }). Students and admins live in
-// separate tables, so their ids can collide and must never be mixed up.
-function startSession(res, account) {
+async function startSession(res, role, id, passwordHash) {
   const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, {
-    ...account,
-    expiresAt: Date.now() + SESSION_TTL_MS,
-  });
-  setSessionCookie(res, token);
+  const accountQuery = role === "admin"
+    ? "SELECT admin_ID AS accountId FROM Admin WHERE admin_ID = ? AND password = ?"
+    : "SELECT id AS accountId FROM Users WHERE id = ? AND password = ? AND COALESCE(account_status, 'active') = 'active'";
+  // A password change or suspension may have happened while checking the KDF.
+  const inserted = await dbRun(
+    `INSERT INTO Sessions (digest, role, accountId, expiresAt)
+     SELECT ?, ?, accountId, ? FROM (${accountQuery})`,
+    [credentialDigest(token), role, Date.now() + SESSION_TTL_MS, id, passwordHash],
+  );
+  if (!inserted.changes) return false;
+  res.set("Cache-Control", "no-store");
+  res.cookie(SESSION_COOKIE, token, { ...sessionCookieOptions, maxAge: SESSION_TTL_MS });
+  return true;
 }
 
-function startStudentSession(res, user) {
-  startSession(res, { role: "student", user: publicUser(user) });
+async function clearSession(req, res) {
+  if (req.sessionDigest) await dbRun("DELETE FROM Sessions WHERE digest = ?", [req.sessionDigest]);
+  res.clearCookie(SESSION_COOKIE, sessionCookieOptions);
 }
 
-function startAdminSession(res, admin) {
-  startSession(res, { role: "admin", admin: publicAdmin(admin) });
-}
-
-// Ends every session a user holds, so a suspension takes effect immediately
-// rather than when their cookie expires.
-function endSessionsForUser(userId) {
-  for (const [token, session] of sessions) {
-    if (session.role === "student" && session.user?.id === userId) {
-      sessions.delete(token);
-    }
-  }
-}
-
-function clearSession(req, res) {
-  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
-  if (token) sessions.delete(token);
-  res.clearCookie(SESSION_COOKIE, { path: "/" });
-}
-
-function sessionMiddleware(req, res, next) {
-  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
-  const session = token && sessions.get(token);
-
-  if (session && session.expiresAt > Date.now()) {
-    session.expiresAt = Date.now() + SESSION_TTL_MS;
-    if (session.role === "admin") req.currentAdmin = session.admin;
-    else req.currentUser = session.user;
-    setSessionCookie(res, token);
-  } else if (token) {
-    sessions.delete(token);
-    res.clearCookie(SESSION_COOKIE, { path: "/" });
+async function sessionMiddleware(req, res, next) {
+  const cookie = (req.get("Cookie") || "").split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${SESSION_COOKIE}=`));
+  const token = cookie?.slice(SESSION_COOKIE.length + 1);
+  if (!token) return next();
+  if (!/^[a-f0-9]{64}$/.test(token)) {
+    res.clearCookie(SESSION_COOKIE, sessionCookieOptions);
+    return next();
   }
 
+  const digest = credentialDigest(token);
+  const session = await dbGet(
+    `SELECT Sessions.role, Admin.admin_ID, Users.id,
+            COALESCE(Admin.username, Users.username) AS username,
+            COALESCE(Admin.name, Users.name) AS name, Users.course
+     FROM Sessions
+     LEFT JOIN Admin ON role = 'admin' AND Admin.admin_ID = accountId
+     LEFT JOIN Users ON role = 'student' AND Users.id = accountId
+       AND COALESCE(Users.account_status, 'active') = 'active'
+     WHERE digest = ? AND expiresAt > ?`,
+    [digest, Date.now()],
+  );
+  if (session?.admin_ID) req.currentAdmin = publicAdmin(session);
+  else if (session?.id) req.currentUser = publicUser(session);
+  else {
+    res.clearCookie(SESSION_COOKIE, sessionCookieOptions);
+    return next();
+  }
+
+  req.sessionDigest = digest;
+  // A cached authenticated response could outlive its session.
+  res.set("Cache-Control", "no-store");
   next();
 }
+
+function clientIp(req) {
+  if (!isIPv6(req.ip)) return req.ip;
+  const address = new Address6(req.ip);
+  const bits = address.bigInt();
+  // Canonicalize IPv4-mapped peers, and group native IPv6 addresses by /56.
+  return bits >> 32n === 0xffffn ? address.to4().correctForm() : (bits >> 72n).toString(16) + "/56";
+}
+
+function requestLimit(bucket, maxAttempts, windowMs, identifier = clientIp) {
+  return async (req, res, next) => {
+    const value = identifier(req);
+    if (!value) return next();
+
+    const key = credentialDigest(`${bucket}:${value}`);
+    const now = Date.now();
+    const record = await dbGet(
+      `INSERT INTO RequestLimits (key, attempts, expiresAt) VALUES (?, 1, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         attempts = CASE WHEN expiresAt <= ? THEN 1 ELSE attempts + 1 END,
+         expiresAt = CASE WHEN expiresAt <= ? THEN excluded.expiresAt ELSE expiresAt END
+       WHERE expiresAt <= ? OR attempts < ?
+       RETURNING expiresAt`,
+      [key, now + windowMs, now, now, now, maxAttempts],
+    );
+    if (!record) {
+      const limit = await dbGet("SELECT expiresAt FROM RequestLimits WHERE key = ?", [key]);
+      const retryAfterSeconds = Math.max(1, Math.ceil(((limit?.expiresAt ?? now) - now) / 1000));
+      return res.set("Retry-After", String(retryAfterSeconds)).status(429).json({
+        success: false,
+        message: "Too many requests. Try again later.",
+        retryAfterSeconds,
+      });
+    }
+    if (bucket === "login-account") {
+      req.releaseLoginAttempt = () => dbRun(
+        "UPDATE RequestLimits SET attempts = attempts - 1 WHERE key = ? AND expiresAt = ?",
+        [key, record.expiresAt],
+      );
+    }
+    next();
+  };
+}
+
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
+const emailKey = (req) => {
+  const email = normalizeEmail(req.body?.email);
+  return isValidSchoolEmail(email) ? email : "";
+};
 
 function requireAuth(req, res, next) {
   if (!req.currentUser) {
@@ -247,7 +313,37 @@ const mailFromAddress =
   process.env.GMAIL_USER ||
   (OTP_DEV_MODE ? "dev@localhost" : "");
 
+app.disable("x-powered-by");
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      scriptSrc: ["'self'"],
+      scriptSrcAttr: ["'none'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: IS_PRODUCTION ? [] : null,
+    },
+  },
+  strictTransportSecurity: IS_PRODUCTION ? { includeSubDomains: false } : false,
+}));
+app.use("/api", (req, res, next) => {
+  const fetchSite = req.get("Sec-Fetch-Site");
+  const crossSite = fetchSite === "cross-site" || fetchSite === "same-site";
+  if (!crossSite) {
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+    const origin = req.get("Origin");
+    const ownOrigin = APP_ORIGIN || `${req.protocol}://${req.get("Host")}`;
+    if (origin ? origin === ownOrigin : fetchSite === "same-origin") return next();
+  }
+  res.status(403).json({ success: false, message: "Cross-origin request blocked." });
+});
 app.use(express.json());
+app.get("/js/vendor/lucide.js", (req, res) => {
+  res.sendFile(path.resolve(path.dirname(require.resolve("lucide")), "../umd/lucide.min.js"));
+});
 app.use(sessionMiddleware);
 
 app.get(["/", "/index.html"], requirePageAuth, (req, res) => {
@@ -270,12 +366,14 @@ app.get("/login.html", (req, res) => {
 
 app.use(express.static(path.join(__dirname, "public")));
 
-const db = new sqlite3.Database("./sql/swappr.db", (err) => {
+const SQL_DIR = process.env.SWAPPR_SQL_DIR || path.join(__dirname, "sql");
+const db = new sqlite3.Database(path.join(SQL_DIR, "swappr.db"), (err) => {
   if (err) return console.error(err.message);
   console.log("Connected to SQLite database.");
 });
+db.configure("busyTimeout", 5000);
 
-const coursesDb = new sqlite3.Database("./sql/courses.db", (err) => {
+const coursesDb = new sqlite3.Database(path.join(SQL_DIR, "courses.db"), sqlite3.OPEN_READONLY, (err) => {
   if (err) return console.error(err.message);
   console.log("Connected to Courses database.");
 });
@@ -310,6 +408,47 @@ async function addColumnIfMissing(table, columnDefinition) {
       if (!/duplicate column name/i.test(err.message)) throw err;
     },
   );
+}
+
+async function initializeAuthStorage() {
+  await dbRun("PRAGMA secure_delete = ON");
+  await dbRun(`CREATE TABLE IF NOT EXISTS Sessions (
+    digest TEXT PRIMARY KEY, role TEXT NOT NULL, accountId INTEGER NOT NULL, expiresAt INTEGER NOT NULL
+  )`);
+  await dbRun("CREATE INDEX IF NOT EXISTS idx_sessions_account ON Sessions(role, accountId)");
+  await dbRun(`CREATE TABLE IF NOT EXISTS RequestLimits (
+    key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, expiresAt INTEGER NOT NULL
+  )`);
+
+  for (const [table, idColumn, role] of [["Users", "id", "student"], ["Admin", "admin_ID", "admin"]]) {
+    const changes = table === "Users" ? "password, account_status" : "password";
+    const statusChanged = table === "Users" ? "OR OLD.account_status IS NOT NEW.account_status" : "";
+    // Triggers make credential or account changes and session revocation one write,
+    // including administrator password resets performed outside the HTTP app.
+    await dbRun(`CREATE TRIGGER IF NOT EXISTS revoke_${role}_sessions_after_update
+      AFTER UPDATE OF ${changes} ON ${table}
+      WHEN OLD.password IS NOT NEW.password ${statusChanged}
+      BEGIN DELETE FROM Sessions WHERE role = '${role}' AND accountId = OLD.${idColumn}; END`);
+    await dbRun(`CREATE TRIGGER IF NOT EXISTS revoke_${role}_sessions_after_delete
+      AFTER DELETE ON ${table}
+      BEGIN DELETE FROM Sessions WHERE role = '${role}' AND accountId = OLD.${idColumn}; END`);
+
+    // Legacy plaintext credentials require an operator reset in production.
+    // Local databases can retain their logins without storing plaintext.
+    const legacy = await dbAll(`SELECT ${idColumn} AS id, password FROM ${table}
+      WHERE password IS NOT NULL AND password != ''
+      AND (length(password) != 168 OR substr(password, 1, 7) != 'scrypt$'
+        OR substr(password, 40, 1) != '$' OR substr(password, 8, 32) GLOB '*[^0-9a-f]*'
+        OR substr(password, 41) GLOB '*[^0-9a-f]*')`);
+    for (const { id, password } of legacy) {
+      if (isHashed(password)) continue;
+      const replacement = IS_PRODUCTION || password.startsWith("scrypt$")
+        ? null
+        : await hashPassword(password);
+      await dbRun(`UPDATE ${table} SET password = ? WHERE ${idColumn} = ? AND password = ?`,
+        [replacement, id, password]);
+    }
+  }
 }
 
 async function initializeDatabase() {
@@ -349,6 +488,7 @@ attempts INTEGER NOT NULL DEFAULT 0,
 createdAt INTEGER NOT NULL,
 updatedAt INTEGER NOT NULL
 )`);
+    await addColumnIfMissing("EmailOtps", "verificationDigest TEXT");
     await dbRun(`ALTER TABLE EmailOtps ADD COLUMN otpHash TEXT`).catch(
       (err) => {
         if (!/duplicate column name/i.test(err.message)) throw err;
@@ -474,6 +614,7 @@ username TEXT UNIQUE,
 name TEXT,
 password TEXT
 )`);
+    await initializeAuthStorage();
     await dbRun(`CREATE TABLE IF NOT EXISTS Reports (
 report_ID INTEGER PRIMARY KEY AUTOINCREMENT,
 reporter_ID INTEGER,
@@ -534,373 +675,357 @@ is_confirmed INTEGER DEFAULT 0
   }
 }
 
-app.post("/api/send-otp", async (req, res) => {
-  const email = normalizeEmail(req.body.email);
-  if (!isValidSchoolEmail(email)) {
-    return res.json({
-      success: false,
-      message: "Email must be in the format: numbers@usc.edu.ph",
-    });
-  }
-
-  const transporter = createMailTransport();
-  if (!transporter || !mailFromAddress) {
-    return res.status(500).json({
-      success: false,
-      message: "Email verification is not configured on this server yet.",
-    });
-  }
-
-  try {
-    const existingUser = await dbGet(`SELECT id FROM Users WHERE email = ?`, [
-      email,
-    ]);
-    if (existingUser) {
-      return res.status(409).json({
+app.post("/api/send-otp",
+  requestLimit("send-otp-ip", 12, FIFTEEN_MINUTES),
+  requestLimit("send-otp-email", 5, FIFTEEN_MINUTES, emailKey),
+  async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    if (!isValidSchoolEmail(email)) {
+      return res.json({
         success: false,
-        message: "That school email is already registered.",
+        message: "Email must be in the format: numbers@usc.edu.ph",
       });
     }
 
-    // FUNC-002 REQT-005: Register checks the username before a code is sent
-    // (a resend doesn't send one, so it skips this).
-    const username = String(req.body.username ?? "").trim();
-    if (username && (await isUsernameTaken(username))) {
-      return res
-        .status(409)
-        .json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
-    }
-
-    const existingOtp = await dbGet(`SELECT * FROM EmailOtps WHERE email = ?`, [
-      email,
-    ]);
-    const resendWaitSeconds = secondsUntilResend(existingOtp);
-    if (resendWaitSeconds > 0) {
-      return res.status(429).json({
+    const transporter = createMailTransport();
+    if (!transporter || !mailFromAddress) {
+      return res.status(500).json({
         success: false,
-        message: `Please wait ${resendWaitSeconds}s before requesting another code.`,
-        retryAfterSeconds: resendWaitSeconds,
+        message: "Email verification is not configured on this server yet.",
       });
     }
 
-    const otp = String(crypto.randomInt(100000, 1000000));
-    const now = Date.now();
-    await dbRun(
-      `INSERT INTO EmailOtps (email, otp, otpHash, expiresAt, verified, resendAvailableAt, attempts, createdAt, updatedAt)
-       VALUES (?, '', ?, ?, 0, ?, 0, ?, ?)
-       ON CONFLICT(email) DO UPDATE SET
-         otp='',
-         otpHash=excluded.otpHash,
-         expiresAt=excluded.expiresAt,
-         verified=0,
-         resendAvailableAt=excluded.resendAvailableAt,
-         attempts=0,
-         updatedAt=excluded.updatedAt`,
-      [
+    let reservedHash;
+    try {
+      const existingUser = await dbGet(`SELECT id FROM Users WHERE email = ?`, [
         email,
-        hashOtp(otp),
-        now + OTP_TTL_MS,
-        now + OTP_RESEND_COOLDOWN_MS,
-        now,
-        now,
-      ],
-    );
-
-    await transporter.sendMail({
-      from: `"SWAPPR" <${mailFromAddress}>`,
-      to: email,
-      subject: "Your SWAPPR verification code",
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;background:#f5f3ff;border-radius:12px;">
-          <h2 style="color:#6d28d9;margin:0 0 8px;">SWAPPR</h2>
-          <p style="color:#374151;margin:0 0 16px;">Your one-time verification code:</p>
-          <div style="font-size:40px;font-weight:900;letter-spacing:10px;color:#4f46e5;margin:0 0 24px;">${otp}</div>
-          <p style="color:#6b7280;font-size:13px;margin:0;">Valid for 10 minutes. Do not share this code with anyone.</p>
-        </div>`,
-    });
-
-    if (OTP_DEV_MODE) {
-      console.log(
-        `\n[OTP][DEV MODE] No email was sent. Code for ${email}: ${otp}\n` +
-          `                Expires in ${Math.round(OTP_TTL_MS / 60000)} minutes.\n`,
-      );
-    } else {
-      console.log(`[OTP] Sent to ${email}`);
-    }
-    res.json({ success: true });
-  } catch (err) {
-    console.error("[OTP] Email send failed:", err.message);
-    await dbRun(`DELETE FROM EmailOtps WHERE email = ?`, [email]).catch(
-      () => {},
-    );
-    res.json({
-      success: false,
-      message: "Failed to send email. Check server email config.",
-    });
-  }
-});
-
-app.post("/api/verify-otp", async (req, res) => {
-  const email = normalizeEmail(req.body.email);
-  const otp = String(req.body.otp || "").trim();
-
-  if (!/^\d{6}$/.test(otp)) {
-    return res.status(400).json({
-      success: false,
-      message: "Enter the 6-digit verification code.",
-    });
-  }
-
-  try {
-    const record = await dbGet(`SELECT * FROM EmailOtps WHERE email = ?`, [
-      email,
-    ]);
-    if (!record) {
-      return res.json({
-        success: false,
-        message: "No OTP found. Request a new one.",
-      });
-    }
-    if (Date.now() > record.expiresAt) {
-      await dbRun(`DELETE FROM EmailOtps WHERE email = ?`, [email]).catch(
-        () => {},
-      );
-      return res.json({
-        success: false,
-        message: "OTP expired. Request a new one.",
-      });
-    }
-    if (record.attempts >= OTP_MAX_ATTEMPTS) {
-      return res.status(429).json({
-        success: false,
-        message: "Too many incorrect attempts. Request a new code.",
-      });
-    }
-
-    if (!verifyOtpHash(otp, record.otpHash)) {
-      const attempts = record.attempts + 1;
-      await dbRun(
-        `UPDATE EmailOtps SET attempts = ?, updatedAt = ? WHERE email = ?`,
-        [attempts, Date.now(), email],
-      );
-
-      if (attempts >= OTP_MAX_ATTEMPTS) {
-        return res.status(429).json({
+      ]);
+      if (existingUser) {
+        return res.status(409).json({
           success: false,
-          message: "Too many incorrect attempts. Request a new code.",
+          message: "That school email is already registered.",
         });
       }
 
-      const remainingAttempts = OTP_MAX_ATTEMPTS - attempts;
-      return res.json({
+      // FUNC-002 REQT-005: Register checks the username before a code is sent
+      // (a resend doesn't send one, so it skips this).
+      const username = String(req.body.username ?? "").trim();
+      if (username && (await isUsernameTaken(username))) {
+        return res
+          .status(409)
+          .json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
+      }
+
+      const existingOtp = await dbGet(`SELECT * FROM EmailOtps WHERE email = ?`, [
+        email,
+      ]);
+      const resendWaitSeconds = secondsUntilResend(existingOtp);
+      if (resendWaitSeconds > 0) {
+        return res.set("Retry-After", String(resendWaitSeconds)).status(429).json({
+          success: false,
+          message: `Please wait ${resendWaitSeconds}s before requesting another code.`,
+          retryAfterSeconds: resendWaitSeconds,
+        });
+      }
+
+      const otp = String(crypto.randomInt(100000, 1000000));
+      const otpHash = await hashOtp(otp);
+      const now = Date.now();
+      const reservation = await dbRun(
+        `INSERT INTO EmailOtps (email, otp, otpHash, expiresAt, verified, resendAvailableAt, attempts, createdAt, updatedAt)
+         VALUES (?, '', ?, ?, 0, ?, 0, ?, ?)
+         ON CONFLICT(email) DO UPDATE SET
+           otp='',
+           otpHash=excluded.otpHash,
+           expiresAt=excluded.expiresAt,
+           verified=0,
+           verificationDigest=NULL,
+           resendAvailableAt=excluded.resendAvailableAt,
+           attempts=0,
+           updatedAt=excluded.updatedAt
+         WHERE EmailOtps.resendAvailableAt <= ?`,
+        [
+          email,
+          otpHash,
+          now + OTP_TTL_MS,
+          now + OTP_RESEND_COOLDOWN_MS,
+          now,
+          now,
+          now,
+        ],
+      );
+      if (!reservation.changes) {
+        return res.set("Retry-After", "60").status(429).json({
+          success: false,
+          message: "Wait before requesting another code.",
+          retryAfterSeconds: 60,
+        });
+      }
+      reservedHash = otpHash;
+
+      await transporter.sendMail({
+        from: `"SWAPPR" <${mailFromAddress}>`,
+        to: email,
+        subject: "Your SWAPPR verification code",
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;background:#f5f3ff;border-radius:12px;">
+            <h2 style="color:#6d28d9;margin:0 0 8px;">SWAPPR</h2>
+            <p style="color:#374151;margin:0 0 16px;">Your one-time verification code:</p>
+            <div style="font-size:40px;font-weight:900;letter-spacing:10px;color:#4f46e5;margin:0 0 24px;">${otp}</div>
+            <p style="color:#6b7280;font-size:13px;margin:0;">Valid for 10 minutes. Do not share this code with anyone.</p>
+          </div>`,
+      });
+
+      if (OTP_DEV_MODE) {
+        console.log(
+          `\n[OTP][DEV MODE] No email was sent. Code for ${email}: ${otp}\n` +
+            `                Expires in ${Math.round(OTP_TTL_MS / 60000)} minutes.\n`,
+        );
+      }
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[OTP] Email send failed:", err.message);
+      if (reservedHash) {
+        await dbRun("DELETE FROM EmailOtps WHERE email = ? AND otpHash = ?", [email, reservedHash])
+          .catch(() => {});
+      }
+      res.json({
         success: false,
-        message: `Incorrect code. ${remainingAttempts} attempt${remainingAttempts === 1 ? "" : "s"} left.`,
+        message: "Failed to send email. Check server email config.",
       });
     }
+  },
+);
 
-    await dbRun(
-      `UPDATE EmailOtps SET verified = 1, attempts = 0, updatedAt = ? WHERE email = ?`,
-      [Date.now(), email],
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error("[OTP] Verification lookup failed:", err.message);
-    res.status(500).json({ success: false, message: "Database error." });
-  }
-});
+app.post("/api/verify-otp",
+  requestLimit("verify-otp-ip", 50, FIFTEEN_MINUTES),
+  requestLimit("verify-otp-email", 15, FIFTEEN_MINUTES, emailKey),
+  async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    const otp = String(req.body?.otp || "").trim();
+    if (!isValidSchoolEmail(email) || !/^\d{6}$/.test(otp)) {
+      return res.status(400).json({ success: false, message: "Enter the school email and 6-digit code." });
+    }
 
-app.post("/api/register", async (req, res) => {
-  // Never log the body: it contains the plaintext password.
-  console.log("[REGISTER] Request received for username:", req.body.username);
+    try {
+      const now = Date.now();
+      const record = await dbGet(
+        `UPDATE EmailOtps SET attempts = attempts + 1, updatedAt = ?
+         WHERE email = ? AND expiresAt > ? AND otpHash IS NOT NULL AND attempts < ?
+         RETURNING attempts, otpHash`,
+        [now, email, now, OTP_MAX_ATTEMPTS],
+      );
+      if (!record) {
+        const active = await dbGet("SELECT attempts FROM EmailOtps WHERE email = ? AND expiresAt > ?", [email, now]);
+        if (active?.attempts >= OTP_MAX_ATTEMPTS) {
+          return res.status(429).json({ success: false, message: "Too many incorrect attempts. Request a new code." });
+        }
+        return res.json({ success: false, message: "No active OTP found. Request a new one." });
+      }
 
-  const {
-    name,
-    username,
-    password,
-    course,
-    department,
-    yearLevel,
-    studentId,
-    email,
-  } = req.body;
-  const cleanEmail = normalizeEmail(email);
+      if (!await verifyOtpHash(otp, record.otpHash)) {
+        const remaining = OTP_MAX_ATTEMPTS - record.attempts;
+        if (!remaining) {
+          return res.status(429).json({ success: false, message: "Too many incorrect attempts. Request a new code." });
+        }
+        return res.json({ success: false, message: `Incorrect code. ${remaining} attempt${remaining === 1 ? "" : "s"} left.` });
+      }
 
-  // FUNC-002 REQT-003 / REQT-006: every field is required.
-  if (!name || !username || !password || !studentId || !course || !email) {
-    return res.status(400).json({
-      success: false,
-      message: "Input required data.",
-    });
-  }
-  if (!isCourse(course)) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Please select a course from the list." });
-  }
-  if (String(password).trim().length < PASSWORD_MIN_LENGTH) {
-    return res.status(400).json({
-      success: false,
-      message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
-    });
-  }
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const verified = await dbRun(
+        `UPDATE EmailOtps SET verified = 1, verificationDigest = ?, updatedAt = ?
+         WHERE email = ? AND otpHash = ? AND expiresAt > ?`,
+        [credentialDigest(verificationToken), Date.now(), email, record.otpHash, Date.now()],
+      );
+      if (!verified.changes) {
+        return res.status(409).json({ success: false, message: "Request and verify a fresh code." });
+      }
+      res.set("Cache-Control", "no-store").json({ success: true, verificationToken });
+    } catch (err) {
+      console.error("[OTP] Verification lookup failed:", err.message);
+      res.status(500).json({ success: false, message: "Database error." });
+    }
+  },
+);
 
-  if (!/^[0-9]+$/.test(studentId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Student ID must contain numbers only.",
-    });
-  }
+app.post("/api/register",
+  requestLimit("register-ip", 20, FIFTEEN_MINUTES),
+  requestLimit("register-email", 10, FIFTEEN_MINUTES, emailKey),
+  async (req, res) => {
+    const {
+      name,
+      username,
+      password,
+      course,
+      department,
+      yearLevel,
+      studentId,
+      email,
+      verificationToken,
+    } = req.body || {};
+    const cleanUsername = typeof username === "string" ? username.trim() : "";
+    const cleanEmail = normalizeEmail(email);
 
-  if (!isValidSchoolEmail(cleanEmail)) {
-    return res.status(400).json({
-      success: false,
-      message: "Email must be in the format: numbers@usc.edu.ph",
-    });
-  }
-
-  try {
-    const otpRecord = await dbGet(`SELECT * FROM EmailOtps WHERE email = ?`, [
-      cleanEmail,
-    ]);
-    if (!otpRecord || !otpRecord.verified || Date.now() > otpRecord.expiresAt) {
+    // FUNC-002 REQT-003 / REQT-006: every field is required.
+    if (!name || !cleanUsername || !password || !studentId || !course || !email) {
       return res.status(400).json({
         success: false,
-        message: "Email not verified. Complete OTP verification first.",
+        message: "Input required data.",
       });
     }
-
-    // Checked again here: the name may have been taken since Register.
-    const [usernameTaken, existingEmail] = await Promise.all([
-      isUsernameTaken(username),
-      dbGet(`SELECT id FROM Users WHERE email = ?`, [cleanEmail]),
-    ]);
-
-    if (usernameTaken) {
+    if (!isCourse(course)) {
       return res
         .status(400)
-        .json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
+        .json({ success: false, message: "Please select a course from the list." });
     }
+    const invalidPassword = passwordError(password);
+    if (invalidPassword) return res.status(400).json({ success: false, message: invalidPassword });
 
-    if (existingEmail) {
+    if (!/^[0-9]+$/.test(studentId)) {
       return res.status(400).json({
         success: false,
-        message: "That school email is already registered.",
+        message: "Student ID must contain numbers only.",
       });
     }
 
-    // LOG002: department isn't asked for; it comes from the course.
-    const finalDept = COURSE_TO_DEPARTMENT[course] || department || course;
-    const finalCourse = course || "";
-    const finalYear = yearLevel || "";
-    const hashedPassword = hashPassword(password);
+    if (!isValidSchoolEmail(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Email must be in the format: numbers@usc.edu.ph",
+      });
+    }
 
-    const result = await dbRun(
-      `INSERT INTO Users (name, username, password, course, department, yearLevel, email, studentId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        name,
-        username,
-        hashedPassword,
-        finalCourse,
-        finalDept,
-        finalYear,
-        cleanEmail,
-        studentId,
-      ],
-    );
+    try {
+      if (typeof verificationToken !== "string" || !/^[a-f0-9]{64}$/.test(verificationToken)) {
+        return res.status(400).json({
+          success: false,
+          message: "Email not verified. Complete OTP verification first.",
+        });
+      }
+      const verificationDigest = credentialDigest(verificationToken);
 
-    await dbRun(`DELETE FROM EmailOtps WHERE email = ?`, [cleanEmail]).catch(
-      () => {},
-    );
+      // Checked again here: the name may have been taken since Register.
+      const [usernameTaken, existingEmail, verifiedOtp] = await Promise.all([
+        isUsernameTaken(cleanUsername),
+        dbGet("SELECT id FROM Users WHERE email = ?", [cleanEmail]),
+        dbGet(
+          "SELECT 1 FROM EmailOtps WHERE email = ? AND verificationDigest = ? AND verified = 1 AND expiresAt > ?",
+          [cleanEmail, verificationDigest, Date.now()],
+        ),
+      ]);
+      if (!verifiedOtp) {
+        return res.status(400).json({ success: false, message: "Email not verified. Complete OTP verification first." });
+      }
 
-    startStudentSession(res, {
-      id: result.lastID,
-      username,
-      name,
-      course: finalCourse,
-    });
+      if (usernameTaken) {
+        return res
+          .status(400)
+          .json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
+      }
 
-    res.status(201).json({
-      success: true,
-      userId: result.lastID,
-      user: publicUser({
-        id: result.lastID,
-        name,
-        username,
-        course: finalCourse,
-      }),
-    });
-  } catch (err) {
-    console.error("[REGISTER] Insert error:", err);
-    res.status(500).json({ success: false, message: "Registration failed" });
-  }
-});
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: "That school email is already registered.",
+        });
+      }
+
+      // LOG002: department isn't asked for; it comes from the course.
+      const finalDept = COURSE_TO_DEPARTMENT[course] || department || course;
+      const finalCourse = course || "";
+      const finalYear = yearLevel || "";
+      const hashedPassword = await hashPassword(password);
+
+      const result = await dbRun(
+        `INSERT INTO Users (name, username, password, course, department, yearLevel, email, studentId)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (SELECT 1 FROM EmailOtps
+           WHERE email = ? AND verificationDigest = ? AND verified = 1 AND expiresAt > ?)`,
+        [
+          name,
+          cleanUsername,
+          hashedPassword,
+          finalCourse,
+          finalDept,
+          finalYear,
+          cleanEmail,
+          studentId,
+          cleanEmail,
+          verificationDigest,
+          Date.now(),
+        ],
+      );
+
+      if (!result.changes) {
+        return res.status(400).json({ success: false, message: "Email verification expired. Request a new code." });
+      }
+      await dbRun("DELETE FROM EmailOtps WHERE email = ? AND verificationDigest = ?", [cleanEmail, verificationDigest]);
+      await startSession(res, "student", result.lastID, hashedPassword);
+
+      res.status(201).json({
+        success: true,
+        userId: result.lastID,
+        user: publicUser({
+          id: result.lastID,
+          name,
+          username: cleanUsername,
+          course: finalCourse,
+        }),
+      });
+    } catch (err) {
+      if (err.code === "SQLITE_CONSTRAINT") {
+        return res.status(409).json({ success: false, message: "Username or school email is already registered." });
+      }
+      console.error("[REGISTER] Insert error:", err.message);
+      res.status(500).json({ success: false, message: "Registration failed" });
+    }
+  },
+);
 
 // One login form serves both roles: the username is looked up among students
 // first, then administrators, and the response says which one matched.
-app.post("/api/login", async (req, res) => {
-  const username = String(req.body.username ?? "").trim();
-  const password = String(req.body.password ?? "").trim();
-  // FUNC-001 REQT-003 / REQT-008
-  if (!username || !password) {
-    return res.status(400).json({ success: false, message: "Input required data." });
-  }
+app.post("/api/login",
+  requestLimit("login-ip", 50, FIFTEEN_MINUTES),
+  requestLimit("login-account", 10, FIFTEEN_MINUTES,
+    (req) => typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : ""),
+  async (req, res) => {
+    const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
+    const password = req.body?.password;
+    if (!username || typeof password !== "string" || !password) {
+      return res.status(400).json({ success: false, message: "Input required data." });
+    }
 
-  try {
-    const user = await dbGet(`SELECT * FROM Users WHERE username = ?`, [
-      username,
-    ]);
-    if (user) {
-      if (!verifyPassword(password, user.password)) {
-        return res
-          .status(401)
-          .json({ success: false, message: "The password is incorrect." });
+    try {
+      const user = await dbGet("SELECT * FROM Users WHERE username = ?", [username]);
+      const admin = user ? null : await dbGet("SELECT * FROM Admin WHERE username = ?", [username]);
+      const account = user || admin;
+      if (!account) {
+        return res.status(401).json({ success: false, message: "No account matches this username." });
       }
-      if (user.account_status && user.account_status !== "active") {
+      // Old development databases may already contain hashed demo credentials.
+      if ((IS_PRODUCTION && ["admin123", "pass1234"].includes(password)) ||
+          !await verifyPassword(password, account.password)) {
+        return res.status(401).json({ success: false, message: "The password is incorrect." });
+      }
+      await req.releaseLoginAttempt();
+      if (user?.account_status && user.account_status !== "active") {
         return res.status(403).json({
           success: false,
-          message:
-            "This account is suspended. Please contact the administrator.",
+          message: "This account is suspended. Please contact the administrator.",
         });
       }
-      if (!isHashed(user.password)) {
-        await dbRun(`UPDATE Users SET password = ? WHERE id = ?`, [
-          hashPassword(password),
-          user.id,
-        ]).catch(() => {});
-      }
 
-      startStudentSession(res, user);
-      return res.json({ success: true, role: "student", user: publicUser(user) });
+      const role = user ? "student" : "admin";
+      if (!await startSession(res, role, user ? user.id : admin.admin_ID, account.password)) {
+        return res.status(401).json({ success: false, message: "Account changed. Please log in again." });
+      }
+      res.json({ success: true, role, user: user ? publicUser(user) : publicAdmin(admin) });
+    } catch (err) {
+      console.error("[LOGIN] error:", err.message);
+      res.status(500).json({ success: false, message: "Server error" });
     }
-
-    const admin = await dbGet(`SELECT * FROM Admin WHERE username = ?`, [
-      username,
-    ]);
-    if (admin) {
-      if (!verifyPassword(password, admin.password)) {
-        return res
-          .status(401)
-          .json({ success: false, message: "The password is incorrect." });
-      }
-      if (!isHashed(admin.password)) {
-        await dbRun(`UPDATE Admin SET password = ? WHERE admin_ID = ?`, [
-          hashPassword(password),
-          admin.admin_ID,
-        ]).catch(() => {});
-      }
-
-      startAdminSession(res, admin);
-      return res.json({ success: true, role: "admin", user: publicAdmin(admin) });
-    }
-
-    // FUNC-001 REQT-006
-    res.status(401).json({ success: false, message: "No account matches this username." });
-  } catch (err) {
-    console.error("[LOGIN] error:", err.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
+  },
+);
 
 app.get("/api/me", requireAnyAuth, (req, res) => {
   if (req.currentAdmin) {
@@ -909,8 +1034,8 @@ app.get("/api/me", requireAnyAuth, (req, res) => {
   res.json({ success: true, role: "student", user: req.currentUser });
 });
 
-app.post("/api/logout", (req, res) => {
-  clearSession(req, res);
+app.post("/api/logout", async (req, res) => {
+  await clearSession(req, res);
   res.json({ success: true });
 });
 
@@ -1001,72 +1126,71 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
   );
 });
 
-// FUNC-014 REQT-005 to REQT-008: a student edits their own full name,
-// username, course and password. Every field is required (REQT-006). The
-// password field sets the password, so typing the current one keeps it.
-// Trust score, warnings and account status can't be changed here (REQT-010).
-app.patch("/api/profile", requireAuth, async (req, res) => {
-  const me = req.currentUser.id;
-  const name = String(req.body.name ?? "").trim();
-  const username = String(req.body.username ?? "").trim();
-  const course = String(req.body.course ?? "").trim();
-  const password = String(req.body.password ?? "").trim();
+// Students can edit profile details without changing their credentials.
+// A password change verifies the old credential and revokes every old session.
+app.patch("/api/profile", requireAuth,
+  requestLimit("profile-ip", 60, FIFTEEN_MINUTES),
+  requestLimit("profile-account", 15, FIFTEEN_MINUTES, (req) => req.currentUser.id),
+  async (req, res) => {
+    const me = req.currentUser.id;
+    const name = String(req.body?.name ?? "").trim();
+    const username = String(req.body?.username ?? "").trim();
+    const course = String(req.body?.course ?? "").trim();
+    const { password, currentPassword } = req.body || {};
+    const changingPassword = password !== undefined && password !== "";
 
-  if (!name || !username || !course || !password) {
-    return res.status(400).json({ success: false, message: "Missing Input" });
-  }
-  if (!isCourse(course)) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Please select a course from the list." });
-  }
-  if (password.length < PASSWORD_MIN_LENGTH) {
-    return res.status(400).json({
-      success: false,
-      message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
-    });
-  }
-
-  try {
-    // Admin usernames count as taken, as they do at registration.
-    const [taken, current] = await Promise.all([
-      isUsernameTaken(username, me),
-      dbGet(`SELECT course, department FROM Users WHERE id = ?`, [me]),
-    ]);
-    if (taken) {
-      return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
+    if (!name || !username || !course) {
+      return res.status(400).json({ success: false, message: "Missing Input" });
     }
-
-    // The department belongs to the course, so it follows a course change.
-    const department =
-      course === current.course
-        ? current.department
-        : COURSE_TO_DEPARTMENT[course] || course;
-
-    await dbRun(
-      `UPDATE Users SET name = ?, username = ?, course = ?, department = ?, password = ? WHERE id = ?`,
-      [name, username, course, department, hashPassword(password), me],
-    );
-
-    // Every open session of this student, on any device, carries the new
-    // name, username and course, so username-keyed routes keep working.
-    for (const session of sessions.values()) {
-      if (session.role === "student" && session.user.id === me) {
-        Object.assign(session.user, { name, username, course });
+    if (!isCourse(course)) {
+      return res.status(400).json({ success: false, message: "Please select a course from the list." });
+    }
+    if (changingPassword) {
+      if (typeof currentPassword !== "string" || !currentPassword) {
+        return res.status(400).json({ success: false, message: "Enter your current password." });
       }
+      const invalidPassword = passwordError(password);
+      if (invalidPassword) return res.status(400).json({ success: false, message: invalidPassword });
     }
 
-    res.json({ success: true, user: publicUser(req.currentUser) });
-  } catch (err) {
-    // Two students saving the same new username at once: the UNIQUE
-    // constraint catches the second.
-    if (String(err.message).includes("UNIQUE constraint failed: Users.username")) {
-      return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
+    try {
+      const [taken, current] = await Promise.all([
+        isUsernameTaken(username, me),
+        dbGet("SELECT course, department, password FROM Users WHERE id = ?", [me]),
+      ]);
+      if (taken) {
+        return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
+      }
+      if (!current) return res.status(401).json({ success: false, message: "Login required" });
+      if (changingPassword && !await verifyPassword(currentPassword, current.password)) {
+        return res.status(403).json({ success: false, message: "Current password is incorrect." });
+      }
+
+      const department = course === current.course ? current.department : COURSE_TO_DEPARTMENT[course] || course;
+      const newHash = changingPassword ? await hashPassword(password) : null;
+      const result = await dbRun(
+        `UPDATE Users SET name = ?, username = ?, course = ?, department = ?, password = COALESCE(?, password)
+         WHERE id = ? AND password IS ? AND EXISTS
+           (SELECT 1 FROM Sessions WHERE digest = ? AND expiresAt > ?)`,
+        [name, username, course, department, newHash, me, current.password, req.sessionDigest, Date.now()],
+      );
+      if (!result.changes) {
+        return res.status(401).json({ success: false, message: "Account changed. Please log in again." });
+      }
+      if (changingPassword && !await startSession(res, "student", me, newHash)) {
+        return res.status(401).json({ success: false, message: "Account changed. Please log in again." });
+      }
+
+      res.json({ success: true, user: publicUser({ id: me, name, username, course }) });
+    } catch (err) {
+      if (String(err.message).includes("UNIQUE constraint failed: Users.username")) {
+        return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
+      }
+      console.error("Profile update failed:", err.message);
+      res.status(500).json({ success: false, message: "Could not update profile." });
     }
-    console.error("Profile update failed:", err);
-    res.status(500).json({ success: false, message: "Could not update profile." });
-  }
-});
+  },
+);
 
 app.get("/api/departments", (req, res) => {
   coursesDb.all(
@@ -1385,77 +1509,80 @@ const REPORT_DETAILS_MAX_LENGTH = 500;
 // Flagged Notebooks queue.
 // FUNC-015: report a notebook or another student's account. Exactly one of
 // notebookId / reportedUserId names the target.
-app.post("/api/reports", requireAuth, async (req, res) => {
-  const hasNotebook = req.body.notebookId !== undefined && req.body.notebookId !== null;
-  const hasUser = req.body.reportedUserId !== undefined && req.body.reportedUserId !== null;
-  const notebookId = Number(req.body.notebookId);
-  const reportedUserId = Number(req.body.reportedUserId);
-  const reason = String(req.body.reason || "");
-  const details = String(req.body.details || "").trim();
+app.post("/api/reports", requireAuth,
+  requestLimit("reports-account", 12, FIFTEEN_MINUTES, (req) => req.currentUser.id),
+  async (req, res) => {
+    const hasNotebook = req.body.notebookId !== undefined && req.body.notebookId !== null;
+    const hasUser = req.body.reportedUserId !== undefined && req.body.reportedUserId !== null;
+    const notebookId = Number(req.body.notebookId);
+    const reportedUserId = Number(req.body.reportedUserId);
+    const reason = String(req.body.reason || "");
+    const details = String(req.body.details || "").trim();
 
-  const validTarget = hasNotebook !== hasUser &&
-    Number.isInteger(hasNotebook ? notebookId : reportedUserId);
-  if (!validTarget || !REPORT_REASONS.has(reason) || !details) {
-    return res.status(400).json({ success: false, message: "Missing input." });
-  }
-  if (details.length > REPORT_DETAILS_MAX_LENGTH) {
-    return res.status(400).json({
-      success: false,
-      message: `Details must be ${REPORT_DETAILS_MAX_LENGTH} characters or fewer.`,
-    });
-  }
-
-  if (hasUser) return reportUser(req, res, reportedUserId, reason, details);
-
-  try {
-    const notebook = await dbGet(
-      `SELECT id, author_id, COALESCE(status, 'active') AS status FROM Notebooks WHERE id = ?`,
-      [notebookId],
-    );
-    if (!notebook || notebook.status === "removed") {
-      return res
-        .status(404)
-        .json({ success: false, message: "Notebook not found." });
+    const validTarget = hasNotebook !== hasUser &&
+      Number.isInteger(hasNotebook ? notebookId : reportedUserId);
+    if (!validTarget || !REPORT_REASONS.has(reason) || !details) {
+      return res.status(400).json({ success: false, message: "Missing input." });
     }
-    if (notebook.author_id === req.currentUser.id) {
+    if (details.length > REPORT_DETAILS_MAX_LENGTH) {
       return res.status(400).json({
         success: false,
-        message: "You can't report your own notebook.",
+        message: `Details must be ${REPORT_DETAILS_MAX_LENGTH} characters or fewer.`,
       });
     }
 
-    const alreadyReported = await dbGet(
-      `SELECT report_ID FROM Reports WHERE reporter_ID = ? AND notebook_ID = ? AND status = 'open'`,
-      [req.currentUser.id, notebookId],
-    );
-    if (alreadyReported) {
-      return res.status(409).json({
-        success: false,
-        message: "You already reported this notebook. An admin will review it.",
-      });
+    if (hasUser) return reportUser(req, res, reportedUserId, reason, details);
+
+    try {
+      const notebook = await dbGet(
+        `SELECT id, author_id, COALESCE(status, 'active') AS status FROM Notebooks WHERE id = ?`,
+        [notebookId],
+      );
+      if (!notebook || notebook.status === "removed") {
+        return res
+          .status(404)
+          .json({ success: false, message: "Notebook not found." });
+      }
+      if (notebook.author_id === req.currentUser.id) {
+        return res.status(400).json({
+          success: false,
+          message: "You can't report your own notebook.",
+        });
+      }
+
+      const alreadyReported = await dbGet(
+        `SELECT report_ID FROM Reports WHERE reporter_ID = ? AND notebook_ID = ? AND status = 'open'`,
+        [req.currentUser.id, notebookId],
+      );
+      if (alreadyReported) {
+        return res.status(409).json({
+          success: false,
+          message: "You already reported this notebook. An admin will review it.",
+        });
+      }
+
+      const result = await dbRun(
+        `INSERT INTO Reports (reporter_ID, notebook_ID, reason, complaint) VALUES (?,?,?,?)`,
+        [req.currentUser.id, notebookId, reason, details],
+      );
+      await dbRun(
+        `UPDATE Notebooks
+         SET report_count = COALESCE(report_count, 0) + 1,
+             status = CASE
+               WHEN COALESCE(report_count, 0) + 1 >= ? THEN 'under_review'
+               ELSE COALESCE(status, 'active')
+             END
+         WHERE id = ?`,
+        [REPORT_UNDER_REVIEW_THRESHOLD, notebookId],
+      );
+
+      res.status(201).json({ success: true, reportId: result.lastID });
+    } catch (err) {
+      console.error("[REPORTS] create failed:", err.message);
+      res.status(500).json({ success: false, message: "Server error" });
     }
-
-    const result = await dbRun(
-      `INSERT INTO Reports (reporter_ID, notebook_ID, reason, complaint) VALUES (?,?,?,?)`,
-      [req.currentUser.id, notebookId, reason, details],
-    );
-    await dbRun(
-      `UPDATE Notebooks
-       SET report_count = COALESCE(report_count, 0) + 1,
-           status = CASE
-             WHEN COALESCE(report_count, 0) + 1 >= ? THEN 'under_review'
-             ELSE COALESCE(status, 'active')
-           END
-       WHERE id = ?`,
-      [REPORT_UNDER_REVIEW_THRESHOLD, notebookId],
-    );
-
-    res.status(201).json({ success: true, reportId: result.lastID });
-  } catch (err) {
-    console.error("[REPORTS] create failed:", err.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
+  },
+);
 
 // A reported account stays active until an administrator acts on the report
 // in ADM002 (UC-08).
@@ -1948,43 +2075,46 @@ ORDER BY ChatMessages.id ASC`,
   }
 });
 
-app.post("/api/chats/:id/messages", requireAuth, async (req, res) => {
-  try {
-    await archiveExpiredChats();
-    const chat = await findChatForUser(req.params.id, req.currentUser.id);
-    if (!chat) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Chat not found" });
+app.post("/api/chats/:id/messages", requireAuth,
+  requestLimit("chat-account", 60, 60_000, (req) => req.currentUser.id),
+  async (req, res) => {
+    try {
+      await archiveExpiredChats();
+      const chat = await findChatForUser(req.params.id, req.currentUser.id);
+      if (!chat) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Chat not found" });
+      }
+      if (chat.status !== "active") {
+        return res
+          .status(403)
+          .json({ success: false, message: "This chat has ended" });
+      }
+      const body = String(req.body.body || "").trim();
+      if (!body) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Message cannot be empty" });
+      }
+      if (body.length > CHAT_MESSAGE_MAX_LENGTH) {
+        return res.status(400).json({
+          success: false,
+          message: `Message must be ${CHAT_MESSAGE_MAX_LENGTH} characters or fewer`,
+        });
+      }
+      const result = await dbRun(
+        `INSERT INTO ChatMessages (chat_id, sender_id, body) VALUES (?, ?, ?)`,
+        [chat.id, req.currentUser.id, body],
+      );
+      console.log(`[CHAT] Message ${result.lastID} sent in chat ${chat.id}`);
+      res.json({ success: true, id: result.lastID });
+    } catch (err) {
+      console.error("[CHAT] send message failed:", err.message);
+      res.status(500).json({ success: false, message: err.message });
     }
-    if (chat.status !== "active") {
-      return res
-        .status(403)
-        .json({ success: false, message: "This chat has ended" });
-    }
-    const body = String(req.body.body || "").trim();
-    if (!body) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Message cannot be empty" });
-    }
-    if (body.length > CHAT_MESSAGE_MAX_LENGTH) {
-      return res.status(400).json({
-        success: false,
-        message: `Message must be ${CHAT_MESSAGE_MAX_LENGTH} characters or fewer`,
-      });
-    }
-    const result = await dbRun(
-      `INSERT INTO ChatMessages (chat_id, sender_id, body) VALUES (?, ?, ?)`,
-      [chat.id, req.currentUser.id, body],
-    );
-    console.log(`[CHAT] Message ${result.lastID} sent in chat ${chat.id}`);
-    res.json({ success: true, id: result.lastID });
-  } catch (err) {
-    console.error("[CHAT] send message failed:", err.message);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+  },
+);
 
 app.post("/api/chats/:id/archive", requireAuth, async (req, res) => {
   try {
@@ -2052,8 +2182,11 @@ async function archiveExpiredChats() {
 // "Background Jobs"). A failure is logged and retried next time.
 async function runMaintenance() {
   try {
+    const now = Date.now();
+    await dbRun("DELETE FROM Sessions WHERE expiresAt <= ?", [now]);
+    await dbRun("DELETE FROM RequestLimits WHERE expiresAt <= ?", [now]);
     await archiveExpiredChats();
-    const purged = await dbRun(`DELETE FROM EmailOtps WHERE expiresAt <= ?`, [Date.now()]);
+    const purged = await dbRun("DELETE FROM EmailOtps WHERE expiresAt <= ?", [now]);
     if (purged.changes) console.log(`[OTP] ${purged.changes} expired code(s) purged`);
   } catch (err) {
     console.error("[MAINTENANCE] failed:", err.message);
@@ -2286,7 +2419,6 @@ app.post("/api/admin/reports/:id/resolve", requireAdminAuth, async (req, res) =>
       await dbRun(`UPDATE Users SET account_status = 'suspended' WHERE id = ?`, [
         suspendId,
       ]);
-      endSessionsForUser(suspendId);
       await dbRun(
         `UPDATE Reports SET status = 'user_suspended', resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
          WHERE report_ID = ?`,
@@ -2445,7 +2577,6 @@ async function setAccountStatus(req, res, status) {
     if (!result.changes) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
-    if (status === "suspended") endSessionsForUser(id);
     res.json({ success: true, accountStatus: status });
   } catch (err) {
     console.error(`[ADMIN] set status ${status} failed:`, err.message);

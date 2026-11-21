@@ -4,24 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SWAPPR — Study Together</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // General Logic: Inter on every page (Tailwind's font-sans included).
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] },
-          },
-        },
-      };
-    </script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/tailwind.css" />
+    <script src="js/vendor/lucide.js"></script>
+    <script src="js/actions.js"></script>
   </head>
 
   <body
@@ -32,7 +22,7 @@
       class="w-full overflow-hidden px-4 py-4 flex items-center justify-between gap-3 bg-gradient-to-r from-[#0f172a] via-[#4f46e5] to-[#9333ea] text-white sticky top-0 z-40 shadow-lg"
     >
       <button
-        onclick="filterBy('all')"
+        data-action="all-subjects"
         class="flex items-center gap-2 shrink-0"
       >
         <i data-lucide="repeat" class="w-6 h-6"></i>
@@ -45,7 +35,7 @@
       <div class="flex items-center gap-2 min-w-0 flex-nowrap">
         <button
           id="userBadge"
-          onclick="openProfilePanel()"
+          data-action="openProfilePanel"
           class="hidden mobile-header-extra items-center gap-2 px-3 py-1.5 rounded-full glass-btn"
         >
           <span
@@ -56,7 +46,7 @@
         </button>
         <button
           id="addPortfolioBtn"
-          onclick="openAddModal()"
+          data-action="openAddModal"
           class="hidden mobile-header-extra text-xs font-bold px-4 py-2 rounded-full text-white bg-gradient-to-r from-purple-500 to-indigo-500 shadow"
         >
           + Notebook
@@ -69,7 +59,7 @@
           <i data-lucide="moon" class="w-5 h-5"></i>
         </button>
         <button
-          onclick="handleLogout()"
+          data-action="handleLogout"
           class="hidden md:inline-flex text-xs font-bold px-3 py-1.5 rounded-full glass-btn hover:bg-red-500/20 hover:scale-105 transition"
         >
           Logout
@@ -77,7 +67,7 @@
         <button
           id="mobileMenuToggle"
           type="button"
-          onclick="toggleMobileMenu()"
+          data-action="toggleMobileMenu"
           class="md:hidden w-9 h-9 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
           aria-label="Open menu"
           aria-expanded="false"
@@ -91,7 +81,7 @@
     <div
       id="mobileMenuOverlay"
       class="mobile-menu-overlay"
-      onclick="closeMobileMenu()"
+      data-action="closeMobileMenu"
     ></div>
     <nav
       id="mobileMenu"
@@ -106,7 +96,6 @@
       <a
         href="#"
         data-filter="all"
-        onclick="filterBy('all'); closeMobileMenu(); return false;"
         class="sidebar-link active flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="book-open" class="w-4 h-4"></i>
@@ -115,7 +104,6 @@
       <a
         href="#"
         data-filter="mine"
-        onclick="filterBy('mine'); closeMobileMenu(); return false;"
         class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="notebook" class="w-4 h-4"></i>
@@ -124,7 +112,6 @@
       <a
         href="#"
         data-filter="matched"
-        onclick="filterBy('matched'); closeMobileMenu(); return false;"
         class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <span class="flex items-center gap-2">
@@ -141,7 +128,6 @@
       <a
         href="#"
         data-filter="requests"
-        onclick="filterBy('requests'); closeMobileMenu(); return false;"
         class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <span class="flex items-center gap-2">
@@ -158,7 +144,6 @@
       <a
         href="#"
         data-filter="top"
-        onclick="filterBy('top'); closeMobileMenu(); return false;"
         class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="trophy" class="w-4 h-4"></i>
@@ -167,14 +152,13 @@
       <a
         href="#"
         data-filter="recent"
-        onclick="filterBy('recent'); closeMobileMenu(); return false;"
         class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="clock" class="w-4 h-4"></i>
         Recently Added
       </a>
       <button
-        onclick="openSubjectSettings(); closeMobileMenu();"
+        data-action="mobile-subject-settings"
         class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
         title="Choose which departments' subjects to display"
       >
@@ -182,7 +166,7 @@
         Subject Filter
       </button>
       <button
-        onclick="handleLogout()"
+        data-action="handleLogout"
         class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
       >
         <i data-lucide="log-out" class="w-4 h-4"></i>
@@ -207,10 +191,6 @@
             <a
               href="#"
               data-filter="all"
-              onclick="
-                filterBy('all');
-                return false;
-              "
               class="sidebar-link active flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="book-open" class="w-4 h-4"></i>
@@ -219,10 +199,6 @@
             <a
               href="#"
               data-filter="mine"
-              onclick="
-                filterBy('mine');
-                return false;
-              "
               class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="notebook" class="w-4 h-4"></i>
@@ -231,10 +207,6 @@
             <a
               href="#"
               data-filter="matched"
-              onclick="
-                filterBy('matched');
-                return false;
-              "
               class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <span class="flex items-center gap-2">
@@ -251,10 +223,6 @@
             <a
               href="#"
               data-filter="requests"
-              onclick="
-                filterBy('requests');
-                return false;
-              "
               class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <span class="flex items-center gap-2">
@@ -271,10 +239,6 @@
             <a
               href="#"
               data-filter="top"
-              onclick="
-                filterBy('top');
-                return false;
-              "
               class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="trophy" class="w-4 h-4"></i>
@@ -284,17 +248,13 @@
             <a
               href="#"
               data-filter="recent"
-              onclick="
-                filterBy('recent');
-                return false;
-              "
               class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="clock" class="w-4 h-4"></i>
               Recently Added
             </a>
             <button
-              onclick="openSubjectSettings()"
+              data-action="openSubjectSettings"
               class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
               title="Choose which departments' subjects to display"
             >
@@ -398,7 +358,7 @@
     <div
       id="profileOverlay"
       class="profile-overlay"
-      onclick="closeProfilePanel()"
+      data-action="closeProfilePanel"
     ></div>
 
     <div id="profilePanel" class="profile-panel">
@@ -411,7 +371,7 @@
           >
         </div>
         <button
-          onclick="closeProfilePanel()"
+          data-action="closeProfilePanel"
           class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-purple-400 hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
         >
           <i data-lucide="x" class="w-4 h-4"></i>
@@ -436,7 +396,7 @@
       <!-- FUNC-014 REQT-005 -->
       <button
         type="button"
-        onclick="openEditProfileModal()"
+        data-action="openEditProfileModal"
         class="w-full mb-6 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-purple-200 dark:border-purple-500/30 text-sm font-semibold text-purple-700 dark:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition"
       >
         <i data-lucide="pencil" class="w-4 h-4"></i>
@@ -523,13 +483,13 @@
     <div
       id="addModal"
       class="modal-overlay hidden"
-      onclick="closeAddModal(event)"
+      data-action="closeAddModal-overlay"
     >
       <div class="modal-box">
         <!-- MOD001 Close (x): closes without saving -->
         <button
           type="button"
-          onclick="closeAddModal()"
+          data-action="closeAddModal"
           class="report-modal-close"
           aria-label="Close"
         >
@@ -608,14 +568,14 @@
           </div>
           <div class="flex justify-end gap-3 pt-2">
             <button
-              onclick="closeAddModal()"
+              data-action="closeAddModal"
               class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
             >
               Cancel
             </button>
             <button
               id="portfolioActionBtn"
-              onclick="submitPortfolio()"
+              data-action="submitPortfolio"
               class="btn-primary"
             >
               Publish Notebook
@@ -637,11 +597,11 @@
           </span>
         </span>
         <div class="flex items-center gap-3 shrink-0">
-          <button id="chatEndBtn" onclick="endChat()" class="chat-panel-end">
+          <button id="chatEndBtn" data-action="endChat" class="chat-panel-end">
             End Chat
           </button>
           <button
-            onclick="closeChat()"
+            data-action="closeChat"
             class="chat-panel-close"
             aria-label="Close chat"
           >
@@ -660,9 +620,8 @@
           class="chat-panel-input"
           placeholder="Type a message..."
           maxlength="1000"
-          onkeydown="if (event.key === 'Enter') sendChatMessage()"
         />
-        <button onclick="sendChatMessage()" class="chat-panel-send">
+        <button data-action="sendChatMessage" class="chat-panel-send">
           Send
         </button>
       </div>
@@ -672,7 +631,7 @@
     <div
       id="subjectSettingsModal"
       class="modal-overlay hidden"
-      onclick="closeSubjectSettings(event)"
+      data-action="closeSubjectSettings-overlay"
     >
       <div class="modal-box" style="max-width:520px">
         <h3
@@ -749,12 +708,12 @@
 
         <div class="flex justify-end gap-3">
           <button
-            onclick="closeSubjectSettings()"
+            data-action="closeSubjectSettings"
             class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
           >
             Cancel
           </button>
-          <button onclick="applySubjectSettings()" class="btn-primary">
+          <button data-action="applySubjectSettings" class="btn-primary">
             Save
           </button>
         </div>
@@ -767,7 +726,7 @@
     <div
       id="swappRequestModal"
       class="modal-overlay hidden"
-      onclick="closeSwappRequestModal(event)"
+      data-action="closeSwappRequestModal-overlay"
     >
       <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="swappRequestHeading">
         <h3
@@ -789,7 +748,7 @@
         <div class="flex justify-end gap-3 pt-5">
           <button
             type="button"
-            onclick="closeSwappRequestModal()"
+            data-action="closeSwappRequestModal"
             class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
           >
             Cancel
@@ -797,7 +756,7 @@
           <button
             id="swappRequestSendBtn"
             type="button"
-            onclick="submitSwappRequest()"
+            data-action="submitSwappRequest"
             class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Send Request
@@ -808,6 +767,113 @@
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
+
+    <!-- Edit Profile Modal (PRF002 / FUNC-014 REQT-005 to REQT-009) -->
+    <div
+      id="editProfileModal"
+      class="modal-overlay hidden"
+      data-action="closeEditProfileModal-overlay"
+    >
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="editProfileHeading">
+        <button
+          type="button"
+          data-action="closeEditProfileModal"
+          class="report-modal-close"
+          aria-label="Close"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <h3
+          id="editProfileHeading"
+          class="text-xl font-extrabold mb-5 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2"
+        >
+          <i data-lucide="pencil" class="w-5 h-5"></i>
+          Edit Profile
+        </h3>
+
+        <form id="editProfileForm" class="space-y-4" novalidate>
+          <div>
+            <label for="editProfileName" class="field-section-label">
+              Full Name <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="editProfileName"
+              type="text"
+              class="input-field"
+              autocomplete="name"
+            />
+          </div>
+
+          <div>
+            <label for="editProfileUsername" class="field-section-label">
+              Username <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="editProfileUsername"
+              type="text"
+              class="input-field"
+              autocomplete="username"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+          </div>
+
+          <div>
+            <label for="editProfileCourse" class="field-section-label">
+              Course <span class="text-red-500">*</span>
+            </label>
+            <select id="editProfileCourse" class="input-field">
+              <option value="">Select your course</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="editProfileCurrentPassword" class="field-section-label">
+              Current password (for password changes)
+            </label>
+            <input
+              id="editProfileCurrentPassword"
+              type="password"
+              class="input-field"
+              autocomplete="current-password"
+            />
+          </div>
+
+          <div>
+            <label for="editProfilePassword" class="field-section-label">
+              New password (optional)
+            </label>
+            <input
+              id="editProfilePassword"
+              type="password"
+              class="input-field"
+              autocomplete="new-password"
+              minlength="8"
+              maxlength="128"
+            />
+          </div>
+
+          <p id="editProfileError" class="report-error hidden" role="alert"></p>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              data-action="closeEditProfileModal"
+              class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+            >
+              Cancel
+            </button>
+            <button
+              id="editProfileSaveBtn"
+              type="submit"
+              class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <script src="js/pagination.js"></script>
     <script src="js/date-format.js"></script>
@@ -834,9 +900,5 @@
     <script src="js/app/toast.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/app/main.js"></script>
-    <script>
-      // Initialize Lucide icons
-      lucide.createIcons();
-    </script>
   </body>
 </html>

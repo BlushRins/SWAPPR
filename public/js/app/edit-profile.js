@@ -2,7 +2,7 @@
   const app = (root.SWAPPR = root.SWAPPR || {});
 
   // Same minimum the registration form and the server enforce.
-  const PASSWORD_MIN_LENGTH = 4;
+  const PASSWORD_MIN_LENGTH = 8;
   // profile.html's Edit Profile button sets this and sends the student here.
   const HANDOFF_KEY = "openEditProfile";
 
@@ -13,6 +13,7 @@
       name: document.getElementById("editProfileName"),
       username: document.getElementById("editProfileUsername"),
       course: document.getElementById("editProfileCourse"),
+      currentPassword: document.getElementById("editProfileCurrentPassword"),
       password: document.getElementById("editProfilePassword"),
     };
   }
@@ -63,6 +64,7 @@
       ? profile.course
       : "";
     fields.password.value = "";
+    fields.currentPassword.value = "";
 
     document.getElementById("editProfileModal")?.classList.remove("hidden");
     root.lucide?.createIcons();
@@ -73,7 +75,9 @@
     if (event && event.target.id !== "editProfileModal") return;
     document.getElementById("editProfileModal")?.classList.add("hidden");
     resetErrors();
-    getFields().password.value = "";
+    const fields = getFields();
+    fields.password.value = "";
+    fields.currentPassword.value = "";
   };
 
   app.saveProfile = async function saveProfile(event) {
@@ -85,19 +89,21 @@
       name: fields.name.value.trim(),
       username: fields.username.value.trim(),
       course: fields.course.value,
-      password: fields.password.value.trim(),
+      password: fields.password.value,
+      currentPassword: fields.currentPassword.value,
     };
     resetErrors();
 
-    // REQT-006: every field is required; each empty one turns red.
-    const missing = Object.keys(values).filter((key) => !values[key]);
+    const required = ["name", "username", "course"];
+    if (values.password) required.push("currentPassword");
+    const missing = required.filter((key) => !values[key]);
     if (missing.length) {
       missing.forEach((key) => markField(fields[key], true));
       showError("Missing Input");
       fields[missing[0]].focus();
       return;
     }
-    if (values.password.length < PASSWORD_MIN_LENGTH) {
+    if (values.password && values.password.trim().length < PASSWORD_MIN_LENGTH) {
       markField(fields.password, true);
       showError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
       fields.password.focus();
@@ -110,9 +116,11 @@
     setSaving(true);
     let data;
     try {
+      if (!values.password) delete values.currentPassword;
       data = await app.api.updateProfile(values);
     } catch (err) {
       if (err.message?.startsWith("Username already taken")) markField(fields.username, true);
+      if (err.message?.startsWith("Current password")) markField(fields.currentPassword, true);
       showError(err.message || "Could not update profile. Please try again.");
       return;
     } finally {

@@ -9,3 +9,11 @@ node_modules/
 desktop.ini
 output.txt
 SWAPPR PICS/
+
+.env.*
+!.env.example
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+public/css/tailwind.css

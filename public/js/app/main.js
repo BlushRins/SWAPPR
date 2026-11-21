@@ -45,6 +45,49 @@
     root.endChat = app.endChat;
   }
 
+  function bindPageActions() {
+    app.bindClicks({
+      "all-subjects": () => app.filterBy("all"),
+      openProfilePanel: () => app.openProfilePanel(),
+      closeProfilePanel: () => app.closeProfilePanel(),
+      openEditProfileModal: () => app.openEditProfileModal(),
+      closeEditProfileModal: () => app.closeEditProfileModal(),
+      "closeEditProfileModal-overlay": app.closeEditProfileModal,
+      openAddModal: () => app.openAddModal(),
+      closeAddModal: () => app.closeAddModal(),
+      "closeAddModal-overlay": app.closeAddModal,
+      submitPortfolio: () => app.submitPortfolio(),
+      handleLogout: () => app.handleLogout(),
+      toggleMobileMenu: app.toggleMobileMenu,
+      closeMobileMenu: app.closeMobileMenu,
+      endChat: () => app.endChat(),
+      closeChat: () => app.closeChat(),
+      sendChatMessage: () => app.sendChatMessage(),
+      openSubjectSettings: () => app.openSubjectSettings(),
+      "mobile-subject-settings": () => {
+        app.openSubjectSettings();
+        app.closeMobileMenu();
+      },
+      closeSubjectSettings: () => app.closeSubjectSettings(),
+      "closeSubjectSettings-overlay": app.closeSubjectSettings,
+      applySubjectSettings: () => app.applySubjectSettings(),
+      closeSwappRequestModal: () => app.closeSwappRequestModal(),
+      "closeSwappRequestModal-overlay": app.closeSwappRequestModal,
+      submitSwappRequest: () => app.submitSwappRequest(),
+    });
+
+    document.querySelectorAll("a[data-filter]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        app.filterBy(link.dataset.filter);
+        if (link.closest("#mobileMenu")) app.closeMobileMenu();
+      });
+    });
+    document.getElementById("chatMessageInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") app.sendChatMessage();
+    });
+  }
+
   // profile.html hands over to this page through sessionStorage: open the
   // New Notebook modal (+ Add Notebook), show My Subjects after a delete, and
   // the toast that goes with it.
@@ -79,6 +122,8 @@
   };
 
   exposeCompatibilityGlobals();
+  bindPageActions();
+  root.lucide.createIcons();
 
   document.addEventListener("DOMContentLoaded", app.init);
 })(window);
