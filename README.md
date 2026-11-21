@@ -40,7 +40,7 @@
 ## Getting Started
 
 ### Prerequisites
-Make sure you have [Node.js](https://nodejs.org/) installed on your system.
+Install [Node.js 24 LTS](https://nodejs.org/) and npm.
 
 ### Installation
 
@@ -50,12 +50,13 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your system.
    cd SWAPPR
    ```
 
-2. Install dependencies:
+2. Install dependencies and build the local Tailwind stylesheet:
    ```bash
-   npm install
+   npm ci
+   npm run build
    ```
 
-3. Initialize and seed the database (if needed):
+3. Optionally seed a disposable local database with demo students. This resets existing demo data:
    ```bash
    node seed.js
    ```
@@ -66,6 +67,27 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your system.
    ```
 
 5. Open your browser and navigate to `http://localhost:3000` unless you changed `PORT`.
+
+### Production setup
+
+- Set `NODE_ENV=production`, `APP_ORIGIN` to your exact HTTPS origin without a
+  trailing slash, and `SESSION_SECRET` to a randomly generated secret of at
+  least 32 bytes (for example, generate it with `openssl rand -hex 32`).
+- Use a durable local volume for SQLite. If setting `SWAPPR_SQL_DIR`, copy
+  the bundled `sql/courses.db` there and share the same directory between
+  app processes on that host. Temporary serverless filesystems cannot persist
+  sessions, rate limits, or account data.
+- Behind a reverse proxy, set `TRUST_PROXY` to the addresses or CIDRs of the
+  trusted proxy hops. Make the origin reachable only from those proxies and
+  have the edge replace incoming forwarding headers. Keep the setting unset
+  for a directly reachable server.
+- Build the stylesheet with `npm run build` before starting the server.
+  Run `node seed.js --admin-only` with `SEED_ADMIN_PASSWORD` set to a unique
+  password of at least 16 characters to create the first admin. This command
+  preserves an existing admin. Full demo seeding is disabled in production.
+- Sessions expire after seven days. After deploying this update, sign in again.
+  Existing production accounts still storing plaintext require an operator
+  password reset. See the [credential incident runbook](docs/credential-incident.md).
 
 ### Email OTP configuration
 

@@ -1,15 +1,17 @@
+require("dotenv").config();
+
+const path = require("node:path");
 const sqlite3 = require("sqlite3").verbose();
 const { COURSE_TO_DEPARTMENT } = require("./lib/constants");
-const { hashPassword } = require("./lib/passwordHash");
+const { hashPassword, passwordError } = require("./lib/passwordHash");
 
+const SQL_DIR = process.env.SWAPPR_SQL_DIR || path.join(__dirname, "sql");
 let db;
 
-// Demo administrator. Admins live in their own table and log in through the
-// same form as students; the password is hashed before it is stored.
+// Administrators are provisioned separately from development demo data.
 const ADMIN = {
   username: "admin",
   name: "SWAPPR Admin",
-  password: "admin123",
 };
 
 const USERS = [
@@ -243,7 +245,7 @@ const get = (sql, params = []) =>
 // synchronous=OFF only if this is ever measurably slow (it won't be at 10k-50k).
 async function seedBulkNotebooks(count, userIds) {
   const userIdList = Object.values(userIds);
-  const coursesDb = new sqlite3.Database("./sql/courses.db");
+  const coursesDb = new sqlite3.Database(path.join(SQL_DIR, "courses.db"), sqlite3.OPEN_READONLY);
   const courseRows = await new Promise((res, rej) =>
     coursesDb.all(
       `SELECT course_code, course_description, department_reserved FROM courses WHERE course_code IS NOT NULL`,
@@ -299,13 +301,14 @@ async function seedBulkNotebooks(count, userIds) {
 
 // Creates the demo admin if it doesn't exist yet. Never overwrites an
 // existing admin, so it is safe to run against a database with real data.
-async function seedAdmin() {
+async function seedAdmin(password) {
+  const invalidPassword = passwordError(password, 16);
+  if (invalidPassword) throw new Error(`SEED_ADMIN_PASSWORD: ${invalidPassword}`);
   await run(
     `CREATE TABLE IF NOT EXISTS Admin (admin_ID INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, name TEXT, password TEXT)`,
   );
-  const existingStudent = await get(`SELECT id FROM Users WHERE username = ?`, [
-    ADMIN.username,
-  ]).catch(() => null);
+  const hasUsers = await get("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'Users'");
+  const existingStudent = hasUsers && await get("SELECT id FROM Users WHERE username = ?", [ADMIN.username]);
   if (existingStudent) {
     throw new Error(
       `A student already uses the username "${ADMIN.username}", so the admin could never log in.`,
@@ -314,21 +317,34 @@ async function seedAdmin() {
 
   const inserted = await run(
     `INSERT OR IGNORE INTO Admin (username, name, password) VALUES (?,?,?)`,
-    [ADMIN.username, ADMIN.name, hashPassword(ADMIN.password)],
+    [ADMIN.username, ADMIN.name, await hashPassword(password)],
   );
   console.log(
     inserted.changes
-      ? `🔑 Admin created → ${ADMIN.username} / ${ADMIN.password}`
+      ? `🔑 Admin created → ${ADMIN.username}`
       : `🔑 Admin already exists → ${ADMIN.username}`,
   );
 }
 
 async function seed() {
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
+    throw new Error("Demo seeding is disabled in production. Use --admin-only to provision an administrator.");
+  }
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (adminPassword) {
+    const invalidPassword = passwordError(adminPassword, 16);
+    if (invalidPassword) throw new Error(`SEED_ADMIN_PASSWORD: ${invalidPassword}`);
+  }
   assertKnownCourses();
   console.log("🌱 Starting fresh seed...");
-  db = new sqlite3.Database("./sql/swappr.db");
+  db = new sqlite3.Database(path.join(SQL_DIR, "swappr.db"));
 
+  // Sessions and OTP verification state must not survive a reset of student ids.
+  // Drop Users first so an older auth trigger no longer references Sessions.
   await run(`DROP TABLE IF EXISTS Users`);
+  const hasSessions = await get("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'Sessions'");
+  if (hasSessions) await run("DELETE FROM Sessions WHERE role = 'student'");
+  await run(`DROP TABLE IF EXISTS EmailOtps`);
   await run(`DROP TABLE IF EXISTS Notebooks`);
   await run(`DROP TABLE IF EXISTS Likes`);
   await run(`DROP TABLE IF EXISTS Swapps`);
@@ -366,13 +382,13 @@ async function seed() {
     const department = COURSE_TO_DEPARTMENT[u.course] || u.course;
     const res = await run(
       `INSERT INTO Users (name, username, password, course, department, yearLevel, studentId) VALUES (?,?,?,?,?,?,?)`,
-      [u.name, u.username, u.password, u.course, department, u.yearLevel, u.studentId],
+      [u.name, u.username, await hashPassword(u.password), u.course, department, u.yearLevel, u.studentId],
     );
     userIds[u.username] = res.lastID;
   }
   console.log("👤 Users seeded.");
 
-  await seedAdmin();
+  if (adminPassword) await seedAdmin(adminPassword);
 
   const notebookIds = [];
   for (const nb of NOTEBOOKS) {
@@ -443,8 +459,8 @@ if (require.main === module) {
   // `node seed.js --admin-only` adds the admin without wiping any data.
   const task = process.argv.includes("--admin-only")
     ? async () => {
-        db = new sqlite3.Database("./sql/swappr.db");
-        await seedAdmin();
+        db = new sqlite3.Database(path.join(SQL_DIR, "swappr.db"));
+        await seedAdmin(process.env.SEED_ADMIN_PASSWORD);
         db.close();
       }
     : seed;
@@ -452,5 +468,6 @@ if (require.main === module) {
   task().catch((err) => {
     console.error("❌ Error:", err.message);
     if (db) db.close();
+    process.exitCode = 1;
   });
 }

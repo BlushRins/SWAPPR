@@ -124,5 +124,15 @@
   root.closeAdminModal = ui.closeModal;
   root.closeAdminUserPanel = app.closeAdminUserPanel;
 
+  app.bindClicks({
+    adminLogout: () => app.adminLogout(),
+    toggleMobileMenu: root.toggleMobileMenu,
+    closeMobileMenu: root.closeMobileMenu,
+    closeAdminModal: () => ui.closeModal(),
+    "closeAdminModal-overlay": ui.closeModal,
+    closeAdminUserPanel: () => app.closeAdminUserPanel(),
+  });
+  root.lucide.createIcons();
+
   document.addEventListener("DOMContentLoaded", app.adminInit);
 })(window);

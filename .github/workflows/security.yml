@@ -1,0 +1,44 @@
+name: Security checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Reject tracked credential files and private databases
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import PurePosixPath
+
+          public_data = {"sql/courses.db", "sql/backup/courses.db", ".env.example"}
+          paths = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
+          for path in paths:
+              name = PurePosixPath(path).name.lower()
+              if path in public_data:
+                  continue
+              if (
+                  name == ".env" or name.startswith(".env.")
+                  or ".vs" in PurePosixPath(path).parts
+                  or name.endswith((".db", ".sqlite", ".sqlite3", "-wal", "-shm", "-journal"))
+              ):
+                  raise SystemExit(f"Remove sensitive file from Git: {path}")
+          PY
+      - run: npm ci
+      - run: npm test
+      - run: npm audit --omit=dev

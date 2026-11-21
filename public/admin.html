@@ -4,24 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SWAPPR — Admin Panel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // General Logic: Inter on every page (Tailwind's font-sans included).
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] },
-          },
-        },
-      };
-    </script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/tailwind.css" />
+    <script src="js/vendor/lucide.js"></script>
+    <script src="js/actions.js"></script>
   </head>
 
   <body
@@ -56,7 +46,7 @@
           <i data-lucide="moon" class="w-5 h-5"></i>
         </button>
         <button
-          onclick="adminLogout()"
+          data-action="adminLogout"
           class="hidden md:inline-flex text-xs font-bold px-3 py-1.5 rounded-full glass-btn hover:bg-red-500/20 hover:scale-105 transition"
         >
           Logout
@@ -64,7 +54,7 @@
         <button
           id="mobileMenuToggle"
           type="button"
-          onclick="toggleMobileMenu()"
+          data-action="toggleMobileMenu"
           class="md:hidden w-9 h-9 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
           aria-label="Open menu"
           aria-expanded="false"
@@ -76,7 +66,7 @@
     </header>
 
     <!-- Mobile navigation -->
-    <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+    <div id="mobileMenuOverlay" class="mobile-menu-overlay" data-action="closeMobileMenu"></div>
     <nav id="mobileMenu" class="mobile-menu" aria-label="Admin navigation">
       <p class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400">
         Admin Panel
@@ -93,7 +83,7 @@
         <i data-lucide="users" class="w-4 h-4"></i>User Accounts
       </a>
       <button
-        onclick="adminLogout()"
+        data-action="adminLogout"
         class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
       >
         <i data-lucide="log-out" class="w-4 h-4"></i>
@@ -186,9 +176,9 @@
     </div>
 
     <!-- Detail modal: flagged notebook / report -->
-    <div id="adminModal" class="modal-overlay hidden" onclick="closeAdminModal(event)">
+    <div id="adminModal" class="modal-overlay hidden" data-action="closeAdminModal-overlay">
       <div class="modal-box admin-modal-box" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
-        <button type="button" onclick="closeAdminModal()" class="report-modal-close" aria-label="Close">
+        <button type="button" data-action="closeAdminModal" class="report-modal-close" aria-label="Close">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
         <h3
@@ -200,7 +190,7 @@
     </div>
 
     <!-- View Specific User slide-over (FUNC-018 REQT-006) -->
-    <div id="adminUserOverlay" class="profile-overlay" onclick="closeAdminUserPanel()"></div>
+    <div id="adminUserOverlay" class="profile-overlay" data-action="closeAdminUserPanel"></div>
     <aside id="adminUserPanel" class="profile-panel admin-user-panel" aria-label="User details">
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-2">
@@ -211,7 +201,7 @@
         </div>
         <button
           type="button"
-          onclick="closeAdminUserPanel()"
+          data-action="closeAdminUserPanel"
           aria-label="Close"
           class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-purple-400 hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
         >
@@ -235,8 +225,5 @@
     <script src="js/app/admin-users.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/app/admin-main.js"></script>
-    <script>
-      lucide.createIcons();
-    </script>
   </body>
 </html>
