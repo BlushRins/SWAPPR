@@ -5,20 +5,22 @@ deferred in recent design notes.
 
 ## Product and UX
 
-- [ ] Add subject-card to notebook filtering once notebook-to-subject data exists.
+- [x] Add subject-card to notebook filtering once notebook-to-subject data exists.
   - Source: `docs/archive/2026-06-25-program-subject-filter-design.md`
   - Future execution: model the notebook/subject relationship first, then make
     subject cards interactive and filter notebooks by the selected subject.
-- [ ] Add course search and per-course pages.
+- [x] Add course search and per-course pages.
   - Source: `docs/archive/2026-06-24-course-department-mapping-design.md`
   - Future execution: define the course detail payload, add search UI, and route
     each result to a per-course view.
-- [ ] Filter notebooks by course.
+- [x] Filter notebooks by course.
   - Source: `docs/archive/2026-06-24-course-department-mapping-design.md`
   - Future execution: establish course-level notebook metadata, then let course
     selections narrow notebook results.
 
 ## Data Quality
+
+See the [catalog review](catalog-quality.md) for the current coverage and remaining curriculum checks.
 
 - [ ] Recover real departments for courses with NULL or missing
   `department_reserved` values.
@@ -34,11 +36,11 @@ deferred in recent design notes.
   - Source: `docs/archive/2026-06-25-program-subject-filter-design.md`
   - Future execution: align seed data with `course_mapper.js` program names so
     test users exercise the same mapping path as registered users.
-- [ ] Decide whether department cleanup should mutate the database.
+- [x] Decide whether department cleanup should mutate the database.
   - Source: `docs/archive/2026-06-24-department-cleaning-design.md`
   - Future execution: compare runtime normalization against a migration/backfill,
     then choose whether cleaned department names should be stored.
-- [ ] Expand department-name normalization into a general abbreviation table.
+- [x] Expand department-name normalization into a general abbreviation table.
   - Source: `docs/archive/2026-06-24-department-cleaning-design.md`
   - Future execution: replace the one-off abbreviation handling with a reviewed
     table and tests for known department abbreviations.
@@ -54,7 +56,7 @@ deferred in recent design notes.
   - Source: `docs/archive/2026-06-25-prefix-map-deferred-review.md`
   - Future execution: if `AA` is shared accountancy core, move it into the
     Department of Accountancy shared prefixes.
-- [ ] Confirm the Science Education prefixes `SCED` and `PHSCED`.
+- [x] Confirm the Science Education prefixes `SCED` and `PHSCED`.
   - Source: `docs/archive/2026-06-25-prefix-map-deferred-review.md`
   - Future execution: decide whether BSED-Science should include `SCED`,
     `PHSCED`, or both.

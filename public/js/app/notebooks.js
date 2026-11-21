@@ -66,6 +66,12 @@
     const sectionSubtitle = document.getElementById("sectionSubtitle");
     if (!sectionTitle) return;
 
+    if (app.state.selectedProgram) {
+      sectionTitle.textContent = app.state.selectedProgram;
+      if (sectionSubtitle) sectionSubtitle.textContent = "Notebooks shared for this degree program.";
+      return;
+    }
+
     if (app.state.selectedSubject) {
       sectionTitle.textContent = app.state.selectedSubject;
       if (sectionSubtitle) {
@@ -113,16 +119,12 @@
       );
     }
 
+    if (app.state.selectedProgram) {
+      filtered = filtered.filter((notebook) => notebook.program === app.state.selectedProgram);
+    }
+
     if (app.state.selectedSubject) {
-      const want = app.state.selectedSubject;
-      const dept = app.state.selectedSubjectDept;
-      // Exact course_code match, OR legacy untagged notebook whose department
-      // matches the subject's department (the "backfill from department" path).
-      filtered = filtered.filter(
-        (notebook) =>
-          notebook.course_code === want ||
-          (!notebook.course_code && dept && notebook.department === dept),
-      );
+      filtered = filtered.filter((notebook) => notebook.course_code === app.state.selectedSubject);
     }
 
     if (app.state.currentFilter === "mine") {
@@ -153,17 +155,37 @@
     return filtered;
   }
 
+  // Access opens the notebook's file in a new tab: for notebooks unlocked by
+  // an accepted SWAPP (FUNC-007 REQT-007) and for your own notebooks.
+  app.createAccessButton = function createAccessButton(notebook) {
+    const accessBtn = document.createElement("button");
+    accessBtn.type = "button";
+    accessBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4"></i> Access';
+    accessBtn.className =
+      "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition shadow-sm";
+    accessBtn.dataset.action = "access";
+    accessBtn.addEventListener("click", () => {
+      const url = notebook.fileUrl || notebook.file_url;
+      if (url) window.open(url, "_blank", "noopener");
+      else app.showToast("No file URL available");
+    });
+    return accessBtn;
+  };
+
   function createActionControls(notebook, actionContainer) {
     const currentUser = app.state.currentUser;
     // Per-notebook SWAPP state from its Transaction_Manifest (FUNC-010,
     // FUNC-011 REQT-006). After a rejection the student can ask again.
     const { accessSwapp, pending, cancelled, declined } = app.swappStateFor(notebook);
 
+    // FUNC-007 REQT-006: your own notebook is labelled and can't be
+    // requested, but you can still open your own file.
     if (notebook.username === currentUser?.username) {
       const badge = document.createElement("span");
       badge.className = "text-xs text-purple-400 font-medium";
       badge.textContent = "Your Notebook";
       actionContainer.appendChild(badge);
+      actionContainer.appendChild(app.createAccessButton(notebook));
       return;
     }
 
@@ -181,19 +203,7 @@
     actionContainer.appendChild(reportBtn);
 
     if (accessSwapp) {
-      const accessBtn = document.createElement("button");
-      accessBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4"></i> Access';
-      accessBtn.className =
-        "text-sm px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition shadow-sm";
-      accessBtn.dataset.action = "access";
-      accessBtn.addEventListener("click", () => {
-        if (notebook.fileUrl || notebook.file_url) {
-          window.open(notebook.fileUrl || notebook.file_url, "_blank");
-        } else {
-          app.showToast("No file URL available");
-        }
-      });
-      actionContainer.appendChild(accessBtn);
+      actionContainer.appendChild(app.createAccessButton(notebook));
 
       // Opens the chat of the SWAPP that unlocked this notebook.
       const chatBtn = document.createElement("button");
@@ -398,6 +408,7 @@
     if (
       !app.state.selectedDepartment &&
       !app.state.selectedSubject &&
+      !app.state.selectedProgram &&
       app.state.currentFilter === "all"
     ) {
       app.renderSubjectCards();
@@ -424,6 +435,7 @@
       empty.textContent =
         searchQuery && filterNotebooks("").length
           ? NO_SEARCH_MATCH
+          : app.state.selectedProgram ? "No notebooks shared for this course or subject yet."
           : EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH;
       grid.appendChild(empty);
       app.renderPagination(0);
@@ -431,7 +443,7 @@
     }
 
     grid.className =
-      app.state.selectedDepartment || app.state.selectedSubject
+      app.state.selectedDepartment || app.state.selectedSubject || app.state.selectedProgram
         ? "notebooks-grid"
         : "subjects-list";
     const visibleNotebooks = app.getPaginatedItems(filtered);
@@ -444,7 +456,21 @@
     root.lucide?.createIcons();
   };
 
+  // The Publish / Save button locks while the request runs, so a double
+  // click can't create the same notebook twice.
+  let saving = false;
+  function setSaving(isSaving) {
+    saving = isSaving;
+    const button = document.getElementById("portfolioActionBtn");
+    if (!button) return;
+    const editing = Boolean(app.state.editingNotebookId);
+    button.disabled = isSaving;
+    if (isSaving) button.textContent = editing ? "Saving..." : "Publishing...";
+    else button.textContent = editing ? "Save Changes" : "Publish Notebook";
+  }
+
   app.submitPortfolio = async function submitPortfolio() {
+    if (saving) return;
     const title = document.getElementById("newTitle").value;
     const description = document.getElementById("newDescription").value;
     const subjectSelect = document.getElementById("newSubject");
@@ -466,6 +492,7 @@
       return;
     }
 
+    setSaving(true);
     try {
       const payload = {
         title,
@@ -505,6 +532,8 @@
           ? err.message
           : "Could not save the notebook. Please try again.",
       );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -522,7 +551,7 @@
     app.state.currentFilter = type;
     app.state.selectedDepartment = null;
     app.state.selectedSubject = null;
-    app.state.selectedSubjectDept = null;
+    app.leaveProgramSearch();
     app.resetPagination();
     document.getElementById("backToSubjectsBtn")?.classList.add("hidden");
 

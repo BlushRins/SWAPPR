@@ -167,4 +167,18 @@
     document.getElementById("profilePanel").classList.remove("open");
     document.getElementById("profileOverlay").classList.remove("active");
   };
+
+  // Escape closes the panel, like its overlay. A popup opened on top of it
+  // (Report User, Edit Profile) closes first; this runs in the capture phase
+  // so it still sees that popup before the popup's own handler hides it.
+  root.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape") return;
+      if (!document.getElementById("profilePanel")?.classList.contains("open")) return;
+      if (document.querySelector(".modal-overlay:not(.hidden)")) return;
+      app.closeProfilePanel();
+    },
+    true,
+  );
 })(window);

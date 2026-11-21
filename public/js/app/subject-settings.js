@@ -152,9 +152,12 @@
 
     document
       .getElementById("subjectSearch")
-      ?.addEventListener("input", (e) => {
-        app._renderSubjectCheckboxes(app.getSubjectPref(), e.target.value);
-      });
+      ?.addEventListener(
+        "input",
+        app.debounce((e) => {
+          app._renderSubjectCheckboxes(app.getSubjectPref(), e.target.value);
+        }),
+      );
 
     // Ticking or unticking updates the pending selection.
     document.getElementById("subjectCheckboxList")?.addEventListener("change", (e) => {
@@ -162,6 +165,14 @@
       if (e.target.checked) pendingSubjects.add(e.target.value);
       else pendingSubjects.delete(e.target.value);
       if (pendingSubjects.size) showSelectionError(false);
+    });
+
+    // Escape closes without applying, like Close (x) and Cancel.
+    document.addEventListener("keydown", (event) => {
+      const modal = document.getElementById("subjectSettingsModal");
+      if (event.key === "Escape" && modal && !modal.classList.contains("hidden")) {
+        app.closeSubjectSettings();
+      }
     });
   });
 

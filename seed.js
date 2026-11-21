@@ -347,6 +347,7 @@ async function seed() {
   await run(`DROP TABLE IF EXISTS EmailOtps`);
   await run(`DROP TABLE IF EXISTS Notebooks`);
   await run(`DROP TABLE IF EXISTS Likes`);
+  await run(`DROP TABLE IF EXISTS TrustAwards`);
   await run(`DROP TABLE IF EXISTS Swapps`);
   // Chats point at Swapps/Users ids, so they can't survive a reseed. server.js
   // recreates both tables on its next boot and back-fills chats for the

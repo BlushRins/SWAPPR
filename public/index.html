@@ -337,6 +337,25 @@
             </div>
           </div>
 
+          <form id="programSearchForm" action="/index.html" method="get" class="flex flex-wrap items-end gap-2 mb-4">
+            <label class="grow min-w-48 text-sm font-semibold">
+              Search courses
+              <input id="programSearch" name="program" list="programOptions" required autocomplete="off"
+                placeholder="Enter a degree program" class="input-field block mt-1" />
+              <datalist id="programOptions"></datalist>
+            </label>
+            <button type="submit" class="btn-primary">View course</button>
+          </form>
+          <div id="programFilters" class="hidden mb-4">
+            <label class="text-sm font-semibold">
+              Filter by subject
+              <select id="programSubject" class="input-field mt-1">
+                <option value="">All subjects</option>
+              </select>
+            </label>
+            <a href="/index.html" class="inline-block mt-2 text-sm font-semibold underline">Back to all courses</a>
+          </div>
+
           <!-- Subjects Feed -->
           <div id="notebookGrid" class="subjects-list">
             <!-- Subjects will be dynamically inserted here -->
@@ -509,7 +528,7 @@
             >
             <input
               type="text"
-              id="newTitle"
+              id="newTitle" maxlength="120"
               class="input-field"
               placeholder="e.g. Data Structures Notes"
               required
@@ -519,7 +538,7 @@
           <div>
             <label class="field-section-label">Short Description</label>
             <textarea
-              id="newDescription"
+              id="newDescription" maxlength="3000"
               rows="3"
               class="input-field resize-none"
               placeholder="What's this notebook about? Help others discover your content!"
@@ -575,8 +594,9 @@
             </button>
             <button
               id="portfolioActionBtn"
+              type="button"
               data-action="submitPortfolio"
-              class="btn-primary"
+              class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Publish Notebook
             </button>
@@ -722,6 +742,76 @@
 
     <!-- Report Notebook / User modal (RPT001) is built by js/app/report-modal.js -->
 
+    <!-- Notebook Details (MOD004 / FUNC-007 REQT-005, FUNC-009, FUNC-014 REQT-004) -->
+    <div
+      id="notebookDetailsModal"
+      class="modal-overlay hidden"
+      data-action="closeNotebookDetails-overlay"
+    >
+      <div
+        class="modal-box notebook-details-box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notebookDetailsHeading"
+      >
+        <button
+          type="button"
+          data-action="closeNotebookDetails"
+          class="report-modal-close"
+          aria-label="Close"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <p
+          id="notebookDetailsHeading"
+          class="text-xs font-bold uppercase tracking-widest mb-3 pr-8 text-purple-400"
+        >
+          Notebook Details
+        </p>
+
+        <h3
+          id="detailsTitle"
+          class="text-xl font-extrabold leading-tight text-purple-900 dark:text-purple-100 break-words"
+        ></h3>
+        <a
+          id="detailsAuthor"
+          href="#"
+          class="inline-block mt-1 text-sm font-semibold text-purple-600 dark:text-purple-300 hover:underline"
+        ></a>
+
+        <p
+          id="detailsDescription"
+          class="notebook-details-description mt-4 text-sm text-gray-600 dark:text-gray-300"
+        ></p>
+
+        <dl class="notebook-details-meta mt-5">
+          <dt>Subject</dt>
+          <dd id="detailsSubject"></dd>
+          <dt>Department</dt>
+          <dd id="detailsDepartment"></dd>
+          <dt>Uploaded</dt>
+          <dd id="detailsUploaded"></dd>
+          <dt id="detailsStatusLabel" class="hidden">Status</dt>
+          <dd id="detailsStatus" class="hidden"></dd>
+        </dl>
+
+        <div id="detailsMetrics" class="mt-4 flex flex-wrap items-center gap-2"></div>
+
+        <div
+          id="detailsTrust"
+          class="mt-4 inline-flex items-center gap-1.5 text-sm font-bold"
+        >
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          <span id="detailsTrustText"></span>
+        </div>
+
+        <div
+          id="detailsActions"
+          class="mt-6 pt-4 border-t border-purple-100 dark:border-white/[0.08] flex flex-wrap items-center gap-2"
+        ></div>
+      </div>
+    </div>
+
     <!-- Select notebooks to offer (FUNC-010 REQT-003, REQT-004 / UC-04 step 2) -->
     <div
       id="swappRequestModal"
@@ -766,7 +856,7 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <!-- Edit Profile Modal (PRF002 / FUNC-014 REQT-005 to REQT-009) -->
     <div
@@ -797,7 +887,7 @@
               Full Name <span class="text-red-500">*</span>
             </label>
             <input
-              id="editProfileName"
+              id="editProfileName" maxlength="100"
               type="text"
               class="input-field"
               autocomplete="name"
@@ -809,7 +899,7 @@
               Username <span class="text-red-500">*</span>
             </label>
             <input
-              id="editProfileUsername"
+              id="editProfileUsername" maxlength="40"
               type="text"
               class="input-field"
               autocomplete="username"
@@ -885,6 +975,7 @@
     <script src="js/app/session.js"></script>
     <script src="js/app/theme.js"></script>
     <script src="js/app/pagination-controls.js"></script>
+    <script src="js/app/debounce.js"></script>
     <script src="js/app/subject-settings.js"></script>
     <script src="js/app/subjects.js"></script>
     <script src="js/app/swapps.js"></script>

@@ -15,15 +15,14 @@
     try {
       const pref = app.getSubjectPref ? app.getSubjectPref() : { mode: "own" };
       const useAll = pref.mode === "all" || pref.mode === "custom";
-      const courseParam = useAll
-        ? "ALL"
-        : app.state.currentUser?.course || "";
+      const courseParam = app.state.selectedProgram ||
+        (useAll ? "ALL" : app.state.currentUser?.course || "");
 
       const data = await app.api.getSubjects(courseParam);
       let subjects = data.subjects || [];
 
       // For custom mode, filter client-side to only the handpicked subject codes
-      if (pref.mode === "custom" && pref.subjects?.length) {
+      if (!app.state.selectedProgram && pref.mode === "custom" && pref.subjects?.length) {
         const sel = new Set(pref.subjects);
         subjects = subjects.filter((s) => sel.has(s.code));
       }
@@ -46,25 +45,72 @@
     }
   };
 
-  // Upload-form picker: tag a notebook with one of the user's program subjects.
-  app.populateSubjectDropdown = function populateSubjectDropdown() {
-    const select = document.getElementById("newSubject");
+  function fillSubjects(select, placeholder) {
     if (!select) return;
+    const selected = select.value;
+    select.replaceChildren(new Option(placeholder, ""));
+    for (const subject of app.state.subjects) {
+      const option = new Option(`${subject.code} - ${subject.description || ""}`, subject.code);
+      option.dataset.department = subject.department || "";
+      select.appendChild(option);
+    }
+    select.value = [...select.options].some((option) => option.value === selected) ? selected : "";
+  }
 
-    select.innerHTML =
-      `<option value="">- Select subject -</option>` +
-      app.state.subjects
-        .map(
-          (subject) =>
-            `<option value="${subject.code}" data-department="${subject.department || ""}">${subject.code} - ${subject.description || ""}</option>`,
-        )
-        .join("");
+  app.populateSubjectDropdown = function populateSubjectDropdown() {
+    fillSubjects(document.getElementById("newSubject"), "- Select subject -");
+    const filter = document.getElementById("programSubject");
+    if (app.state.selectedProgram && filter) {
+      fillSubjects(filter, "All subjects");
+      filter.value = filter.querySelector("option:checked")?.value || "";
+    }
+  };
+
+  app.attachProgramSearch = function attachProgramSearch() {
+    const form = document.getElementById("programSearchForm");
+    const input = document.getElementById("programSearch");
+    const options = document.getElementById("programOptions");
+    const programs = root.SWAPPRCourses.COURSE_GROUPS.flatMap((group) => group.courses);
+    for (const program of programs.sort()) options.appendChild(new Option(program));
+
+    input.addEventListener("input", () => input.setCustomValidity(""));
+    form.addEventListener("submit", (event) => {
+      const match = programs.find((program) => program.toLowerCase() === input.value.trim().toLowerCase());
+      if (!match) {
+        event.preventDefault();
+        input.setCustomValidity("Choose a degree program from the suggestions.");
+        input.reportValidity();
+        return;
+      }
+      input.value = match;
+    });
+
+    const program = new URLSearchParams(root.location.search).get("program");
+    if (!root.SWAPPRCourses.isCourse(program)) return;
+    app.state.selectedProgram = program;
+    input.value = program;
+    document.getElementById("programFilters").classList.remove("hidden");
+    document.getElementById("programSubject").addEventListener("change", (event) => {
+      app.state.selectedSubject = event.target.value || null;
+      app.resetPagination();
+      app.renderNotebooks();
+    });
+  };
+
+  app.leaveProgramSearch = function leaveProgramSearch() {
+    if (!app.state.selectedProgram) return;
+    app.state.selectedProgram = null;
+    const url = new URL(root.location.href);
+    url.searchParams.delete("program");
+    root.history.replaceState(null, "", url);
+    document.getElementById("programSearch").value = "";
+    document.getElementById("programFilters").classList.add("hidden");
+    app.loadSubjects();
   };
 
   // Drill from a subject card into its aligned notebooks.
-  app.selectSubject = function selectSubject(code, department) {
+  app.selectSubject = function selectSubject(code) {
     app.state.selectedSubject = code;
-    app.state.selectedSubjectDept = department || "";
     app.resetPagination();
     document.getElementById("backToSubjectsBtn")?.classList.remove("hidden");
     app.renderNotebooks();
@@ -72,7 +118,6 @@
 
   app.clearSelectedSubject = function clearSelectedSubject() {
     app.state.selectedSubject = null;
-    app.state.selectedSubjectDept = null;
     app.resetPagination();
     document.getElementById("backToSubjectsBtn")?.classList.add("hidden");
     app.renderNotebooks();
@@ -143,17 +188,15 @@
       card.innerHTML = `
         <div class="subject-card-inner">
           <div>
-            <h3 class="subject-title">${subject.code}</h3>
-            <p class="subject-desc">${subject.description || ""}</p>
+            <h3 class="subject-title"></h3>
+            <p class="subject-desc"></p>
           </div>
           <button class="subject-cta" type="button">View Swaps</button>
         </div>
       `;
-      card
-        .querySelector(".subject-cta")
-        .addEventListener("click", () =>
-          app.selectSubject(subject.code, subject.department || ""),
-        );
+      card.querySelector(".subject-title").textContent = subject.code;
+      card.querySelector(".subject-desc").textContent = subject.description || "";
+      card.querySelector(".subject-cta").addEventListener("click", () => app.selectSubject(subject.code));
       grid.appendChild(card);
     });
   };

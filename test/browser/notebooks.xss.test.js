@@ -1,11 +1,11 @@
-// Run: node public/js/app/notebooks.xss.test.js
+// Run: node test/browser/notebooks.xss.test.js
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 
-const source = fs.readFileSync(path.join(__dirname, "notebooks.js"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "../../public/js/app/notebooks.js"), "utf8");
 const profilePanelSource = fs.readFileSync(
-  path.join(__dirname, "profile-panel.js"),
+  path.join(__dirname, "../../public/js/app/profile-panel.js"),
   "utf8",
 );
 
@@ -29,14 +29,14 @@ assert.ok(
   "profile match usernames must not be interpolated into innerHTML",
 );
 
-const chatSource = fs.readFileSync(path.join(__dirname, "chat.js"), "utf8");
+const chatSource = fs.readFileSync(path.join(__dirname, "../../public/js/app/chat.js"), "utf8");
 
 assert.ok(
   !chatSource.includes(".innerHTML"),
   "chat messages must be rendered with textContent, not innerHTML",
 );
 
-const detailsSource = fs.readFileSync(path.join(__dirname, "notebook-details.js"), "utf8");
+const detailsSource = fs.readFileSync(path.join(__dirname, "../../public/js/app/notebook-details.js"), "utf8");
 
 assert.ok(
   !detailsSource.includes("innerHTML"),

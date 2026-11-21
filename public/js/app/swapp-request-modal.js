@@ -77,6 +77,7 @@
     setSending(false);
     document.getElementById("swappRequestModal").classList.remove("hidden");
     root.lucide?.createIcons();
+    document.querySelector("#swappRequestChoices input")?.focus();
   };
 
   app.closeSwappRequestModal = function closeSwappRequestModal(event) {

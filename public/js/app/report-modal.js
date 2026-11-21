@@ -168,6 +168,7 @@
 
     document.getElementById("reportModal").classList.remove("hidden");
     root.lucide?.createIcons();
+    document.getElementById("reportReason").focus();
   };
 
   app.closeReportModal = function closeReportModal(event) {
