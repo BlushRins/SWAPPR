@@ -43,3 +43,5 @@ jobs:
       - run: npm test
       - run: npm audit --omit=dev
       - run: docker build --tag swappr-ci .
+      - name: Verify production container and volume
+        run: bash test/container-smoke.sh swappr-ci

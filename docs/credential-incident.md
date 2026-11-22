@@ -23,5 +23,23 @@ the affected user can sign in with the replacement credential and that their
 previous sessions are rejected. Deliver the replacement through a private,
 verified channel.
 
+## Check history coverage
+
+In a full clone used for the incident, inventory affected paths without
+extracting database rows. Repeat the check against the rewritten refs and a
+fresh clone of each repo involved in the remediation.
+
+```bash
+git rev-parse --is-shallow-repository
+git log --all --full-history --name-only --format= -- \
+  ':(glob)**/swappr.db*' ':(glob)**/.vs/**' | awk 'NF' | sort -u
+```
+
+The first command should print `false`. Any path listed by the second
+command is still reachable from a local ref in that clone. If you kept an
+incident backup ref, store it in a separate restricted clone before using an
+empty path inventory as a verification gate. GitHub pull request refs,
+caches, and forks require the separate follow-up described by GitHub.
+
 For history cleanup, follow
 [GitHub's sensitive data removal guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).

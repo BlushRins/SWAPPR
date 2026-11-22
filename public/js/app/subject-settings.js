@@ -76,40 +76,50 @@
       return;
     }
 
-    // Group by department
-    const groups = {};
-    subjects.forEach((s) => {
-      const dept = s.department || "Other";
-      if (!groups[dept]) groups[dept] = [];
-      groups[dept].push(s);
-    });
+    const groups = new Map();
+    for (const subject of subjects) {
+      const label = subject.reservedUnits?.join(" / ") || subject.department || "Unassigned";
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(subject);
+    }
 
-    list.innerHTML = Object.entries(groups)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(
-        ([dept, items]) => `
-          <details open class="mb-1">
-            <summary class="cursor-pointer text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-400 py-1.5 px-1 select-none hover:text-purple-700 dark:hover:text-purple-200 transition">
-              ${dept} <span class="font-normal normal-case text-gray-400">(${items.length})</span>
-            </summary>
-            <div class="pl-2">
-              ${items
-                .map(
-                  (s) => `
-                <label class="flex items-start gap-2 py-1 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded px-1">
-                  <input type="checkbox" class="subj-cb accent-purple-600 w-4 h-4 mt-0.5 shrink-0"
-                    value="${s.code}" ${selected.has(s.code) ? "checked" : ""}>
-                  <span class="text-sm leading-snug">
-                    <span class="font-semibold text-gray-800 dark:text-purple-100">${s.code}</span>
-                    <span class="text-gray-500 dark:text-gray-400"> — ${s.description || ""}</span>
-                  </span>
-                </label>`,
-                )
-                .join("")}
-            </div>
-          </details>`,
-      )
-      .join("");
+    const content = document.createDocumentFragment();
+    const ordered = [...groups].sort(([left], [right]) => left.localeCompare(right));
+    for (const [department, items] of ordered) {
+      const group = document.createElement("details");
+      group.open = true;
+      group.className = "mb-1";
+      const heading = document.createElement("summary");
+      heading.className = "cursor-pointer text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-400 py-1.5 px-1 select-none hover:text-purple-700 dark:hover:text-purple-200 transition";
+      heading.append(department + " ");
+      const count = document.createElement("span");
+      count.className = "font-normal normal-case text-gray-400";
+      count.textContent = `(${items.length})`;
+      heading.append(count);
+
+      const choices = document.createElement("div");
+      choices.className = "pl-2";
+      for (const subject of items) {
+        const label = document.createElement("label");
+        label.className = "flex items-start gap-2 py-1 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded px-1";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "subj-cb accent-purple-600 w-4 h-4 mt-0.5 shrink-0";
+        checkbox.value = subject.code;
+        checkbox.checked = selected.has(subject.code);
+        const description = document.createElement("span");
+        description.className = "text-sm leading-snug text-gray-500 dark:text-gray-400";
+        const code = document.createElement("span");
+        code.className = "font-semibold text-gray-800 dark:text-purple-100";
+        code.textContent = subject.code;
+        description.append(code, ` — ${subject.description || ""}`);
+        label.append(checkbox, description);
+        choices.append(label);
+      }
+      group.append(heading, choices);
+      content.append(group);
+    }
+    list.replaceChildren(content);
   };
 
   app.closeSubjectSettings = function (event) {

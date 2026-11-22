@@ -1,0 +1,298 @@
+[
+  {
+    "code": "CHEM 1163",
+    "description": "BIOCHEMISTRY",
+    "units": [
+      "DEPARTMENT OF NURSING",
+      "DEPARTMENT OF NUTRITION AND DIETETICS"
+    ]
+  },
+  {
+    "code": "CIN 631",
+    "description": "THESIS PROPOSAL",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "CIN 641",
+    "description": "THESIS WRITING 1",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "DISS RES",
+    "description": "DISSERTATION COUNSELLING",
+    "units": [
+      "DEPARTMENT OF BIOLOGY",
+      "DEPARTMENT OF CHEMISTRY",
+      "DEPARTMENT OF COMPUTER, INFORMATION SCIENCES AND MATHEMATICS",
+      "DEPARTMENT OF PHILOSOPHY",
+      "DEPARTMENT OF PHYSICS",
+      "DEPARTMENT OF SOCIOLOGY, ANTHROPOLOGY AND HISTORY",
+      "SCHOOL OF ARTS AND SCIENCES"
+    ]
+  },
+  {
+    "code": "EDM 6000",
+    "description": "EDUCATION WITH A MISSION",
+    "units": [
+      "OFFICE OF GENERAL EDUCATION & MISSION"
+    ]
+  },
+  {
+    "code": "EDM 7000",
+    "description": "EDUCATION WITH A MISSION",
+    "units": [
+      "DEPARTMENT OF SCIENCE AND MATHEMATICS EDUCATION",
+      "OFFICE OF GENERAL EDUCATION & MISSION"
+    ]
+  },
+  {
+    "code": "EDUC 205Y",
+    "description": "STATISTICS APPLIED IN EDUCATION",
+    "units": [
+      "DEPARTMENT OF TEACHER EDUCATION"
+    ]
+  },
+  {
+    "code": "EDUC 323",
+    "description": "DOCTORAL COLLOQUIUM",
+    "units": [
+      "DEPARTMENT OF TEACHER EDUCATION"
+    ]
+  },
+  {
+    "code": "EM 1202",
+    "description": "CALCULUS 2",
+    "units": [
+      "SCHOOL OF ENGINEERING"
+    ]
+  },
+  {
+    "code": "ES-MECH",
+    "description": "ENGINEERING MECHANICS",
+    "units": [
+      "DEPARTMENT OF CHEMICAL ENGINEERING",
+      "DEPARTMENT OF ELECTRICAL & ELECTRONICS ENGINEERING",
+      "DEPARTMENT OF INDUSTRIAL ENGINEERING"
+    ]
+  },
+  {
+    "code": "FRNC 1",
+    "description": "ELEMENTARY FRENCH",
+    "units": [
+      "DEPARTMENT OF COMMUNICATIONS, LINGUISTICS AND LITERATURE",
+      "DEPARTMENT OF PHILOSOPHY"
+    ]
+  },
+  {
+    "code": "MAAS 6402E",
+    "description": "LIGHTING DESIGN",
+    "units": [
+      "DEPARTMENT OF ARCHITECTURE",
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAIA 6101D",
+    "description": "ADVANCED THEORIES IN INTERIOR ENVIRONMENTS",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAIA 6402E",
+    "description": "HUMAN ENGINEERING AND UNIVERSAL DESIGN",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MALA 6204D",
+    "description": "NATURAL SYSTEMS",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAR 101",
+    "description": "RESEARCH METHODS",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAR 103",
+    "description": "LAND ASSESSMENT AND PLANNING FOR SUSTAINABLE DEVELOPMENT",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAR 204",
+    "description": "SUSTAINABLE DESIGN PRACTICES",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAR 300N",
+    "description": "THESIS PREPARATION SEMINAR (PROPOSAL WRITING)",
+    "units": [
+      "DEPARTMENT OF ARCHITECTURE",
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAS 202",
+    "description": "LIGHTING DESIGN",
+    "units": [
+      "DEPARTMENT OF ARCHITECTURE",
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MAUD 6103D",
+    "description": "URBAN HOUSING AND THE BUILT ENVIRONMENT",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MIA 102",
+    "description": "HUMAN ENGINEERING AND UNIVERSAL DESIGN",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MIA 201",
+    "description": "INTERIOR ENVIRONMENTS",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MIA 203",
+    "description": "INTERIOR PRODUCT AND MANAGEMENT (OJT AND PRODUCT DEVELOPMENT TRAINING)",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MLA 204",
+    "description": "NATURAL SYSTEMS",
+    "units": [
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MRP 601",
+    "description": "METHODS OF RESEARCH",
+    "units": [
+      "DEPARTMENT OF ELECTRICAL & ELECTRONICS ENGINEERING"
+    ]
+  },
+  {
+    "code": "MSRE 6001R",
+    "description": "METHODS OF RESEARCH",
+    "units": [
+      "SCHOOL OF ENGINEERING"
+    ]
+  },
+  {
+    "code": "MSRE 6002R",
+    "description": "EXPERIMENTAL RESEARCH DESIGN",
+    "units": [
+      "SCHOOL OF ENGINEERING"
+    ]
+  },
+  {
+    "code": "MUP 220",
+    "description": "THESIS PREPARATION (THESIS WRITING AND PRESENTATION)",
+    "units": [
+      "DEPARTMENT OF ARCHITECTURE",
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "MUP 230",
+    "description": "APPLIED RESEARCH PLANNING PROJECT PREPARATION",
+    "units": [
+      "DEPARTMENT OF ARCHITECTURE",
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "PHIL 1202",
+    "description": "LOGIC",
+    "units": [
+      "DEPARTMENT OF NUTRITION AND DIETETICS"
+    ]
+  },
+  {
+    "code": "SAFAD RES",
+    "description": "SAFAD RESIDENCY",
+    "units": [
+      "DEPARTMENT OF ARCHITECTURE",
+      "DEPARTMENT OF FINE ARTS",
+      "SCHOOL OF ARCHITECTURE, FINE ARTS AND DESIGN"
+    ]
+  },
+  {
+    "code": "SAS RES",
+    "description": "SAS RESIDENCY",
+    "units": [
+      "DCISM - MATHEMATICS SECTION",
+      "DEPARTMENT OF BIOLOGY",
+      "DEPARTMENT OF CHEMISTRY",
+      "DEPARTMENT OF COMMUNICATIONS, LINGUISTICS AND LITERATURE",
+      "DEPARTMENT OF COMPUTER, INFORMATION SCIENCES AND MATHEMATICS",
+      "DEPARTMENT OF PHILOSOPHY",
+      "DEPARTMENT OF PHYSICS",
+      "DEPARTMENT OF PSYCHOLOGY",
+      "DEPARTMENT OF SOCIOLOGY, ANTHROPOLOGY AND HISTORY",
+      "SCHOOL OF ARTS AND SCIENCES"
+    ]
+  },
+  {
+    "code": "SOEN 1",
+    "description": "SOCIAL ENTREPRENEURSHIP 1",
+    "units": [
+      "DEPARTMENT OF ACCOUNTANCY",
+      "DEPARTMENT OF BUSINESS ADMINISTRATION"
+    ]
+  },
+  {
+    "code": "SPAN 1",
+    "description": "ELEMENTARY SPANISH",
+    "units": [
+      "DEPARTMENT OF SOCIOLOGY, ANTHROPOLOGY AND HISTORY"
+    ]
+  },
+  {
+    "code": "SPAN 2",
+    "description": "INTERMEDIATE SPANISH",
+    "units": [
+      "DEPARTMENT OF COMMUNICATIONS, LINGUISTICS AND LITERATURE"
+    ]
+  },
+  {
+    "code": "THES RES",
+    "description": "THESIS COUNSELLING",
+    "units": [
+      "DCISM - MATHEMATICS SECTION",
+      "DEPARTMENT OF BIOLOGY",
+      "DEPARTMENT OF CHEMISTRY",
+      "DEPARTMENT OF COMMUNICATIONS, LINGUISTICS AND LITERATURE",
+      "DEPARTMENT OF COMPUTER, INFORMATION SCIENCES AND MATHEMATICS",
+      "DEPARTMENT OF PHILOSOPHY",
+      "DEPARTMENT OF PHYSICS",
+      "DEPARTMENT OF PSYCHOLOGY",
+      "DEPARTMENT OF SOCIOLOGY, ANTHROPOLOGY AND HISTORY",
+      "SCHOOL OF ARTS AND SCIENCES"
+    ]
+  }
+]
