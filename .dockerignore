@@ -1,0 +1,16 @@
+.git
+.github
+.vs
+.vercel
+.vercel-static
+.env*
+node_modules
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite-*
+**/*.sqlite3
+**/*.sqlite3-*
+sql/backup
+!sql/courses.db
+public/css/tailwind.css

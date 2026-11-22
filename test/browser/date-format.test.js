@@ -1,4 +1,4 @@
-// Run: node public/js/date-format.test.js
+// Run: node test/browser/date-format.test.js
 // Pin the timezone so the expected local times hold on any machine.
 process.env.TZ = "Asia/Manila";
 
@@ -9,7 +9,7 @@ const {
   formatDateTime,
   formatLongDate,
   formatLongDateTime,
-} = require("./date-format");
+} = require("../../public/js/date-format");
 
 // SQLite timestamps are UTC: 16:19 UTC is 00:19 the next day in Manila.
 assert.strictEqual(

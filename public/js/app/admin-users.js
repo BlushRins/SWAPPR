@@ -185,7 +185,7 @@
     return el("ul", { class: "admin-list" }, items.map(renderItem));
   }
 
-  function userDetails({ user, notebooks, swapps, reports }) {
+  function userDetails({ user, notebooks, swapps, reports, repeatPairs = [] }) {
     const initials = (user.name || user.username || "?")
       .split(/\s+/)
       .map((part) => part[0])
@@ -222,6 +222,12 @@
             ui.icon("triangle-alert"),
             `This account has more than ${warningThreshold} warnings.`,
           )
+        : null,
+      repeatPairs.length
+        ? el("div", { class: "admin-alert" },
+            ui.icon("triangle-alert"),
+            "Repeated exchanges this week: " + repeatPairs
+              .map(({ partner, exchanges }) => `@${partner} (${exchanges})`).join(", "))
         : null,
       ui.details([
         ["Course", user.course || "—"],

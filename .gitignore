@@ -17,3 +17,6 @@ SWAPPR PICS/
 *.sqlite
 *.sqlite3
 public/css/tailwind.css
+
+.vercel/
+.vercel-static/

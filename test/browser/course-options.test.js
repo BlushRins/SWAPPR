@@ -1,8 +1,8 @@
-// Run: node public/js/course-options.test.js
+// Run: node test/browser/course-options.test.js
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { COURSE_GROUPS, fillCourseSelect, isCourse } = require("./course-options");
+const { COURSE_GROUPS, fillCourseSelect, isCourse } = require("../../public/js/course-options");
 const { COURSE_TO_DEPARTMENT } = require("../../lib/constants");
 
 const courses = COURSE_GROUPS.flatMap((group) => group.courses);

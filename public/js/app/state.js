@@ -10,7 +10,7 @@
     editingNotebookId: null,
     selectedDepartment: null,
     selectedSubject: null, // course_code currently drilled into via View Swaps
-    selectedSubjectDept: null, // its department, for the legacy untagged fallback
+    selectedProgram: null, // degree program currently open
     currentPage: 1,
     itemsPerPage: 5,
     departments: [],

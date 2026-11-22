@@ -8,6 +8,8 @@ const { Address6 } = require("ip-address");
 const path = require("path");
 const sqlite3 = require("sqlite3").verbose();
 const nodemailer = require("nodemailer");
+const { initializeIntegrity } = require("./lib/storeIntegrity");
+const { normalizeCatalog } = require("./lib/catalog");
 const { cleanDepartments } = require("./lib/cleanDepartments");
 const {
   OTP_MAX_ATTEMPTS,
@@ -22,7 +24,6 @@ const { hashPassword, isHashed, passwordError, verifyPassword } = require("./lib
 const {
   CHAT_RETENTION_DAYS,
   COURSE_TO_DEPARTMENT,
-  REPORT_UNDER_REVIEW_THRESHOLD,
   WARNING_HIGHLIGHT_THRESHOLD,
 } = require("./lib/constants");
 const { isCourse } = require("./public/js/course-options");
@@ -66,8 +67,23 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CHAT_EXPIRY_OFFSET = `'+${CHAT_RETENTION_DAYS} days'`;
 const MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
 
+function textField(value, maximum) {
+  if (typeof value !== "string" || value.length > maximum) return "";
+  return value.trim();
+}
+
+const USERNAME_PATTERN = /^[A-Za-z0-9_.-]{1,40}$/;
+const INVALID_CREDENTIALS = "Invalid username or password.";
+// Verify an equivalent scrypt record when a lookup has no usable credential.
+const UNKNOWN_ACCOUNT_HASH = `scrypt$${"0".repeat(32)}$${"0".repeat(128)}`;
+
+function internalError(res, err) {
+  console.error("[API]", err.message);
+  return res.status(500).json({ success: false, message: "Server error. Please try again." });
+}
+
 function normalizeEmail(email) {
-  return String(email || "")
+  return (typeof email === "string" ? email : "")
     .trim()
     .toLowerCase();
 }
@@ -80,14 +96,14 @@ const USERNAME_TAKEN_MESSAGE = "Username already taken. Please choose a differen
 // username would lock that admin out.
 async function isUsernameTaken(username, exceptUserId = null) {
   const [student, admin] = await Promise.all([
-    dbGet(`SELECT id FROM Users WHERE username = ? AND id IS NOT ?`, [username, exceptUserId]),
-    dbGet(`SELECT admin_ID FROM Admin WHERE username = ?`, [username]),
+    dbGet("SELECT id FROM Users WHERE trim(username) = ? AND id IS NOT ?", [username, exceptUserId]),
+    dbGet("SELECT admin_ID FROM Admin WHERE trim(username) = ?", [username]),
   ]);
   return Boolean(student || admin);
 }
 
 function isValidSchoolEmail(email) {
-  return email.length <= 254 && /^\d+@usc\.edu\.ph$/i.test(email);
+  return /^\d{1,64}@usc\.edu\.ph$/i.test(email);
 }
 
 function publicUser(user) {
@@ -341,6 +357,13 @@ app.use("/api", (req, res, next) => {
   res.status(403).json({ success: false, message: "Cross-origin request blocked." });
 });
 app.use(express.json());
+app.use("/api", (req, res, next) => {
+  req.body ??= {};
+  if (typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ success: false, message: "Expected a JSON object." });
+  }
+  next();
+});
 app.get("/js/vendor/lucide.js", (req, res) => {
   res.sendFile(path.resolve(path.dirname(require.resolve("lucide")), "../umd/lucide.min.js"));
 });
@@ -373,10 +396,21 @@ const db = new sqlite3.Database(path.join(SQL_DIR, "swappr.db"), (err) => {
 });
 db.configure("busyTimeout", 5000);
 
+let courseCatalog = [];
+let catalogByCode = new Map();
 const coursesDb = new sqlite3.Database(path.join(SQL_DIR, "courses.db"), sqlite3.OPEN_READONLY, (err) => {
   if (err) return console.error(err.message);
   console.log("Connected to Courses database.");
 });
+
+async function loadCatalog() {
+  const rows = await new Promise((resolve, reject) => {
+    coursesDb.all("SELECT course_code, course_description, department_reserved FROM courses",
+      (error, entries) => error ? reject(error) : resolve(entries));
+  });
+  courseCatalog = normalizeCatalog(rows);
+  catalogByCode = new Map(courseCatalog.map((row) => [row.course_code, row]));
+}
 
 const dbRun = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -451,6 +485,28 @@ async function initializeAuthStorage() {
   }
 }
 
+async function initializeEnrollmentIdentity() {
+  const exists = await dbGet("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_users_student_id'");
+  if (exists) return;
+  await dbRun("BEGIN IMMEDIATE");
+  try {
+    // An existing email was verified by the previous registration flow.
+    // Clear IDs whose ownership was never verified before making them unique.
+    if (!await dbGet("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_users_student_id'")) {
+      await dbRun(`UPDATE Users SET studentId = CASE
+        WHEN instr(email, '@') > 1 AND lower(substr(email, instr(email, '@'))) = '@usc.edu.ph'
+          AND substr(email, 1, instr(email, '@') - 1) NOT GLOB '*[^0-9]*'
+          AND id = (SELECT min(other.id) FROM Users other WHERE lower(trim(other.email)) = lower(trim(Users.email)))
+        THEN substr(email, 1, instr(email, '@') - 1) ELSE NULL END`);
+      await dbRun("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_id ON Users(studentId) WHERE studentId IS NOT NULL");
+    }
+    await dbRun("COMMIT");
+  } catch (err) {
+    await dbRun("ROLLBACK");
+    throw err;
+  }
+}
+
 async function initializeDatabase() {
   try {
     console.log("Creating tables...");
@@ -477,6 +533,7 @@ studentId TEXT
        ON Users(email)
        WHERE email IS NOT NULL AND TRIM(email) != ''`,
     );
+    await initializeEnrollmentIdentity();
     await dbRun(`CREATE TABLE IF NOT EXISTS EmailOtps (
 email TEXT PRIMARY KEY,
 otp TEXT NOT NULL DEFAULT '',
@@ -519,6 +576,15 @@ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         if (!/duplicate column name/i.test(err.message)) throw err;
       },
     );
+    const hasNotebookProgram = await dbGet(
+      "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_notebook_program'",
+    );
+    if (!hasNotebookProgram) {
+      await addColumnIfMissing("Notebooks", "program TEXT");
+      await dbRun(`UPDATE Notebooks SET program = (SELECT course FROM Users WHERE id = author_id)
+        WHERE program IS NULL`);
+      await dbRun("CREATE INDEX IF NOT EXISTS idx_notebook_program ON Notebooks(program)");
+    }
     await dbRun(`CREATE TABLE IF NOT EXISTS Likes (
 user_id INTEGER,
 notebook_id INTEGER,
@@ -641,6 +707,7 @@ date_resolved DATETIME
     // FUNC-010 REQT-005, FUNC-011 REQT-006: one line per notebook exchanged in
     // a SWAPP, both the notebook requested and every notebook offered.
     // is_confirmed turns 1 when the receiver accepts.
+    const hasManifest = await dbGet("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'Transaction_Manifest'");
     await dbRun(`CREATE TABLE IF NOT EXISTS Transaction_Manifest (
 Transaction_Manifest_ID INTEGER PRIMARY KEY AUTOINCREMENT,
 SWAPP_ID INTEGER,
@@ -657,7 +724,7 @@ is_confirmed INTEGER DEFAULT 0
     // of both students, so their manifest lists all of them. That keeps the
     // access those students already had. New SWAPPs always have lines, so
     // this only ever touches old rows.
-    await dbRun(
+    if (!hasManifest) await dbRun(
       `INSERT INTO Transaction_Manifest (SWAPP_ID, notebook_ID, is_confirmed)
        SELECT Swapps.id, Notebooks.id,
               CASE WHEN Swapps.status = 'accepted' THEN 1 ELSE 0 END
@@ -667,6 +734,8 @@ is_confirmed INTEGER DEFAULT 0
          SELECT 1 FROM Transaction_Manifest t WHERE t.SWAPP_ID = Swapps.id
        )`,
     );
+    await initializeIntegrity({ run: dbRun, all: dbAll });
+    await loadCatalog();
     console.log("Database initialized.");
     return true;
   } catch (err) {
@@ -691,30 +760,13 @@ app.post("/api/send-otp",
     if (!transporter || !mailFromAddress) {
       return res.status(500).json({
         success: false,
-        message: "Email verification is not configured on this server yet.",
+        message: "Email verification is temporarily unavailable.",
       });
     }
 
     let reservedHash;
     try {
-      const existingUser = await dbGet(`SELECT id FROM Users WHERE email = ?`, [
-        email,
-      ]);
-      if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          message: "That school email is already registered.",
-        });
-      }
-
-      // FUNC-002 REQT-005: Register checks the username before a code is sent
-      // (a resend doesn't send one, so it skips this).
-      const username = String(req.body.username ?? "").trim();
-      if (username && (await isUsernameTaken(username))) {
-        return res
-          .status(409)
-          .json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
-      }
+      const existingUser = await dbGet("SELECT id FROM Users WHERE lower(trim(email)) = ?", [email]);
 
       const existingOtp = await dbGet(`SELECT * FROM EmailOtps WHERE email = ?`, [
         email,
@@ -763,6 +815,9 @@ app.post("/api/send-otp",
       }
       reservedHash = otpHash;
 
+      // Reserve the same resend window for registered addresses, silently.
+      if (existingUser) return res.json({ success: true });
+
       await transporter.sendMail({
         from: `"SWAPPR" <${mailFromAddress}>`,
         to: email,
@@ -791,7 +846,7 @@ app.post("/api/send-otp",
       }
       res.json({
         success: false,
-        message: "Failed to send email. Check server email config.",
+        message: "Could not send a verification code. Please try again later.",
       });
     }
   },
@@ -852,47 +907,27 @@ app.post("/api/register",
   requestLimit("register-ip", 20, FIFTEEN_MINUTES),
   requestLimit("register-email", 10, FIFTEEN_MINUTES, emailKey),
   async (req, res) => {
-    const {
-      name,
-      username,
-      password,
-      course,
-      department,
-      yearLevel,
-      studentId,
-      email,
-      verificationToken,
-    } = req.body || {};
-    const cleanUsername = typeof username === "string" ? username.trim() : "";
-    const cleanEmail = normalizeEmail(email);
+    const { password, verificationToken } = req.body;
+    const name = textField(req.body.name, 100);
+    const cleanUsername = textField(req.body.username, 40);
+    const course = textField(req.body.course, 150);
+    const cleanEmail = normalizeEmail(req.body.email);
+    const studentId = textField(req.body.studentId, 64);
+    const yearLevel = textField(req.body.yearLevel, 30);
 
-    // FUNC-002 REQT-003 / REQT-006: every field is required.
-    if (!name || !cleanUsername || !password || !studentId || !course || !email) {
-      return res.status(400).json({
-        success: false,
-        message: "Input required data.",
-      });
+    if (!name || !USERNAME_PATTERN.test(cleanUsername)) {
+      return res.status(400).json({ success: false, message: "Enter your name and a username using letters, digits, dots, underscores or hyphens." });
     }
     if (!isCourse(course)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Please select a course from the list." });
+      return res.status(400).json({ success: false, message: "Please select a course from the list." });
+    }
+    if (req.body.yearLevel != null && (typeof req.body.yearLevel !== "string" || req.body.yearLevel.length > 30)) {
+      return res.status(400).json({ success: false, message: "Invalid year level." });
     }
     const invalidPassword = passwordError(password);
     if (invalidPassword) return res.status(400).json({ success: false, message: invalidPassword });
-
-    if (!/^[0-9]+$/.test(studentId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Student ID must contain numbers only.",
-      });
-    }
-
-    if (!isValidSchoolEmail(cleanEmail)) {
-      return res.status(400).json({
-        success: false,
-        message: "Email must be in the format: numbers@usc.edu.ph",
-      });
+    if (!isValidSchoolEmail(cleanEmail) || !studentId || studentId !== cleanEmail.split("@")[0]) {
+      return res.status(400).json({ success: false, message: "Student ID must match the number in your school email." });
     }
 
     try {
@@ -931,9 +966,7 @@ app.post("/api/register",
       }
 
       // LOG002: department isn't asked for; it comes from the course.
-      const finalDept = COURSE_TO_DEPARTMENT[course] || department || course;
-      const finalCourse = course || "";
-      const finalYear = yearLevel || "";
+      const finalDept = COURSE_TO_DEPARTMENT[course];
       const hashedPassword = await hashPassword(password);
 
       const result = await dbRun(
@@ -945,9 +978,9 @@ app.post("/api/register",
           name,
           cleanUsername,
           hashedPassword,
-          finalCourse,
+          course,
           finalDept,
-          finalYear,
+          yearLevel,
           cleanEmail,
           studentId,
           cleanEmail,
@@ -969,7 +1002,7 @@ app.post("/api/register",
           id: result.lastID,
           name,
           username: cleanUsername,
-          course: finalCourse,
+          course,
         }),
       });
     } catch (err) {
@@ -989,24 +1022,31 @@ app.post("/api/login",
   requestLimit("login-account", 10, FIFTEEN_MINUTES,
     (req) => typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : ""),
   async (req, res) => {
-    const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
-    const password = req.body?.password;
-    if (!username || typeof password !== "string" || !password) {
+    const username = textField(req.body.username, 150);
+    const password = req.body.password;
+    if (!username || typeof password !== "string" || !password || password.length > 1024) {
       return res.status(400).json({ success: false, message: "Input required data." });
     }
 
     try {
-      const user = await dbGet("SELECT * FROM Users WHERE username = ?", [username]);
-      const admin = user ? null : await dbGet("SELECT * FROM Admin WHERE username = ?", [username]);
-      const account = user || admin;
-      if (!account) {
-        return res.status(401).json({ success: false, message: "No account matches this username." });
+      // Prefer exact existing names; accept a trimmed legacy name only if unique.
+      const accounts = await dbAll(
+        `SELECT id, username, name, course, password, account_status, NULL AS admin_ID
+         FROM Users WHERE trim(username) = ?
+         UNION ALL
+         SELECT NULL, username, name, NULL, password, NULL, admin_ID
+         FROM Admin WHERE trim(username) = ?`,
+        [username, username],
+      );
+      const exact = accounts.filter((row) => row.username === username);
+      const candidates = exact.length ? exact : accounts;
+      const account = candidates.length === 1 ? candidates[0] : null;
+      const matches = await verifyPassword(password, isHashed(account?.password) ? account.password : UNKNOWN_ACCOUNT_HASH);
+      if (!account || !matches || (IS_PRODUCTION && ["admin123", "pass1234"].includes(password))) {
+        return res.status(401).json({ success: false, message: INVALID_CREDENTIALS });
       }
-      // Old development databases may already contain hashed demo credentials.
-      if ((IS_PRODUCTION && ["admin123", "pass1234"].includes(password)) ||
-          !await verifyPassword(password, account.password)) {
-        return res.status(401).json({ success: false, message: "The password is incorrect." });
-      }
+      const admin = account.admin_ID !== null ? account : null;
+      const user = admin ? null : account;
       await req.releaseLoginAttempt();
       if (user?.account_status && user.account_status !== "active") {
         return res.status(403).json({
@@ -1054,7 +1094,7 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
      FROM Users WHERE username=?`,
     [req.params.username],
     (err, user) => {
-      if (err) return res.status(500).json({ message: err.message });
+      if (err) return internalError(res, err);
       if (!user) return res.status(404).json({ message: "User not found" });
 
       // Authors still see their own notebooks while under review or after
@@ -1074,7 +1114,7 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
         [viewerId, viewerId, viewerId, user.id],
         (notebookErr, notebooks) => {
           if (notebookErr) {
-            return res.json({ success: false, message: notebookErr.message });
+            return internalError(res, notebookErr);
           }
 
           // SWAPP partners with their trust score (FUNC-014 REQT-002). One row
@@ -1091,7 +1131,7 @@ app.get("/api/profile/:username", requireAuth, (req, res) => {
             [user.id, user.id, user.id],
             (matchErr, matchRows) => {
               if (matchErr) {
-                return res.json({ success: false, message: matchErr.message });
+                return internalError(res, matchErr);
               }
 
               // FUNC-014 REQT-003: trust score, warning count and account
@@ -1133,14 +1173,14 @@ app.patch("/api/profile", requireAuth,
   requestLimit("profile-account", 15, FIFTEEN_MINUTES, (req) => req.currentUser.id),
   async (req, res) => {
     const me = req.currentUser.id;
-    const name = String(req.body?.name ?? "").trim();
-    const username = String(req.body?.username ?? "").trim();
-    const course = String(req.body?.course ?? "").trim();
+    const name = textField(req.body.name, 100);
+    const username = textField(req.body.username, 40);
+    const course = textField(req.body.course, 150);
     const { password, currentPassword } = req.body || {};
     const changingPassword = password !== undefined && password !== "";
 
-    if (!name || !username || !course) {
-      return res.status(400).json({ success: false, message: "Missing Input" });
+    if (!name || !USERNAME_PATTERN.test(username)) {
+      return res.status(400).json({ success: false, message: "Enter your name and a valid username." });
     }
     if (!isCourse(course)) {
       return res.status(400).json({ success: false, message: "Please select a course from the list." });
@@ -1193,45 +1233,22 @@ app.patch("/api/profile", requireAuth,
 );
 
 app.get("/api/departments", (req, res) => {
-  coursesDb.all(
-    `SELECT DISTINCT department_reserved FROM courses WHERE department_reserved IS NOT NULL ORDER BY department_reserved`,
-    [],
-    (err, rows) => {
-      if (err) return res.json({ success: false, message: err.message });
-      const departments = cleanDepartments(
-        rows.map((row) => row.department_reserved),
-      );
-      res.json({ success: true, departments });
-    },
-  );
+  const departments = cleanDepartments(courseCatalog.map((row) => row.department_reserved));
+  res.json({ success: true, departments });
 });
 
-app.get("/api/subjects", (req, res) => {
+app.get("/api/subjects", async (req, res) => {
   const course = req.query.course || "";
-  coursesDb.all(
-    `SELECT course_code, course_description, department_reserved FROM courses`,
-    [],
-    (err, rows) => {
-      if (err) return res.json({ success: false, message: err.message });
-      const subjects =
-        course === "ALL"
-          ? filterSubjects(rows || [], [])
-          : subjectsForCourse(rows || [], course);
-
-      db.all(
-        `SELECT DISTINCT course_code FROM Notebooks WHERE course_code IS NOT NULL AND TRIM(course_code) != '' AND COALESCE(status, 'active') = 'active'`,
-        [],
-        (nbErr, nbRows) => {
-          if (nbErr)
-            return res.json({ success: false, message: nbErr.message });
-          const codesWithNotebooks = (nbRows || []).map((row) =>
-            String(row.course_code).trim(),
-          );
-          res.json({ success: true, subjects, codesWithNotebooks });
-        },
-      );
-    },
-  );
+  if (course && course !== "ALL" && !isCourse(course)) {
+    return res.status(400).json({ success: false, message: "Unknown course." });
+  }
+  const subjects = course === "ALL"
+    ? filterSubjects(courseCatalog, [])
+    : subjectsForCourse(courseCatalog, course);
+  const rows = await dbAll(`SELECT DISTINCT course_code FROM Notebooks
+    WHERE course_code IS NOT NULL AND trim(course_code) != '' AND COALESCE(status, 'active') = 'active'`);
+  const codesWithNotebooks = rows.map((row) => row.course_code.trim());
+  res.json({ success: true, subjects, codesWithNotebooks });
 });
 
 // A notebook's file link is only sent to its author and to students who
@@ -1270,6 +1287,7 @@ const NB_SELECT = `
       Notebooks.description,
       Notebooks.department,
       Notebooks.course_code,
+      Notebooks.program,
       ${NB_FILE_URL_FOR_VIEWER} AS file_url,
       Notebooks.created_at,
       ${NB_COUNT_COLUMNS},
@@ -1289,20 +1307,24 @@ const viewerParams = (req) => [
   req.currentUser.id,
 ];
 
-app.get("/api/portfolios", requireAuth, (req, res) => {
-  db.all(
-    `${NB_SELECT} ORDER BY Notebooks.created_at DESC`,
-    viewerParams(req),
-    (err, rows) => {
-      if (err) return res.json({ success: false, message: err.message });
-      res.json({ portfolios: rows || [] });
-    },
+app.get("/api/portfolios", requireAuth, async (req, res) => {
+  const { program, subject } = req.query;
+  if (program !== undefined && !isCourse(program) ||
+      subject !== undefined && !catalogByCode.has(subject)) {
+    return res.status(400).json({ success: false, message: "Unknown course or subject." });
+  }
+  const portfolios = await dbAll(
+    `SELECT * FROM (${NB_SELECT})
+     WHERE (? IS NULL OR program = ?) AND (? IS NULL OR course_code = ?)
+     ORDER BY created_at DESC`,
+    [...viewerParams(req), program ?? null, program ?? null, subject ?? null, subject ?? null],
   );
+  res.json({ portfolios });
 });
 
 app.get("/api/portfolios/top", requireAuth, (req, res) => {
   db.all(`${NB_SELECT} ORDER BY likes DESC LIMIT 5`, viewerParams(req), (err, rows) => {
-    if (err) return res.json({ success: false, message: err.message });
+    if (err) return internalError(res, err);
     res.json({ portfolios: rows || [] });
   });
 });
@@ -1312,7 +1334,7 @@ app.get("/api/portfolios/recent", requireAuth, (req, res) => {
     `${NB_SELECT} ORDER BY Notebooks.created_at DESC LIMIT 5`,
     viewerParams(req),
     (err, rows) => {
-      if (err) return res.json({ success: false, message: err.message });
+      if (err) return internalError(res, err);
       res.json({ portfolios: rows || [] });
     },
   );
@@ -1321,8 +1343,20 @@ app.get("/api/portfolios/recent", requireAuth, (req, res) => {
 // FUNC-008 REQT-003 / REQT-004, FUNC-009 REQT-004: the title and a valid
 // http(s) File URL are required. Returns the cleaned fields, or an error.
 function validateNotebookInput(body) {
-  const title = String(body.title ?? "").trim();
-  const fileUrl = String(body.fileUrl ?? "").trim();
+  const title = textField(body.title, 120);
+  const fileUrl = textField(body.fileUrl, 2048);
+  const description = textField(body.description, 3000);
+  const courseCode = textField(body.courseCode, 40);
+  const subject = catalogByCode.get(courseCode);
+  if (body.description != null && (typeof body.description !== "string" || body.description.length > 3000)) {
+    return { error: { message: "Description must be 3000 characters or fewer." } };
+  }
+  if (body.courseCode != null && body.courseCode !== "" && !subject) {
+    return { error: { message: "Select a subject from the course catalog." } };
+  }
+  if (body.department != null && (typeof body.department !== "string" || body.department.length > 150)) {
+    return { error: { message: "Invalid department." } };
+  }
   if (!title) return { error: { message: "Missing input.", field: "title" } };
   if (!isHttpUrl(fileUrl)) return { error: { message: "Missing input.", field: "fileUrl" } };
 
@@ -1332,9 +1366,9 @@ function validateNotebookInput(body) {
   return {
     notebook: {
       title,
-      description: String(body.description ?? "").trim() || null,
-      department: body.department || null,
-      courseCode: body.courseCode || null,
+      description: description || null,
+      department: subject?.department || null,
+      courseCode: subject?.course_code || null,
       fileUrl,
       ...counts,
     },
@@ -1344,19 +1378,12 @@ function validateNotebookInput(body) {
 // FUNC-008 REQT-006 to REQT-008: a flagged notebook gets one open automatic
 // report (no reporter), which puts it in Flagged Notebooks (ADM001).
 async function fileScreeningReport(notebookId, hits) {
-  const open = await dbGet(
-    `SELECT report_ID FROM Reports
-     WHERE notebook_ID = ? AND reason = 'auto_screening' AND status = 'open'`,
-    [notebookId],
-  );
-  if (open) return;
   await dbRun(
-    `INSERT INTO Reports (reporter_ID, notebook_ID, reason, complaint) VALUES (NULL, ?, 'auto_screening', ?)`,
-    [notebookId, screeningComplaint(hits)],
-  );
-  await dbRun(
-    `UPDATE Notebooks SET report_count = COALESCE(report_count, 0) + 1 WHERE id = ?`,
-    [notebookId],
+    `INSERT INTO Reports (reporter_ID, notebook_ID, reason, complaint)
+     SELECT NULL, ?, 'auto_screening', ?
+     WHERE NOT EXISTS (SELECT 1 FROM Reports
+       WHERE notebook_ID = ? AND reason = 'auto_screening' AND status = 'open')`,
+    [notebookId, screeningComplaint(hits), notebookId],
   );
 }
 
@@ -1374,8 +1401,8 @@ app.post("/api/portfolios", requireAuth, async (req, res) => {
   try {
     const result = await dbRun(
       `INSERT INTO Notebooks (title, description, department, course_code, author_id, file_url,
-                              status, word_count, page_count, diagram_count)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                              status, word_count, page_count, diagram_count, program)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
       [
         notebook.title,
         notebook.description,
@@ -1387,6 +1414,7 @@ app.post("/api/portfolios", requireAuth, async (req, res) => {
         notebook.wordCount,
         notebook.pageCount,
         notebook.diagramCount,
+        isCourse(req.currentUser.course) ? req.currentUser.course : null,
       ],
     );
     if (screening.flagged) await fileScreeningReport(result.lastID, screening.hits);
@@ -1403,6 +1431,8 @@ app.post("/api/portfolios", requireAuth, async (req, res) => {
 // leaves the status alone, since an administrator decides anything already
 // under review.
 app.put("/api/portfolios/:id", requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ success: false, message: "A notebook ID is required." });
   const { notebook, error } = validateNotebookInput(req.body);
   if (error) return res.status(400).json({ success: false, ...error });
 
@@ -1412,7 +1442,7 @@ app.put("/api/portfolios/:id", requireAuth, async (req, res) => {
       `UPDATE Notebooks SET title=?, description=?, department=?, course_code=?, file_url=?,
                             word_count=?, page_count=?, diagram_count=?,
                             status = CASE WHEN ? THEN 'under_review' ELSE status END
-       WHERE id=? AND author_id=?`,
+       WHERE id=? AND author_id=? AND COALESCE(status, 'active') != 'removed'`,
       [
         notebook.title,
         notebook.description,
@@ -1423,16 +1453,16 @@ app.put("/api/portfolios/:id", requireAuth, async (req, res) => {
         notebook.pageCount,
         notebook.diagramCount,
         screening.flagged ? 1 : 0,
-        req.params.id,
+        id,
         req.currentUser.id,
       ],
     );
     if (!result.changes) {
       return res.status(404).json({ success: false, message: "Notebook not found" });
     }
-    if (screening.flagged) await fileScreeningReport(Number(req.params.id), screening.hits);
+    if (screening.flagged) await fileScreeningReport(id, screening.hits);
 
-    const saved = await dbGet(`SELECT status FROM Notebooks WHERE id = ?`, [req.params.id]);
+    const saved = await dbGet(`SELECT status FROM Notebooks WHERE id = ?`, [id]);
     res.json({ success: true, status: saved?.status || "active" });
   } catch (err) {
     console.error("[NOTEBOOKS] update failed:", err.message);
@@ -1443,56 +1473,48 @@ app.put("/api/portfolios/:id", requireAuth, async (req, res) => {
 });
 
 app.post("/api/portfolios/delete", requireAuth, async (req, res) => {
-  const { id, title } = req.body;
-  if (!id && !title) {
-    return res.json({ success: false, message: "Provide id or title+author" });
-  }
+  const id = parseId(req.body.id);
+  if (!id) return res.status(400).json({ success: false, message: "A notebook ID is required." });
 
   try {
-    const notebook = id
-      ? await dbGet(`SELECT id FROM Notebooks WHERE id=? AND author_id=?`, [
-          id,
-          req.currentUser.id,
-        ])
-      : await dbGet(`SELECT id FROM Notebooks WHERE title=? AND author_id=?`, [
-          title,
-          req.currentUser.id,
-        ]);
-    if (!notebook) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Notebook not found" });
-    }
-
-    // FUNC-009 REQT-011
-    if (await findOpenSwappForNotebook(notebook.id)) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "This notebook is part of an active SWAPP and can't be deleted until the SWAPP session is closed.",
-      });
-    }
-
-    await dbRun(`DELETE FROM Notebooks WHERE id=?`, [notebook.id]);
+    const result = await dbRun("DELETE FROM Notebooks WHERE id = ? AND author_id = ?", [id, req.currentUser.id]);
+    if (!result.changes) return res.status(404).json({ success: false, message: "Notebook not found" });
     res.json({ success: true });
   } catch (err) {
-    console.error("[NOTEBOOKS] delete failed:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    if (err.code === "SQLITE_CONSTRAINT" && err.message.includes("notebook_in_open_swapp")) {
+      return res.status(409).json({
+        success: false,
+        message: "This notebook is part of an active SWAPP and can't be deleted until the SWAPP session is closed.",
+      });
+    }
+    internalError(res, err);
   }
 });
 
-app.post("/api/portfolios/like", requireAuth, (req, res) => {
-  const { notebookId } = req.body;
-  db.run(
-    `INSERT INTO Likes (user_id, notebook_id) VALUES (?,?)`,
-    [req.currentUser.id, notebookId],
-    (likeErr) => {
-      if (likeErr) {
-        return res.json({ success: false, message: "Already liked" });
-      }
-      res.json({ success: true });
-    },
+app.post("/api/portfolios/like", requireAuth, async (req, res) => {
+  const notebookId = parseId(req.body.notebookId);
+  const userId = req.currentUser.id;
+  if (!notebookId) return res.status(400).json({ success: false, message: "A notebook ID is required." });
+
+  // Use the same access rules as the file link and apply them within the write.
+  const result = await dbRun(
+    `INSERT INTO Likes (user_id, notebook_id)
+     SELECT ?, Notebooks.id FROM Notebooks
+     WHERE Notebooks.id = ? AND COALESCE(Notebooks.status, 'active') = 'active'
+       AND (${NB_FILE_URL_FOR_VIEWER}) IS NOT NULL
+     ON CONFLICT(user_id, notebook_id) DO NOTHING`,
+    [userId, notebookId, userId, userId, userId],
   );
+  if (result.changes) return res.json({ success: true });
+
+  const notebook = await dbGet(
+    `SELECT (${NB_FILE_URL_FOR_VIEWER}) AS fileUrl FROM Notebooks
+     WHERE id = ? AND COALESCE(status, 'active') = 'active'`,
+    [userId, userId, userId, notebookId],
+  );
+  if (!notebook) return res.status(404).json({ success: false, message: "Notebook not found." });
+  if (!notebook.fileUrl) return res.status(403).json({ success: false, message: "Unlock this notebook before liking it." });
+  res.status(409).json({ success: false, message: "Already liked" });
 });
 
 const REPORT_REASONS = new Set([
@@ -1514,23 +1536,16 @@ app.post("/api/reports", requireAuth,
   async (req, res) => {
     const hasNotebook = req.body.notebookId !== undefined && req.body.notebookId !== null;
     const hasUser = req.body.reportedUserId !== undefined && req.body.reportedUserId !== null;
-    const notebookId = Number(req.body.notebookId);
-    const reportedUserId = Number(req.body.reportedUserId);
-    const reason = String(req.body.reason || "");
-    const details = String(req.body.details || "").trim();
+    const notebookId = parseId(req.body.notebookId);
+    const reportedUserId = parseId(req.body.reportedUserId);
+    const reason = textField(req.body.reason, 30);
+    const details = textField(req.body.details, REPORT_DETAILS_MAX_LENGTH);
 
     const validTarget = hasNotebook !== hasUser &&
       Number.isInteger(hasNotebook ? notebookId : reportedUserId);
     if (!validTarget || !REPORT_REASONS.has(reason) || !details) {
       return res.status(400).json({ success: false, message: "Missing input." });
     }
-    if (details.length > REPORT_DETAILS_MAX_LENGTH) {
-      return res.status(400).json({
-        success: false,
-        message: `Details must be ${REPORT_DETAILS_MAX_LENGTH} characters or fewer.`,
-      });
-    }
-
     if (hasUser) return reportUser(req, res, reportedUserId, reason, details);
 
     try {
@@ -1550,31 +1565,15 @@ app.post("/api/reports", requireAuth,
         });
       }
 
-      const alreadyReported = await dbGet(
-        `SELECT report_ID FROM Reports WHERE reporter_ID = ? AND notebook_ID = ? AND status = 'open'`,
-        [req.currentUser.id, notebookId],
-      );
-      if (alreadyReported) {
-        return res.status(409).json({
-          success: false,
-          message: "You already reported this notebook. An admin will review it.",
-        });
-      }
-
       const result = await dbRun(
-        `INSERT INTO Reports (reporter_ID, notebook_ID, reason, complaint) VALUES (?,?,?,?)`,
-        [req.currentUser.id, notebookId, reason, details],
+        `INSERT INTO Reports (reporter_ID, notebook_ID, reason, complaint)
+         SELECT ?, id, ?, ? FROM Notebooks WHERE id = ? AND COALESCE(status, 'active') != 'removed'
+           AND NOT EXISTS (SELECT 1 FROM Reports WHERE reporter_ID = ? AND notebook_ID = ? AND status = 'open')`,
+        [req.currentUser.id, reason, details, notebookId, req.currentUser.id, notebookId],
       );
-      await dbRun(
-        `UPDATE Notebooks
-         SET report_count = COALESCE(report_count, 0) + 1,
-             status = CASE
-               WHEN COALESCE(report_count, 0) + 1 >= ? THEN 'under_review'
-               ELSE COALESCE(status, 'active')
-             END
-         WHERE id = ?`,
-        [REPORT_UNDER_REVIEW_THRESHOLD, notebookId],
-      );
+      if (!result.changes) {
+        return res.status(409).json({ success: false, message: "This notebook was already reported or is no longer available." });
+      }
 
       res.status(201).json({ success: true, reportId: result.lastID });
     } catch (err) {
@@ -1644,36 +1643,16 @@ function findAccessSwapp(userId, notebookId) {
   );
 }
 
-// FUNC-009 REQT-011: a notebook in an open SWAPP can't be deleted. A SWAPP is
-// open while it is pending, and while it is accepted until its chat is ended.
-function findOpenSwappForNotebook(notebookId) {
-  return dbGet(
-    `SELECT Swapps.id FROM Transaction_Manifest
-     JOIN Swapps ON Swapps.id = Transaction_Manifest.SWAPP_ID
-     WHERE Transaction_Manifest.notebook_ID = ?
-       AND (
-         Swapps.status = 'pending'
-         OR (
-           Swapps.status = 'accepted'
-           AND NOT EXISTS (
-             SELECT 1 FROM Chats
-             WHERE Chats.swapp_id = Swapps.id AND Chats.status = 'archived'
-           )
-         )
-       )
-     LIMIT 1`,
-    [notebookId],
-  );
-}
-
 // FUNC-010 (UC-04): request access to one notebook, offering one or more of
 // your own in exchange. The receiver is the requested notebook's author.
 app.post("/api/swapps", requireAuth, async (req, res) => {
   const senderId = req.currentUser.id;
-  const notebookId = Number(req.body.notebookId);
-  const offeredIds = Array.isArray(req.body.offeredNotebookIds)
-    ? [...new Set(req.body.offeredNotebookIds.map(Number))]
-    : [];
+  const notebookId = parseId(req.body.notebookId);
+  const offered = req.body.offeredNotebookIds;
+  if (!Array.isArray(offered) || offered.length > 100 || offered.some((id) => !parseId(id))) {
+    return res.status(400).json({ success: false, message: "Select valid notebooks to offer." });
+  }
+  const offeredIds = [...new Set(offered.map(parseId))];
 
   if (!Number.isInteger(notebookId) || notebookId <= 0) {
     return res.status(404).json({ success: false, message: "Notebook not found." });
@@ -1905,7 +1884,7 @@ app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("[CHAT] respond failed:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Server error. Please try again." });
   }
 });
 
@@ -2030,7 +2009,7 @@ ORDER BY Chats.id DESC`,
     res.json({ chats });
   } catch (err) {
     console.error("[CHAT] list chats failed:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Server error. Please try again." });
   }
 });
 
@@ -2071,7 +2050,7 @@ ORDER BY ChatMessages.id ASC`,
     });
   } catch (err) {
     console.error("[CHAT] fetch messages failed:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Server error. Please try again." });
   }
 });
 
@@ -2091,7 +2070,7 @@ app.post("/api/chats/:id/messages", requireAuth,
           .status(403)
           .json({ success: false, message: "This chat has ended" });
       }
-      const body = String(req.body.body || "").trim();
+      const body = textField(req.body.body, 2000);
       if (!body) {
         return res
           .status(400)
@@ -2111,7 +2090,7 @@ app.post("/api/chats/:id/messages", requireAuth,
       res.json({ success: true, id: result.lastID });
     } catch (err) {
       console.error("[CHAT] send message failed:", err.message);
-      res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: "Server error. Please try again." });
     }
   },
 );
@@ -2124,35 +2103,21 @@ app.post("/api/chats/:id/archive", requireAuth, async (req, res) => {
         .status(404)
         .json({ success: false, message: "Chat not found" });
     }
-    const update = await dbRun(
+    await dbRun(
       `UPDATE Chats SET status='archived', archived_at=CURRENT_TIMESTAMP, archived_reason='ended'
        WHERE id=? AND status='active'`,
       [chat.id],
     );
-    // Only the request that actually closed the chat rewards it.
-    if (update.changes) await completeSwappOf(chat);
+
     console.log(
       `[CHAT] Chat ${chat.id} archived by user ${req.currentUser.id}`,
     );
     res.json({ success: true });
   } catch (err) {
     console.error("[CHAT] archive failed:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Server error. Please try again." });
   }
 });
-
-// A closed chat completes its SWAPP (FUNC-011 REQT-011): both students gain
-// trust. Callers only get here when their UPDATE actually closed the chat,
-// so a SWAPP is rewarded once. A cancelled SWAPP isn't 'accepted' any more.
-async function completeSwappOf(chat) {
-  const swapp = await dbGet(
-    `SELECT sender_id, receiver_id FROM Swapps WHERE id = ? AND status = 'accepted'`,
-    [chat.swapp_id],
-  );
-  if (!swapp) return;
-  await adjustTrustScore(swapp.sender_id, TRUST_CHANGE.swappCompleted);
-  await adjustTrustScore(swapp.receiver_id, TRUST_CHANGE.swappCompleted);
-}
 
 // FUNC-013 REQT-005 / REQT-006: archive every chat whose retention timestamp
 // has passed. Runs from the background job and whenever a chat is read or
@@ -2170,10 +2135,7 @@ async function archiveExpiredChats() {
        WHERE id = ? AND status = 'active'`,
       [chat.id],
     );
-    if (update.changes) {
-      closed += 1;
-      await completeSwappOf(chat);
-    }
+    closed += update.changes;
   }
   if (closed) console.log(`[CHAT] ${closed} expired chat(s) archived`);
 }
@@ -2188,6 +2150,12 @@ async function runMaintenance() {
     await archiveExpiredChats();
     const purged = await dbRun("DELETE FROM EmailOtps WHERE expiresAt <= ?", [now]);
     if (purged.changes) console.log(`[OTP] ${purged.changes} expired code(s) purged`);
+    await dbRun(`DELETE FROM ChatMessages WHERE chat_id IN (
+      SELECT id FROM Chats WHERE status = 'archived'
+        AND COALESCE(archived_at, expires_at, created_at) <= datetime('now', '-30 days')
+    )`);
+    await dbRun(`DELETE FROM Reports WHERE status != 'open'
+      AND COALESCE(date_resolved, date_submitted) <= datetime('now', '-90 days')`);
   } catch (err) {
     console.error("[MAINTENANCE] failed:", err.message);
   }
@@ -2197,8 +2165,9 @@ async function runMaintenance() {
 // Report statuses: open → notebook_removed | user_suspended | disregarded.
 
 function parseId(value) {
+  if (typeof value !== "number" && (typeof value !== "string" || !/^\d+$/.test(value))) return null;
   const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : null;
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
 async function closeOpenReports(notebookId, status, adminId) {
@@ -2430,18 +2399,7 @@ app.post("/api/admin/reports/:id/resolve", requireAdminAuth, async (req, res) =>
          WHERE report_ID = ?`,
         [adminId, id],
       );
-      // With no complaints left, a notebook under review goes back to the feed.
-      if (notebook && notebook.status === "under_review") {
-        const stillOpen = await dbGet(
-          `SELECT report_ID FROM Reports WHERE notebook_ID = ? AND status = 'open'`,
-          [notebook.id],
-        );
-        if (!stillOpen) {
-          await dbRun(`UPDATE Notebooks SET status = 'active' WHERE id = ?`, [
-            notebook.id,
-          ]);
-        }
-      }
+
     }
 
     res.json({ success: true });
@@ -2494,7 +2452,7 @@ app.get("/api/admin/users/:id", requireAdminAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const [notebooks, swapps, reports] = await Promise.all([
+    const [notebooks, swapps, reports, repeatPairs] = await Promise.all([
       dbAll(
         `SELECT id, title, course_code AS courseCode, created_at AS createdAt,
                 COALESCE(status, 'active') AS status,
@@ -2524,6 +2482,15 @@ app.get("/api/admin/users/:id", requireAdminAuth, async (req, res) => {
          ORDER BY Reports.date_submitted DESC, Reports.report_ID DESC`,
         [id, id],
       ),
+      dbAll(
+        `SELECT partner.username AS partner, count(DISTINCT s.id) AS exchanges
+         FROM Swapps s JOIN Chats c ON c.swapp_id = s.id
+         JOIN Users partner ON partner.id = CASE WHEN s.sender_id = ? THEN s.receiver_id ELSE s.sender_id END
+         WHERE (s.sender_id = ? OR s.receiver_id = ?) AND s.status = 'accepted'
+           AND c.status = 'archived' AND c.archived_at >= datetime('now', '-7 days')
+         GROUP BY partner.id HAVING count(DISTINCT s.id) >= 3 ORDER BY exchanges DESC`,
+        [id, id, id],
+      ),
     ]);
 
     res.json({
@@ -2532,6 +2499,7 @@ app.get("/api/admin/users/:id", requireAdminAuth, async (req, res) => {
       notebooks,
       swapps,
       reports,
+      repeatPairs,
     });
   } catch (err) {
     console.error("[ADMIN] user detail failed:", err.message);
@@ -2541,7 +2509,7 @@ app.get("/api/admin/users/:id", requireAdminAuth, async (req, res) => {
 
 app.patch("/api/admin/users/:id/trust-score", requireAdminAuth, async (req, res) => {
   const id = parseId(req.params.id);
-  const trustScore = Number(req.body.trustScore);
+  const trustScore = typeof req.body.trustScore === "number" ? req.body.trustScore : NaN;
   if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
   if (!Number.isInteger(trustScore) || trustScore < 0 || trustScore > 100) {
     return res.status(400).json({
@@ -2591,6 +2559,15 @@ app.post("/api/admin/users/:id/suspend", requireAdminAuth, (req, res) =>
 app.post("/api/admin/users/:id/reinstate", requireAdminAuth, (req, res) =>
   setAccountStatus(req, res, "active"),
 );
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err.status >= 400 && err.status < 500) {
+    const message = err.status === 413 ? "Request body is too large." : "Invalid request.";
+    return res.status(err.status).json({ success: false, message });
+  }
+  internalError(res, err);
+});
 
 initializeDatabase().then(async (success) => {
   if (success) {

@@ -1,6 +1,6 @@
-// Run: node public/js/notebook-metrics.test.js
+// Run: node test/browser/notebook-metrics.test.js
 const assert = require("assert");
-const { COUNT_DIGITS, parseCount, readingMinutes, sizeLabel } = require("./notebook-metrics");
+const { COUNT_DIGITS, parseCount, readingMinutes, sizeLabel } = require("../../public/js/notebook-metrics");
 
 // IDX002: below 4,000 Quick Review; 4,000 to 7,999 Standard; 8,000+ Comprehensive.
 assert.strictEqual(sizeLabel(3999), "QUICK REVIEW");

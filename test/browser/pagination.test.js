@@ -1,6 +1,6 @@
-// Run: node public/js/pagination.test.js
+// Run: node test/browser/pagination.test.js
 const assert = require("assert");
-const { paginationItems } = require("./pagination");
+const { paginationItems } = require("../../public/js/pagination");
 
 assert.deepStrictEqual(
   paginationItems(1, 4),

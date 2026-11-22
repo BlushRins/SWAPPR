@@ -166,6 +166,8 @@
 
     const ownActions = document.createElement("div");
     ownActions.className = "flex flex-wrap items-center gap-2 ml-auto";
+    // The author can always open their own file.
+    ownActions.appendChild(app.createAccessButton(notebook));
     if (notebook.status !== "removed") {
       const editBtn = button(
         "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm",

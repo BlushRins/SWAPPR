@@ -1,17 +1,17 @@
 <div align="center">
   <img src="public/Images/swappr_logo_updated.jpg" alt="SWAPPR Logo" width="200" />
   <p>
-    <a href="https://github.com/Swashua/SWAPPR/commits/main">
-      <img alt="Last commit" src="https://img.shields.io/github/last-commit/Swashua/SWAPPR?style=for-the-badge&logo=github&color=7c3aed" />
+    <a href="https://github.com/BlushRins/SWAPPR/commits/main">
+      <img alt="Last commit" src="https://img.shields.io/github/last-commit/BlushRins/SWAPPR?style=for-the-badge&logo=github&color=7c3aed" />
     </a>
-    <a href="https://github.com/Swashua/SWAPPR/blob/main/LICENSE">
-      <img alt="License" src="https://img.shields.io/github/license/Swashua/SWAPPR?style=for-the-badge&color=2563eb" />
+    <a href="https://github.com/BlushRins/SWAPPR/blob/main/LICENSE">
+      <img alt="License" src="https://img.shields.io/github/license/BlushRins/SWAPPR?style=for-the-badge&color=2563eb" />
     </a>
-    <a href="https://github.com/Swashua/SWAPPR/issues">
-      <img alt="Issues" src="https://img.shields.io/github/issues/Swashua/SWAPPR?style=for-the-badge&color=dc2626" />
+    <a href="https://github.com/BlushRins/SWAPPR/issues">
+      <img alt="Issues" src="https://img.shields.io/github/issues/BlushRins/SWAPPR?style=for-the-badge&color=dc2626" />
     </a>
-    <a href="https://github.com/Swashua/SWAPPR/pulls">
-      <img alt="Pull requests" src="https://img.shields.io/github/issues-pr/Swashua/SWAPPR?style=for-the-badge&color=059669" />
+    <a href="https://github.com/BlushRins/SWAPPR/pulls">
+      <img alt="Pull requests" src="https://img.shields.io/github/issues-pr/BlushRins/SWAPPR?style=for-the-badge&color=059669" />
     </a>
   </p>
   <h1>SWAPPR — Study Together</h1>
@@ -46,7 +46,7 @@ Install [Node.js 24 LTS](https://nodejs.org/) and npm.
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/BlushRins/SWAPPR.git
    cd SWAPPR
    ```
 
@@ -88,6 +88,9 @@ Install [Node.js 24 LTS](https://nodejs.org/) and npm.
 - Sessions expire after seven days. After deploying this update, sign in again.
   Existing production accounts still storing plaintext require an operator
   password reset. See the [credential incident runbook](docs/credential-incident.md).
+
+See [Deployment and rollback](docs/deployment.md) for container setup, backups,
+and the production checklist.
 
 ### Email OTP configuration
 
@@ -133,8 +136,20 @@ npm test
 
 For a deeper map of the codebase, see `docs/ARCHITECTURE.md`.
 
-## Contributing
-This is a closed project. Contributions, pull requests, and issues are not currently being accepted.
+## Known limitations
+
+- Production needs a persistent SQLite volume on a single host. A temporary
+  serverless filesystem cannot retain accounts, sessions, or uploaded notebook metadata.
+- The USC catalog lists subject metadata and departments. Program-level
+  requirements for shared prefixes need a current curriculum.
+- A course page shows notebooks published by students in that degree program.
+  For legacy notebooks, the app infers the program from the author's current profile.
+- Archived chat messages are kept for 30 days after archive. Resolved reports
+  are kept for 90 days. Open reports remain available for review.
+
+## Reporting a vulnerability
+
+Use the private reporting instructions in [SECURITY.md](SECURITY.md).
 
 ## License
 This project is licensed under the [MIT License](LICENSE).

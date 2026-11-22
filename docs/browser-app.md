@@ -1,6 +1,6 @@
 # Public Static App
 
-This directory is served directly by Express.
+Express serves the app from the `public/` directory. Browser helper tests live in `test/browser/`.
 
 - `index.html` is the main notebook browsing and swapping app.
 - `login.html` handles sign-in and registration.

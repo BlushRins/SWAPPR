@@ -6,10 +6,13 @@
 
     const searchInput = document.getElementById("searchInput");
     if (searchInput) {
-      searchInput.addEventListener("input", () => {
-        app.resetPagination();
-        app.renderNotebooks();
-      });
+      searchInput.addEventListener(
+        "input",
+        app.debounce(() => {
+          app.resetPagination();
+          app.renderNotebooks();
+        }),
+      );
     }
 
     document
@@ -53,6 +56,8 @@
       openEditProfileModal: () => app.openEditProfileModal(),
       closeEditProfileModal: () => app.closeEditProfileModal(),
       "closeEditProfileModal-overlay": app.closeEditProfileModal,
+      closeNotebookDetails: () => app.closeNotebookDetails(),
+      "closeNotebookDetails-overlay": app.closeNotebookDetails,
       openAddModal: () => app.openAddModal(),
       closeAddModal: () => app.closeAddModal(),
       "closeAddModal-overlay": app.closeAddModal,
@@ -109,6 +114,7 @@
 
   app.init = async function init() {
     await app.loadUser();
+    app.attachProgramSearch();
     app.loadDepartments();
     app.loadSubjects();
     app.loadNotebooks();

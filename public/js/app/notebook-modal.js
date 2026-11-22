@@ -95,6 +95,7 @@
 
     document.getElementById("addModal").classList.remove("hidden");
     setTimeout(() => root.lucide?.createIcons(), 100);
+    document.getElementById("newTitle").focus();
   };
 
   // Form-prefill helper: set the upload form's subject select to `code`,
@@ -138,6 +139,7 @@
 
     document.getElementById("addModal").classList.remove("hidden");
     setTimeout(() => root.lucide?.createIcons(), 100);
+    document.getElementById("newTitle").focus();
   };
 
   // A count stops being red once it's valid again.

@@ -123,7 +123,7 @@ async function handleResend() {
     if (data.success) {
       document.querySelectorAll(".otp-box").forEach((b) => (b.value = ""));
       startResendTimer(60);
-      setTimeout(() => document.querySelector(".otp-box")?.focus(), 100);
+      document.querySelector(".otp-box")?.focus();
     } else {
       errorEl.textContent = data.message || "Failed to resend.";
       errorEl.style.display = "block";
@@ -619,8 +619,7 @@ async function handleLogin(e) {
       window.location.replace(homePageFor(data.role));
       return;
     }
-    // "No account matches this username.", "The password is
-    // incorrect." or the suspended-account message, from the server.
+    // The server uses the same error for unknown accounts and bad credentials.
     showMessage(errorEl, data.message || NETWORK_ERROR);
   } catch {
     showMessage(errorEl, NETWORK_ERROR);
@@ -669,8 +668,11 @@ async function handleRegister(e) {
   if (!/^\d+@usc\.edu\.ph$/i.test(values.email)) {
     return fail("email", "Email must be in the format: numbers@usc.edu.ph");
   }
-  if (!/^[0-9]+$/.test(values.studentId)) {
-    return fail("studentId", "Student ID must contain numbers only.");
+  if (!/^\d{1,64}$/.test(values.studentId) || values.studentId !== values.email.split("@")[0]) {
+    return fail("studentId", "Student ID must match the number in your school email.");
+  }
+  if (!/^[A-Za-z0-9_.-]{1,40}$/.test(values.username)) {
+    return fail("username", "Use letters, digits, dots, underscores or hyphens.");
   }
   if (values.password.trim().length < 8) {
     return fail("password", "Password must be at least 8 characters.");
@@ -680,11 +682,7 @@ async function handleRegister(e) {
   registerBtn.textContent = "Sending code...";
 
   try {
-    // The username is checked here, before a code is sent (REQT-005).
-    const data = await postJson("/api/send-otp", {
-      email: values.email,
-      username: values.username,
-    });
+    const data = await postJson("/api/send-otp", { email: values.email });
 
     if (data.success) {
       // Store form data and email for use after OTP verification
@@ -701,7 +699,7 @@ async function handleRegister(e) {
       document.querySelectorAll(".otp-box").forEach((b) => (b.value = ""));
       showRegStep(2);
       startResendTimer(60);
-      setTimeout(() => document.querySelector(".otp-box")?.focus(), 100);
+      document.querySelector(".otp-box")?.focus();
     } else {
       if (data.field === "username") markRed("username", true);
       if (/email/i.test(data.message || "")) markRed("email", true);

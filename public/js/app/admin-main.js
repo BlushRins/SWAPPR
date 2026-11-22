@@ -75,10 +75,10 @@
 
     document
       .getElementById("reportsSearch")
-      ?.addEventListener("input", (event) => app.searchAdminReports(event.target.value));
+      ?.addEventListener("input", app.debounce((event) => app.searchAdminReports(event.target.value)));
     document
       .getElementById("usersSearch")
-      ?.addEventListener("input", (event) => app.searchAdminUsers(event.target.value));
+      ?.addEventListener("input", app.debounce((event) => app.searchAdminUsers(event.target.value)));
 
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;

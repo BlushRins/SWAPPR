@@ -117,6 +117,9 @@ test("seed and authentication hardening works through the app entry points", { t
     const seeded = await databaseCall(db, "get", "SELECT password FROM Users WHERE username = 'ana_reyes'");
     assert.match(seeded.password, /^scrypt\$/);
     await databaseCall(db, "run", "UPDATE Users SET password = ? WHERE username = 'ana_reyes'", STUDENT_PASSWORD);
+    await databaseCall(db, "run", "UPDATE Users SET username = ? WHERE username = 'ana_reyes'", " ana_reyes ");
+    await databaseCall(db, "run", "UPDATE Users SET email = ?, studentId = ? WHERE username = 'marco_s'",
+      "100004@usc.edu.ph", "00000");
   } finally {
     await new Promise((resolve) => db.close(resolve));
   }
@@ -142,6 +145,18 @@ test("seed and authentication hardening works through the app entry points", { t
     headers: { "Sec-Fetch-Site": "cross-site" },
   })).status, 403);
 
+  const badLogin = await login("ana_reyes", "incorrect credential");
+  const unknownLogin = await login("missing_equivalence_fixture", "incorrect credential");
+  assert.equal(badLogin.status, 401);
+  assert.equal(unknownLogin.status, 401);
+  assert.deepEqual(await badLogin.json(), await unknownLogin.json());
+  const registeredRecipient = await post("/api/send-otp", { email: "100004@usc.edu.ph" });
+  assert.deepEqual(await registeredRecipient.json(), { success: true });
+  assert.equal((await post("/api/send-otp", { email: "100004@usc.edu.ph" })).status, 429);
+  assert.ok(!first.output().includes("Code for 100004@usc.edu.ph"));
+
+  assert.equal((await post("/api/register", { name: ["bad"], username: { invalid: true } })).status, 400);
+  assert.equal((await request("/js/course-options.test.js")).status, 404);
   const firstLogin = await login("ana_reyes", STUDENT_PASSWORD);
   assert.equal(firstLogin.status, 200, await firstLogin.text());
   const firstCookie = cookieFrom(firstLogin);
@@ -213,18 +228,54 @@ test("seed and authentication hardening works through the app entry points", { t
   const { verificationToken } = await verified.json();
   assert.ok(verificationToken);
   const registration = {
-    email, studentId: "100001", course: COURSE, username: "new_student",
-    name: "New Student", password: "unique unrelated credential 11",
+    email, studentId: "100001", course: COURSE, username: " new_student ",
+    name: " New Student ", password: " unique unrelated credential 11 ",
   };
   assert.equal((await post("/api/register", registration)).status, 400);
+  const mismatched = await post("/api/register", { ...registration, studentId: "100006", verificationToken });
+  assert.equal(mismatched.status, 400);
+  assert.match((await mismatched.json()).message, /Student ID must match/);
   const registered = await post("/api/register", { ...registration, verificationToken });
   assert.equal(registered.status, 201, await registered.text());
   assert.equal((await me(cookieFrom(registered))).status, 200);
+
+  const studentCookie = cookieFrom(registered);
+  const registeredLogin = await login("new_student", registration.password);
+  assert.equal(registeredLogin.status, 200);
+  assert.equal((await registeredLogin.json()).user.name, "New Student");
+  const profile = await request("/api/profile/marco_s", {
+    cookie: cookieFrom(await login("marco_s", "pass1234")),
+  });
+  assert.equal((await profile.json()).profile.studentId, "100004");
+
+  const notebook = {
+    title: "Lecture notes for my course", description: "Sample notebook for course filtering",
+    courseCode: "CS 3106N", department: "Untrusted department", fileUrl: "https://example.com/notes",
+  };
+  assert.equal((await post("/api/portfolios", { ...notebook, courseCode: "fake subject" }, studentCookie)).status, 400);
+  assert.equal((await post("/api/portfolios", { ...notebook, title: "a".repeat(121) }, studentCookie)).status, 400);
+  const created = await post("/api/portfolios", notebook, studentCookie);
+  assert.equal(created.status, 200, await created.clone().text());
+  const { id } = await created.json();
+  const filtered = await request(`/api/portfolios?program=${encodeURIComponent(COURSE)}&subject=CS%203106N`,
+    { cookie: studentCookie });
+  const listed = (await filtered.json()).portfolios.find((portfolio) => portfolio.id === id);
+  assert.equal(listed.program, COURSE);
+  assert.equal(listed.department, "Department of Computer, Information Sciences and Mathematics");
+  assert.equal((await post("/api/portfolios/delete", { title: notebook.title }, studentCookie)).status, 400);
+  assert.equal((await post("/api/portfolios/like", { notebookId: 1_000_000 }, studentCookie)).status, 404);
+  assert.equal((await post("/api/portfolios/like", { notebookId: id }, studentCookie)).status, 200);
+  assert.equal((await post("/api/portfolios/like", { notebookId: id }, studentCookie)).status, 409);
+  assert.equal((await post("/api/portfolios/delete", { id }, studentCookie)).status, 200);
 
   const preMigration = new sqlite3.Database(path.join(directory, "swappr.db"));
   try {
     await databaseCall(preMigration, "run", "INSERT INTO Admin (username, password) VALUES (?, ?)",
       "legacy_operator", "old unprotected admin credential");
+    await databaseCall(preMigration, "run", `INSERT INTO ChatMessages(chat_id,sender_id,body) VALUES (100001,1,'test')`);
+    await databaseCall(preMigration, "run", `INSERT INTO Chats(id,status,archived_at) VALUES (100001,'archived','2000-01-01')`);
+    await databaseCall(preMigration, "run", `INSERT INTO Reports(report_ID, status, date_resolved) VALUES (100001,'disregarded','2000-01-01')`);
+    await databaseCall(preMigration, "run", `INSERT INTO Reports(report_ID, status, date_submitted) VALUES (100002,'open','2000-01-01')`);
   } finally {
     await new Promise((resolve) => preMigration.close(resolve));
   }
@@ -241,4 +292,12 @@ test("seed and authentication hardening works through the app entry points", { t
   assert.equal(productionLogin.status, 200, await productionLogin.text());
   assert.match(productionLogin.headers.get("set-cookie"), /; Secure/);
   assert.ok(productionLogin.headers.get("strict-transport-security"));
+  const retention = new sqlite3.Database(path.join(directory, "swappr.db"));
+  try {
+    assert.equal(await databaseCall(retention, "get", "SELECT id FROM ChatMessages WHERE chat_id = 100001"), undefined);
+    assert.equal(await databaseCall(retention, "get", "SELECT report_ID FROM Reports WHERE report_ID = 100001"), undefined);
+    assert.ok(await databaseCall(retention, "get", "SELECT report_ID FROM Reports WHERE report_ID = 100002"));
+  } finally {
+    await new Promise((resolve) => retention.close(resolve));
+  }
 });
