@@ -44,7 +44,7 @@
         },
         {
           key: "reported",
-          label: "Reported Notebook / User",
+          label: "Reported notebook or user",
           className: "admin-col-wide",
           value: reportedLabel,
         },
@@ -57,12 +57,12 @@
         },
         {
           key: "dateSubmitted",
-          label: "Date Submitted",
+          label: "Date submitted",
           render: (row) => ui.formatDate(row.dateSubmitted),
         },
         {
           key: "resolvedBy",
-          label: "Resolved By",
+          label: "Resolved by",
           render: (row) => (row.resolvedBy ? `@${row.resolvedBy}` : "—"),
         },
         {

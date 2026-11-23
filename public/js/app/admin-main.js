@@ -4,7 +4,7 @@
 
   const VIEWS = {
     notebooks: {
-      title: "Flagged Notebooks",
+      title: "Flagged notebooks",
       subtitle: () =>
         `Notebooks under review after being reported. ${ui.openVerb("click")} one to review it.`,
       load: () => app.loadAdminNotebooks(),
@@ -16,7 +16,7 @@
       load: () => app.loadAdminReports(),
     },
     users: {
-      title: "User Accounts",
+      title: "User accounts",
       subtitle: () =>
         `All registered students. ${ui.openVerb("dblclick")} one to view and manage the account.`,
       load: () => app.loadAdminUsers(),
