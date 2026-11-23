@@ -92,3 +92,26 @@ test("dark app fields keep a readable placeholder and visible boundary", () => {
   assert.ok(contrast(dark["color-placeholder"], "1e1b4b") >= 4.5);
   assert.ok(contrast(dark["color-border"], "1e1b4b") >= 3);
 });
+
+test("browse has one labelled search and a secondary degree-program control", () => {
+  const index = read("index.html");
+  assert.match(index, /<label id="searchLabel" for="searchInput"[^>]*>\s*Search by subject name or code/);
+  assert.match(index, /<details id="programPicker"[^>]*>\s*<summary>Change degree program<\/summary>/);
+  assert.match(index, /<label for="programSearch"[^>]*>Degree program<\/label>/);
+  assert.doesNotMatch(read("js/app/subjects.js"), /View Swaps/);
+  assert.match(read("js/app/subjects.js"), /"View notebooks"/);
+});
+
+test("the phone menu reaches Add notebook, Profile and Requests", () => {
+  const menu = read("index.html").match(/<nav\s+id="mobileMenu"[\s\S]*?<\/nav>/)[0];
+  assert.match(menu, /data-action="mobile-add-notebook"[\s\S]*?Add notebook/);
+  assert.match(menu, /data-action="mobile-profile"[\s\S]*?Profile/);
+  assert.match(menu, /data-filter="requests"[\s\S]*?data-requests-badge/);
+});
+
+test("notebook actions say Open notebook and Request swap", () => {
+  const notebooks = read("js/app/notebooks.js");
+  assert.match(notebooks, /Open notebook/);
+  assert.match(notebooks, /Request swap/);
+  assert.doesNotMatch(notebooks, /UNLOCK VIA SWAP/);
+});

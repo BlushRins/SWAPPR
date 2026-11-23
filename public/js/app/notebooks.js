@@ -21,7 +21,8 @@
 
   // Subtitles the design gives specific views (IDX004, IDX006).
   const VIEW_SUBTITLES = {
-    matched: "Notebooks unlocked through your SWAPPs.",
+    requests: "Answer requests, open chats for active swaps and track what you sent.",
+    matched: "Notebooks unlocked through your swaps.",
     top: "The most active departments first.",
   };
 
@@ -33,7 +34,7 @@
     top: "No notebooks have been shared yet.",
     recent: "No notebooks have been shared yet.",
   };
-  const NO_SEARCH_MATCH = "No notebooks match your search. Try adjusting your filters.";
+  const NO_SEARCH_MATCH = "No notebooks match your search.";
   const RECENT_LIMIT = 20;
 
   // Newest upload first; the id breaks ties (notebooks saved the same second).
@@ -59,6 +60,29 @@
       if (!right) return -1;
       return activity.get(right) - activity.get(left) || left.localeCompare(right);
     });
+  }
+
+  // One search box, labelled for what it searches in the current view.
+  // Requests has nothing to search, so the box is hidden there.
+  function syncSearchControl() {
+    const wrapper = document.getElementById("browseSearch");
+    const label = document.getElementById("searchLabel");
+    const input = document.getElementById("searchInput");
+    if (!wrapper || !label || !input) return;
+    wrapper.classList.toggle("hidden", app.state.currentFilter === "requests");
+    // Changing degree program only applies to Browse subjects.
+    document
+      .getElementById("programPicker")
+      ?.classList.toggle("hidden", app.state.currentFilter !== "all");
+    const browsingSubjects =
+      app.state.currentFilter === "all" &&
+      !app.state.selectedSubject &&
+      !app.state.selectedDepartment &&
+      !app.state.selectedProgram;
+    label.textContent = browsingSubjects
+      ? "Search by subject name or code"
+      : "Search notebooks by title or author";
+    input.placeholder = browsingSubjects ? "e.g. CIS 2101" : "e.g. Data structures";
   }
 
   function updateSectionTitle() {
@@ -93,7 +117,7 @@
     if (sectionSubtitle) {
       sectionSubtitle.textContent =
         VIEW_SUBTITLES[app.state.currentFilter] ||
-        "Browse shared subjects and study resources in a Reddit-style feed.";
+        "Find a subject, then open its notebooks.";
     }
   }
 
@@ -160,9 +184,8 @@
   app.createAccessButton = function createAccessButton(notebook) {
     const accessBtn = document.createElement("button");
     accessBtn.type = "button";
-    accessBtn.innerHTML = '<i data-lucide="unlock" class="w-4 h-4"></i> Access';
-    accessBtn.className =
-      "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition shadow-sm";
+    accessBtn.innerHTML = '<i data-lucide="external-link" class="w-4 h-4"></i> Open notebook';
+    accessBtn.className = "btn-solid";
     accessBtn.dataset.action = "access";
     accessBtn.addEventListener("click", () => {
       const url = notebook.fileUrl || notebook.file_url;
@@ -170,6 +193,19 @@
       else app.showToast("No file URL available");
     });
     return accessBtn;
+  };
+
+  // One plain sentence about whether the student can open this notebook.
+  // Shown on the card footer and in Notebook Details.
+  app.notebookAccessNote = function notebookAccessNote(notebook) {
+    if (notebook.username === app.state.currentUser?.username) return "Your notebook";
+    const { accessSwapp, pending, cancelled, declined } = app.swappStateFor(notebook);
+    if (accessSwapp) return "Unlocked by your swap";
+    const author = notebook.username || "the author";
+    if (pending) return `Request sent. Waiting for @${author}.`;
+    if (cancelled) return "Your swap for this notebook was cancelled. Request it again to open it.";
+    if (declined) return "Your last request was declined. You can ask again.";
+    return "Locked. Request a swap to open it.";
   };
 
   function createActionControls(notebook, actionContainer) {
@@ -181,10 +217,6 @@
     // FUNC-007 REQT-006: your own notebook is labelled and can't be
     // requested, but you can still open your own file.
     if (notebook.username === currentUser?.username) {
-      const badge = document.createElement("span");
-      badge.className = "text-xs text-purple-400 font-medium";
-      badge.textContent = "Your Notebook";
-      actionContainer.appendChild(badge);
       actionContainer.appendChild(app.createAccessButton(notebook));
       return;
     }
@@ -207,9 +239,9 @@
 
       // Opens the chat of the SWAPP that unlocked this notebook.
       const chatBtn = document.createElement("button");
-      chatBtn.innerHTML = '<i data-lucide="message-circle" class="w-4 h-4"></i> Chat';
-      chatBtn.className =
-        "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm ml-2";
+      chatBtn.type = "button";
+      chatBtn.innerHTML = '<i data-lucide="message-circle" class="w-4 h-4"></i> Open chat';
+      chatBtn.className = "btn-outline";
       chatBtn.dataset.chatSwapp = String(accessSwapp.id);
       chatBtn.dataset.action = "chat";
 
@@ -229,9 +261,8 @@
 
     if (pending) {
       const pendingBadge = document.createElement("span");
-      pendingBadge.className =
-        "text-xs text-yellow-600 dark:text-yellow-400 font-medium";
-      pendingBadge.textContent = "Swap Pending...";
+      pendingBadge.className = "status-pill status-pending";
+      pendingBadge.textContent = "Request pending";
       actionContainer.appendChild(pendingBadge);
       return;
     }
@@ -239,7 +270,7 @@
     // FUNC-011 REQT-009: the SWAPP that unlocked this notebook was cancelled.
     if (cancelled) {
       const cancelledLabel = document.createElement("span");
-      cancelledLabel.className = "text-xs font-medium text-red-500 dark:text-red-400";
+      cancelledLabel.className = "status-pill status-ended";
       cancelledLabel.textContent = "Cancelled";
       cancelledLabel.title = "The SWAPP for this notebook was cancelled. You can request it again.";
       actionContainer.appendChild(cancelledLabel);
@@ -248,7 +279,7 @@
     // FUNC-011 REQT-008: let the requester see their last request was declined.
     if (declined) {
       const declinedLabel = document.createElement("span");
-      declinedLabel.className = "text-xs font-medium text-red-500 dark:text-red-400";
+      declinedLabel.className = "status-pill status-ended";
       declinedLabel.textContent = "Declined";
       declinedLabel.title = "Your last request was declined. You can ask again.";
       actionContainer.appendChild(declinedLabel);
@@ -256,10 +287,10 @@
 
     // FUNC-010 REQT-003: opens the prompt to choose which notebooks to offer.
     const swapBtn = document.createElement("button");
+    swapBtn.type = "button";
     swapBtn.innerHTML =
-      '<i data-lucide="repeat-2" class="w-4 h-4"></i> Request Swap';
-    swapBtn.className =
-      "text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm";
+      '<i data-lucide="repeat-2" class="w-4 h-4"></i> Request swap';
+    swapBtn.className = "btn-solid";
     swapBtn.dataset.action = "swap";
     swapBtn.addEventListener("click", () => app.openSwappRequestModal(notebook));
     actionContainer.appendChild(swapBtn);
@@ -364,7 +395,7 @@
       </div>
 
       <div class="card-footer">
-        <span class="footer-text">PREVIEW &bull; UNLOCK VIA SWAP</span>
+        <span class="footer-text">${escapeHtml(app.notebookAccessNote(notebook))}</span>
         <div class="action-container"></div>
       </div>
     `;
@@ -381,6 +412,7 @@
     try {
       const data = await app.api.getNotebooks();
       app.state.notebooks = data.portfolios || [];
+      app.state.notebooksError = false;
 
       const editNotebookId = sessionStorage.getItem("editNotebookId");
       if (editNotebookId) {
@@ -395,6 +427,8 @@
       app.renderNotebooks();
     } catch (err) {
       console.error("Failed to load notebooks:", err);
+      app.state.notebooksError = true;
+      app.renderNotebooks();
     }
   };
 
@@ -402,8 +436,9 @@
     const grid = document.getElementById("notebookGrid");
     if (!grid) return;
 
+    syncSearchControl();
     const searchQuery = currentSearchQuery();
-    // Top-level All Subjects view: search filters the subject cards, not
+    // Top-level Browse subjects view: search filters the subject cards, not
     // notebooks, so stay on the cards view even with a query present.
     if (
       !app.state.selectedDepartment &&
@@ -420,24 +455,38 @@
     grid.className = "notebooks-grid";
 
     if (app.state.currentFilter === "requests") {
+      grid.className = "requests-layout";
       grid.innerHTML = app.renderRequests();
       app.renderPagination(0);
       app.attachRequestListeners();
       return;
     }
 
+    if (app.state.notebooksError) {
+      grid.appendChild(
+        app.stateMessage("Couldn't load notebooks.", "Try again", () => {
+          grid.replaceChildren(app.stateMessage("Loading notebooks…"));
+          app.loadNotebooks();
+        }),
+      );
+      app.renderPagination(0);
+      return;
+    }
+
     const filtered = filterNotebooks(searchQuery);
     if (filtered.length === 0) {
-      const empty = document.createElement("p");
-      empty.className = "text-sm text-purple-400";
-      // A search that empties the view gets the SRS wording; a view that has
+      // A search that empties the view offers to clear it; a view that has
       // nothing at all gets its own message.
-      empty.textContent =
-        searchQuery && filterNotebooks("").length
-          ? NO_SEARCH_MATCH
-          : app.state.selectedProgram ? "No notebooks shared for this course or subject yet."
-          : EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH;
-      grid.appendChild(empty);
+      const searchEmptied = searchQuery && filterNotebooks("").length;
+      grid.appendChild(
+        searchEmptied
+          ? app.stateMessage(NO_SEARCH_MATCH, "Clear search", app.clearSearch)
+          : app.stateMessage(
+              app.state.selectedProgram
+                ? "No notebooks shared for this course or subject yet."
+                : EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH,
+            ),
+      );
       app.renderPagination(0);
       return;
     }
@@ -551,6 +600,7 @@
     app.state.currentFilter = type;
     app.state.selectedDepartment = null;
     app.state.selectedSubject = null;
+    app.forgetSavedBrowse?.();
     app.leaveProgramSearch();
     app.resetPagination();
     document.getElementById("backToSubjectsBtn")?.classList.add("hidden");
@@ -561,7 +611,10 @@
     }
 
     document.querySelectorAll(".sidebar-link").forEach((link) => {
-      link.classList.toggle("active", link.dataset.filter === type);
+      const current = link.dataset.filter === type;
+      link.classList.toggle("active", current);
+      if (current) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
     });
 
     root.lucide?.createIcons();

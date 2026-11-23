@@ -21,7 +21,7 @@
     sending = isSending;
     const button = document.getElementById("swappRequestSendBtn");
     button.disabled = isSending;
-    button.textContent = isSending ? "Sending..." : "Send Request";
+    button.textContent = isSending ? "Sending…" : "Send request";
   }
 
   function renderChoices(notebooks) {
@@ -72,6 +72,8 @@
       notebook.title || "Untitled notebook";
     document.getElementById("swappRequestAuthor").textContent =
       notebook.username || "anonymous";
+    document.getElementById("swappShareAuthor").textContent =
+      notebook.username || "anonymous";
     renderChoices(choices);
     setError("");
     setSending(false);
@@ -113,11 +115,12 @@
         setError(err.message);
         return;
       }
-      app.closeSwappRequestModal();
       if (err.code === "NO_NOTEBOOKS") {
+        app.closeSwappRequestModal();
         promptUpload();
       } else {
-        app.showToast(err.message || "Could not send the request. Please try again.");
+        // Keep the form open with the student's choices so they can retry.
+        setError(`${err.message || "Couldn't send the request."} Try again.`);
       }
       // The request may have been refused because the SWAPP state changed
       // (e.g. sent from another tab), so show the current state.
@@ -127,7 +130,7 @@
 
     setSending(false);
     app.closeSwappRequestModal();
-    app.showToast("Swap request sent!");
+    app.showToast("Request sent. It's waiting for a response under Requests.");
     await refreshSwapps();
   };
 
