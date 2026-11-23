@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { normalizeCatalog } = require("../lib/catalog");
-const { subjectsForCourse } = require("../lib/subjects");
+const { filterSubjects, subjectsForCourse } = require("../lib/subjects");
 
 const subject = (course_code, course_description, department_reserved) => ({
   course_code, course_description, department_reserved,
@@ -47,4 +47,29 @@ test("does not treat graduate science education or Fine Arts auditing entries as
   assert.deepEqual(codesFor("Bachelor of Science in Hospitality Management"), ["THC-EN"]);
   assert.deepEqual(codesFor("Bachelor of Science in Tourism Management"), ["THC-EN"]);
   assert.deepEqual(codesFor("Diploma in Culinary Arts"), []);
+});
+
+test("reviewed schedule matches require both code and title and preserve cross-listing", () => {
+  const input = [
+    subject("ES-MECH", "Engineering Mechanics", null),
+    subject("EM 1202", "  CALCULUS   2  ", null),
+    subject("EDUC 205Y", "Statistics Applied in Education", null),
+    subject("EDUC 323", "Doctoral Colloquium", "Department of Science and Mathematics Education"),
+    subject("SPAN 1", "Unrelated subject with a reused code", null),
+  ];
+  const catalog = normalizeCatalog(input);
+  const pick = (code) => catalog.find((row) => row.course_code === code);
+  const mechanicUnits = [
+    "Department of Chemical Engineering",
+    "Department of Electrical & Electronics Engineering",
+    "Department of Industrial Engineering",
+  ];
+  assert.deepEqual(pick("ES-MECH").reservedUnits, mechanicUnits);
+  assert.equal(pick("ES-MECH").department, "");
+  assert.deepEqual(filterSubjects(catalog, ["ES"])[0].reservedUnits, mechanicUnits);
+  assert.equal(pick("EM 1202").department, "School of Engineering");
+  assert.equal(pick("EDUC 205Y").department, "Department of Teacher Education");
+  assert.equal(pick("EDUC 323").department, "Department of Science and Mathematics Education");
+  assert.deepEqual(pick("SPAN 1").reservedUnits, []);
+  assert.equal(input[0].department_reserved, null);
 });

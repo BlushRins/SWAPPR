@@ -22,12 +22,9 @@ deferred in recent design notes.
 
 See the [catalog review](catalog-quality.md) for the current coverage and remaining curriculum checks.
 
-- [ ] Recover real departments for courses with NULL or missing
-  `department_reserved` values.
-  - Source: `docs/archive/2026-06-24-course-department-mapping-design.md`
-  - Future execution: fix the scraper/import path, backfill the affected course
-    rows, and keep the synthetic `General Education & Electives` bucket only for
-    genuinely global courses.
+- [ ] Confirm reservations for the remaining 19 subjects without metadata.
+  - The runtime catalog fills 82 missing rows from catalog evidence and 37
+    from exact matches in the USC schedule. See [catalog quality](catalog-quality.md).
 - [ ] Review graduate-program, global, noise, and cross-listed subject prefixes.
   - Source: `docs/archive/2026-06-25-program-subject-filter-design.md`
   - Future execution: revisit ignored prefixes when graduate programs or global

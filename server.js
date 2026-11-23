@@ -1233,7 +1233,7 @@ app.patch("/api/profile", requireAuth,
 );
 
 app.get("/api/departments", (req, res) => {
-  const departments = cleanDepartments(courseCatalog.map((row) => row.department_reserved));
+  const departments = cleanDepartments(courseCatalog.flatMap((row) => row.reservedUnits));
   res.json({ success: true, departments });
 });
 

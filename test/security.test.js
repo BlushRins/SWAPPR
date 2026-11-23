@@ -157,6 +157,18 @@ test("seed and authentication hardening works through the app entry points", { t
 
   assert.equal((await post("/api/register", { name: ["bad"], username: { invalid: true } })).status, 400);
   assert.equal((await request("/js/course-options.test.js")).status, 404);
+  const subjects = await request("/api/subjects?course=ALL");
+  assert.equal(subjects.status, 200);
+  const mechanics = (await subjects.json()).subjects.find(({ code }) => code === "ES-MECH");
+  assert.equal(mechanics.department, "");
+  assert.deepEqual(mechanics.reservedUnits, [
+    "Department of Chemical Engineering",
+    "Department of Electrical & Electronics Engineering",
+    "Department of Industrial Engineering",
+  ]);
+  const departments = await request("/api/departments");
+  assert.ok((await departments.json()).departments.includes("School of Engineering"));
+
   const firstLogin = await login("ana_reyes", STUDENT_PASSWORD);
   assert.equal(firstLogin.status, 200, await firstLogin.text());
   const firstCookie = cookieFrom(firstLogin);

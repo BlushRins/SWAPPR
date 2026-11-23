@@ -22,6 +22,11 @@ docker run -d --name swappr --env-file .env \
 curl --fail --output /dev/null http://127.0.0.1:3000/login.html
 ```
 
+GitHub Actions runs `bash test/container-smoke.sh swappr-ci` against a fresh
+image. It checks that the production container serves its built assets, an
+operator can provision and sign in as an administrator, and the same session
+works after replacing the container with the same SQLite volume.
+
 Set `TRUST_PROXY` to the addresses or CIDRs of the actual proxy hops. The
 proxy should replace forwarding headers and be the only public ingress.
 Provision the first administrator explicitly with a unique
