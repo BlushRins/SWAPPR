@@ -1,228 +1,287 @@
-body {
-  font-family: "Inter", sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-  overflow-x: hidden;
+/* Sign-in page and registration dialog. Colors come from tokens.css, so
+   dark mode (FUNC-005: .dark on <html>, set by login-theme.js) needs no
+   separate overrides here. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-/* Icon styling */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
 [data-lucide] {
   display: inline-block;
   vertical-align: middle;
 }
 
-.feature-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-  color: white;
+.hidden {
+  display: none;
 }
 
-/* Animated background particles */
-.bg-particle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  animation: float 20s infinite ease-in-out;
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) translateX(0);
-  }
-  50% {
-    transform: translateY(-100px) translateX(50px);
-  }
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  position: relative;
-  z-index: 1;
-}
-
-.content-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
+/* ── Page layout: brand, one sentence, sign-in form. ───────────────────── */
+.auth-shell {
   width: 100%;
-  align-items: center;
-}
-
-@media (max-width: 768px) {
-  .content-wrapper {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-  .branding {
-    text-align: center;
-  }
-}
-
-/* Left side - Branding */
-.branding {
-  color: white;
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.logo-img {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  animation: pulse 3s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-.brand-name {
-  font-size: 3rem;
-  font-weight: 900;
-  letter-spacing: -0.05em;
-  background: linear-gradient(135deg, #fff 0%, #e0e7ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.tagline {
-  font-size: 1.25rem;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.95);
-  margin-bottom: 2.5rem;
-  font-weight: 500;
-}
-
-.features {
+  max-width: 400px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 32px 16px;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  justify-content: center;
 }
 
-.feature-item {
+.auth-brand {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  gap: 10px;
 }
 
-.feature-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateX(10px);
+.auth-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
 }
 
-/* Right side - Login Card */
-.login-card {
-  background: white;
-  padding: 3rem;
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideInRight 0.6s ease-out;
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.login-title {
-  font-size: 2rem;
+.auth-wordmark {
+  font-size: 1.375rem;
   font-weight: 800;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-  text-align: center;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
 }
 
-.login-subtitle {
-  color: #6b7280;
-  text-align: center;
-  margin-bottom: 2rem;
+.auth-intro {
+  margin: 12px 0 20px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.auth-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding: 24px;
+}
+
+.auth-title {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* ── Fields ────────────────────────────────────────────────────────────── */
+.field {
+  margin-bottom: 16px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.field-hint,
+.field-error {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.field-hint {
+  color: var(--color-text-muted);
+}
+
+.field-error {
+  font-weight: 600;
+  color: var(--color-error);
+}
+
+.field-error[hidden] {
+  display: none;
 }
 
 .input-field {
+  display: block;
   width: 100%;
-  padding: 0.875rem 1rem;
-  border-radius: 12px;
-  border: 2px solid #e5e7eb;
-  background: #f9fafb;
-  color: #1f2937;
-  font-size: 0.95rem;
-  outline: none;
-  transition: all 0.2s ease;
-  margin-bottom: 1rem;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem; /* 16px keeps iOS from zooming on focus */
+}
+
+.input-field::placeholder {
+  color: var(--color-placeholder);
 }
 
 .input-field:focus {
-  border-color: #667eea;
-  background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  outline: none;
 }
 
-.custom-select-wrapper {
+.input-field:focus-visible,
+.input-field:focus {
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 2px var(--color-focus);
+}
+
+/* FUNC-001 REQT-008, FUNC-002 REQT-006: an empty or rejected field turns red. */
+.input-field.error,
+.input-field.error:focus {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 1px var(--color-error);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 400px) {
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn-primary-solid,
+.btn-secondary {
+  display: block;
   width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary-solid {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.btn-primary-solid:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--color-primary-soft);
+}
+
+.btn-primary-solid:disabled,
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* FUNC-002 REQT-002: "Back to sign in" and other text actions. */
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+#registerForm .btn-link {
+  display: flex;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0 12px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.divider span {
+  padding: 0 12px;
+}
+
+/* ── Messages ──────────────────────────────────────────────────────────── */
+.error-msg,
+.success-msg {
+  display: none;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid currentColor;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.error-msg {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.success-msg {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+/* ── Degree-program picker ─────────────────────────────────────────────── */
+.custom-select-wrapper {
   position: relative;
+  width: 100%;
 }
 
 .custom-select-button {
-  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  cursor: pointer;
-  padding: 0.875rem 1rem;
-  border-radius: 12px;
-  border: 2px solid #e5e7eb;
-  background: #f9fafb;
-  color: #1f2937;
-  font-size: 0.95rem;
+  gap: 12px;
   text-align: left;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.custom-select-button:hover,
-.custom-select-button:focus {
-  border-color: #667eea;
-  background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  cursor: pointer;
 }
 
 .custom-select-icon {
-  font-size: 1.1rem;
   line-height: 1;
-  color: #6b7280;
-  transition: transform 0.2s ease;
+  color: var(--color-text-muted);
 }
 
 .custom-select-button[aria-expanded="true"] .custom-select-icon {
@@ -231,354 +290,167 @@ body {
 
 .custom-select-list {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
+  z-index: 1000;
   max-height: 300px;
   overflow-y: auto;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
-  z-index: 1000;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dialog);
+}
+
+.custom-select-list:focus-visible {
+  outline-offset: -3px;
 }
 
 .custom-select-group {
-  padding: 0.75rem 1rem 0.35rem;
-  font-size: 0.82rem;
+  padding: 10px 12px 4px;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #4b5563;
+  color: var(--color-text-muted);
 }
 
 .custom-select-option {
-  padding: 0.9rem 1rem;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  color: var(--color-text);
   cursor: pointer;
-  color: #1f2937;
 }
 
 .custom-select-option:hover,
 .custom-select-option.highlighted {
-  background: #eef2ff;
+  background: var(--color-primary-soft);
 }
 
-.hidden {
-  display: none;
-}
-
-.btn-login {
-  width: 100%;
-  padding: 0.875rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-weight: 700;
-  font-size: 1rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.btn-login:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-}
-
-.btn-login:active {
-  transform: translateY(0);
-}
-
-.btn-login:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 1.5rem 0;
-  color: #9ca3af;
-  font-size: 0.875rem;
-}
-
-.divider::before,
-.divider::after {
-  content: "";
-  flex: 1;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.divider span {
-  padding: 0 1rem;
-}
-
-.btn-register {
-  width: 100%;
-  padding: 0.875rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  font-weight: 700;
-  font-size: 1rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-}
-
-.btn-register:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
-}
-
-/* Error/Success Messages */
-.error-msg,
-.success-msg {
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  display: none;
-}
-
-.error-msg {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-
-.success-msg {
-  background: #d1fae5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
-}
-
-/* Modal */
+/* ── Registration dialog ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
+  z-index: 1000;
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  padding: 16px;
+  background: rgba(21, 18, 31, 0.6);
 }
 
 .modal-overlay.active {
   display: flex;
-  opacity: 1;
 }
 
 .modal-content {
-  background: white;
-  border-radius: 24px;
   width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
+  max-width: 480px;
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-  transform: scale(0.9);
-  transition: transform 0.3s ease;
-}
-
-.modal-overlay.active .modal-content {
-  transform: scale(1);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
 }
 
 .modal-header {
-  padding: 2rem 2rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
   position: relative;
+  padding: 20px 56px 16px 24px;
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .modal-close {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #f3f4f6;
-  border: none;
-  cursor: pointer;
+  top: 10px;
+  right: 10px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  color: #6b7280;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
 }
 
 .modal-close:hover {
-  background: #e5e7eb;
-  color: #1f2937;
-  transform: rotate(90deg);
+  background: var(--color-primary-soft);
+  color: var(--color-text);
 }
 
 .modal-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
-.modal-subtitle {
-  color: #6b7280;
-  font-size: 0.95rem;
+.reg-step {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
 }
 
 .modal-body {
-  padding: 2rem;
+  padding: 20px 24px 24px;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.btn-signup {
-  width: 100%;
-  padding: 0.875rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  font-weight: 700;
-  font-size: 1rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-  margin-top: 0.5rem;
-}
-
-.btn-signup:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
-}
-
-
-.btn-signup:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ── Validation (FUNC-001 REQT-008, FUNC-002 REQT-006) ──────────────────── */
-/* An empty or rejected field turns red. */
-.input-field.error,
-.input-field.error:focus {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
-}
-
-/* "Back to Log In" under the Register button (FUNC-002 REQT-002). */
-.back-to-login {
-  display: block;
-  width: 100%;
-  margin-top: 0.75rem;
-  padding: 0.5rem;
-  border: none;
-  background: none;
-  color: #6d28d9;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.back-to-login:hover {
-  text-decoration: underline;
-}
-
+/* ── Step 2: one-time code ─────────────────────────────────────────────── */
 .otp-prompt {
-  font-size: 13px;
-  color: #6b7280;
-  margin-bottom: 4px;
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
 }
 
-/* ── Dark theme (FUNC-005): follows localStorage["theme"] set on the
-   other pages. ───────────────────────────────────────────────────────── */
-.dark body {
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%);
+.otp-email {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text);
+  word-break: break-all;
 }
-.dark .bg-particle {
-  opacity: 0.35;
+
+.otp-boxes {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
 }
-.dark .login-card,
-.dark .modal-content,
-.dark .custom-select-list {
-  background: #110e20;
-  border-color: rgba(255, 255, 255, 0.08);
+
+.otp-box {
+  width: 44px;
+  height: 52px;
+  min-width: 0;
+  flex: 0 1 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.375rem;
+  font-weight: 700;
+  text-align: center;
 }
-.dark .login-title,
-.dark .modal-title {
-  color: #f0eaff;
+
+.otp-box:focus {
+  outline: none;
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 2px var(--color-focus);
 }
-.dark .login-subtitle,
-.dark .modal-subtitle,
-.dark .otp-prompt {
-  color: #a79bd0;
+
+.otp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 8px;
 }
-.dark .input-field {
-  background: #1e1b4b;
-  border-color: #312e81;
-  color: #e5e7eb;
-}
-.dark .input-field::placeholder {
-  color: #7a6fa3;
-}
-.dark .input-field:focus {
-  border-color: #8b5cf6;
-  background: #1e1b4b;
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
-}
-.dark .input-field.error,
-.dark .input-field.error:focus {
-  border-color: #f87171;
-  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.16);
-}
-.dark .custom-select-group {
-  color: #a79bd0;
-}
-.dark .custom-select-option {
-  color: #e5e7eb;
-}
-.dark .custom-select-option:hover,
-.dark .custom-select-option.highlighted {
-  background: rgba(139, 92, 246, 0.18);
-}
-.dark .divider {
-  color: #7a6fa3;
-}
-.dark .divider::before,
-.dark .divider::after,
-.dark .modal-header {
-  border-color: rgba(255, 255, 255, 0.08);
-}
-.dark .modal-close {
-  background: #1e1b4b;
-  color: #c4b5fd;
-}
-.dark .modal-close:hover {
-  background: #312e81;
-  color: #f0eaff;
-}
-.dark .error-msg {
-  background: rgba(220, 38, 38, 0.15);
-  color: #fca5a5;
-  border-color: rgba(248, 113, 113, 0.35);
-}
-.dark .success-msg {
-  background: rgba(5, 150, 105, 0.15);
-  color: #6ee7b7;
-  border-color: rgba(52, 211, 153, 0.35);
-}
-.dark .back-to-login {
-  color: #c4b5fd;
+
+.resend-timer {
+  padding: 8px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
 }

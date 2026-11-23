@@ -22,11 +22,13 @@ body {
 }
 
 /* ── Input fields ──────────────────────────────────────────────────────────── */
+/* Border and focus colors come from tokens.css: the field boundary keeps
+   3:1 against the field, and the placeholder keeps 4.5:1, in both themes. */
 .input-field {
   width: 100%;
   padding: 0.6rem 0.9rem;
   background: #f9fafb;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--color-border);
   color: #1f2937;
   border-radius: 12px;
   font-family: "Inter", sans-serif;
@@ -37,23 +39,26 @@ body {
     box-shadow 0.2s;
   display: block;
 }
+.input-field::placeholder {
+  color: var(--color-placeholder);
+}
 .input-field:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 2px var(--color-focus);
   background: white;
 }
 
 .dark .input-field {
   background: #1e1b4b;
-  border-color: #312e81;
+  border-color: var(--color-border);
   color: #e5e7eb;
 }
 .dark .input-field:focus {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 2px var(--color-focus);
 }
 .dark .input-field::placeholder {
-  color: #5a4878;
+  color: var(--color-placeholder);
 }
 
 /* Invalid state — red border plus a "Missing input." line under the field. */
@@ -408,14 +413,6 @@ body.mobile-menu-open {
 .dark .report-modal-close:hover {
   background: rgba(139, 92, 246, 0.15);
   color: #ede9fe;
-}
-
-.bg-particle {
-  position: fixed;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  animation: float 20s infinite ease-in-out;
-  z-index: 0;
 }
 
 /* ── Toast ───────────────────────────────────────────────────────────────── */

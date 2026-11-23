@@ -48,8 +48,20 @@ function hideMessage(el) {
 }
 
 // FUNC-001 REQT-008, FUNC-002 REQT-006: an empty or rejected field turns red.
-function setFieldError(field, hasError) {
-  field?.classList.toggle("error", hasError);
+// When the field has a .field-error line (linked by aria-describedby), the
+// message shows there, beside the field.
+function setFieldError(field, hasError, message = "") {
+  if (!field) return;
+  field.classList.toggle("error", hasError);
+  field.toggleAttribute("aria-invalid", hasError);
+  const errorLine = (field.getAttribute("aria-describedby") || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((id) => document.getElementById(id))
+    .find((el) => el?.classList.contains("field-error"));
+  if (!errorLine) return;
+  errorLine.textContent = hasError ? message : "";
+  errorLine.hidden = !(hasError && message);
 }
 
 // ── OTP box auto-advance ──────────────────────────────────────────────
@@ -77,20 +89,18 @@ let verifiedEmail = "";
 let pendingFormData = null;
 let resendInterval = null;
 
+const REG_STEP_LABELS = {
+  1: "Step 1 of 2: Account details",
+  2: "Step 2 of 2: Verify your USC email",
+};
+
 function showRegStep(step) {
-  document.getElementById("registerForm").style.display = step === 1 ? "" : "none";
-  document.getElementById("regStep2").style.display = step === 2 ? "" : "none";
+  document.getElementById("registerForm").hidden = step !== 1;
+  document.getElementById("regStep2").hidden = step !== 2;
   document.getElementById("registerError").style.display = "none";
   document.getElementById("registerSuccess").style.display = "none";
-  const d1 = document.getElementById("stepDot1");
-  const d2 = document.getElementById("stepDot2");
-  if (step === 1) {
-    d1.style.cssText = "width:20px;height:8px;border-radius:4px;background:#6d28d9;transition:all .3s;";
-    d2.style.cssText = "width:8px;height:8px;border-radius:50%;background:#d1d5db;transition:all .3s;";
-  } else {
-    d1.style.cssText = "width:8px;height:8px;border-radius:50%;background:#6d28d9;transition:all .3s;";
-    d2.style.cssText = "width:20px;height:8px;border-radius:4px;background:#6d28d9;transition:all .3s;";
-  }
+  document.getElementById("regStepLabel").textContent = REG_STEP_LABELS[step];
+  if (step === 1) document.getElementById("regEmail").focus();
 }
 
 function startResendTimer(seconds) {
@@ -161,7 +171,7 @@ async function handleVerifyOtp() {
       errorEl.textContent = vData.message || "Incorrect code.";
       errorEl.style.display = "block";
       btn.disabled = false;
-      btn.textContent = "Verify & Create Account";
+      btn.textContent = "Verify & create account";
       return;
     }
 
@@ -179,7 +189,7 @@ async function handleVerifyOtp() {
         successEl.style.display = "block";
         setTimeout(() => { window.location.replace("index.html"); }, 1000);
       } else {
-        successEl.textContent = "Account created! You can now log in.";
+        successEl.textContent = "Account created! You can now sign in.";
         successEl.style.display = "block";
         setTimeout(closeRegisterModal, 2000);
       }
@@ -187,12 +197,12 @@ async function handleVerifyOtp() {
       errorEl.textContent = rData.message || "Registration failed.";
       errorEl.style.display = "block";
       btn.disabled = false;
-      btn.textContent = "Verify & Create Account";
+      btn.textContent = "Verify & create account";
     }
   } catch {
     showMessage(errorEl, NETWORK_ERROR);
     btn.disabled = false;
-    btn.textContent = "Verify & Create Account";
+    btn.textContent = "Verify & create account";
   }
 }
 
@@ -253,7 +263,7 @@ async function handleVerifyOtp() {
 
   const updateButtonLabel = () => {
     const selected = options.find((opt) => opt.value === courseSelect.value);
-    const labelText = selected ? selected.label : "Select your course";
+    const labelText = selected ? selected.label : "Select your degree program";
     const textSpan = courseButton.querySelector(".custom-select-label");
     if (textSpan) {
       textSpan.textContent = labelText;
@@ -361,8 +371,10 @@ async function handleVerifyOtp() {
   const handleKeyDown = (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && isOpen) {
+      // Close only the list, not the whole registration dialog.
       event.preventDefault();
+      event.stopPropagation();
       closeList();
       courseButton.focus();
       return;
@@ -540,9 +552,17 @@ async function handleVerifyOtp() {
   }
 })();
 
-// Modal functions
+// Modal functions. The dialog keeps keyboard focus inside while open and
+// returns it to whatever opened it when it closes.
+let registerModalOpener = null;
+
+function isRegisterModalOpen() {
+  return document.getElementById("registerModal").classList.contains("active");
+}
+
 function openRegisterModal() {
   const modal = document.getElementById("registerModal");
+  registerModalOpener = document.activeElement;
   modal.classList.add("active");
   document.getElementById("registerForm").reset();
   document.getElementById("regEmail").value = "";
@@ -558,7 +578,11 @@ function openRegisterModal() {
 }
 
 function closeRegisterModal() {
+  if (!isRegisterModalOpen()) return;
   document.getElementById("registerModal").classList.remove("active");
+  const opener = registerModalOpener || document.getElementById("openRegisterBtn");
+  registerModalOpener = null;
+  opener?.focus();
 }
 
 function closeModalOnOutsideClick(event) {
@@ -567,10 +591,29 @@ function closeModalOnOutsideClick(event) {
   }
 }
 
-// Escape key to close modal
+// Escape closes the dialog; Tab and Shift+Tab wrap inside it.
 document.addEventListener("keydown", (e) => {
+  if (!isRegisterModalOpen()) return;
   if (e.key === "Escape") {
     closeRegisterModal();
+    return;
+  }
+  if (e.key !== "Tab") return;
+  const dialog = document.querySelector("#registerModal .modal-content");
+  const focusable = [
+    ...dialog.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]):not([type="hidden"]), [tabindex="0"]',
+    ),
+  ].filter((el) => el.getClientRects().length > 0);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+    e.preventDefault();
+    first.focus();
   }
 });
 
@@ -610,7 +653,7 @@ async function handleLogin(e) {
   }
 
   loginBtn.disabled = true;
-  loginBtn.textContent = "Logging in...";
+  loginBtn.textContent = "Signing in…";
 
   try {
     const data = await postJson("/api/login", { username, password });
@@ -625,7 +668,7 @@ async function handleLogin(e) {
     showMessage(errorEl, NETWORK_ERROR);
   }
   loginBtn.disabled = false;
-  loginBtn.textContent = "Log In";
+  loginBtn.textContent = "Sign in";
 }
 
 // Register handler — Step 1: validate form, send OTP, advance to step 2
@@ -646,11 +689,11 @@ async function handleRegister(e) {
   );
   const errorEl = document.getElementById("registerError");
   const registerBtn = document.getElementById("registerBtn");
-  const markRed = (key, hasError) =>
-    setFieldError(key === "course" ? courseButton : fields[key], hasError);
+  const markRed = (key, hasError, message) =>
+    setFieldError(key === "course" ? courseButton : fields[key], hasError, message);
+  // A rejected value gets its message beside the field.
   const fail = (key, message) => {
-    markRed(key, true);
-    showMessage(errorEl, message);
+    markRed(key, true, message);
     (key === "course" ? courseButton : fields[key]).focus();
   };
 
@@ -660,7 +703,7 @@ async function handleRegister(e) {
   // Every empty field turns red and nothing is sent (REQT-006).
   const missing = Object.keys(fields).filter((key) => !values[key]);
   if (missing.length) {
-    missing.forEach((key) => markRed(key, true));
+    missing.forEach((key) => markRed(key, true, "Required."));
     showMessage(errorEl, "Input required data.");
     (missing[0] === "course" ? courseButton : fields[missing[0]]).focus();
     return;
@@ -701,9 +744,10 @@ async function handleRegister(e) {
       startResendTimer(60);
       document.querySelector(".otp-box")?.focus();
     } else {
-      if (data.field === "username") markRed("username", true);
-      if (/email/i.test(data.message || "")) markRed("email", true);
-      showMessage(errorEl, data.message || "Failed to send code. Try again.");
+      const message = data.message || "Failed to send code. Try again.";
+      if (data.field === "username") markRed("username", true, message);
+      else if (/email/i.test(message)) markRed("email", true, message);
+      else showMessage(errorEl, message);
       if (data.retryAfterSeconds) {
         startResendTimer(data.retryAfterSeconds);
       }
@@ -712,7 +756,7 @@ async function handleRegister(e) {
     showMessage(errorEl, NETWORK_ERROR);
   } finally {
     registerBtn.disabled = false;
-    registerBtn.textContent = "Register";
+    registerBtn.textContent = "Send verification code";
   }
 }
 
