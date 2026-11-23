@@ -10,9 +10,9 @@
   };
 
   const TRUST_TONE_CLASSES = {
-    high: ["text-green-500", "dark:text-green-400"],
-    mid: ["text-yellow-500", "dark:text-yellow-400"],
-    low: ["text-red-500", "dark:text-red-400"],
+    high: ["trust-high"],
+    mid: ["trust-mid"],
+    low: ["trust-low"],
   };
   // Also used by Notebook Details for the author's trust score.
   app.trustToneClasses = function trustToneClasses(score) {
@@ -97,8 +97,7 @@
     profile.portfolios.forEach((portfolio) => {
       const div = document.createElement("button");
       div.type = "button";
-      div.className =
-        "block w-full text-left text-sm py-1 border-b border-purple-100 dark:border-white/[0.05] hover:text-purple-700 dark:hover:text-purple-200 transition";
+      div.className = "panel-list-item";
       div.textContent = portfolio.title;
       div.addEventListener("click", () =>
         app.openNotebookDetails(portfolio.id, {
@@ -110,8 +109,8 @@
       const statusLabel = MODERATION_LABELS[portfolio.status];
       if (statusLabel) {
         const label = document.createElement("span");
-        label.className = "ml-1 text-xs font-semibold text-red-500 dark:text-red-400";
-        label.textContent = `(${statusLabel})`;
+        label.className = "status-pill status-pending";
+        label.textContent = statusLabel;
         div.appendChild(label);
       }
       portfolioList.appendChild(div);
@@ -123,7 +122,7 @@
     matchList.innerHTML = "";
     if (!profile.matches?.length) {
       const empty = document.createElement("p");
-      empty.className = "text-xs text-purple-300";
+      empty.className = "panel-empty";
       empty.textContent = "No matches yet.";
       matchList.appendChild(empty);
       return;
@@ -133,9 +132,9 @@
     // opens their profile page; the flag reports the account (FUNC-015 REQT-002).
     profile.matches.forEach((match) => {
       const div = document.createElement("div");
-      div.className = "flex items-center justify-between gap-2 text-xs text-purple-400";
+      div.className = "panel-match";
       const name = document.createElement("a");
-      name.className = "min-w-0 break-words hover:underline hover:text-purple-600 dark:hover:text-purple-200";
+      name.className = "text-link";
       name.href = `profile.html?user=${encodeURIComponent(match.username)}`;
       name.textContent = `@${match.username}`;
       const right = document.createElement("span");
@@ -146,8 +145,7 @@
       setTrustTone(score, Number(match.trustScore));
       const report = document.createElement("button");
       report.type = "button";
-      report.className =
-        "inline-flex items-center justify-center w-6 h-6 rounded-md text-gray-400 dark:text-purple-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition";
+      report.className = "icon-btn icon-btn-sm";
       report.title = "Report";
       report.setAttribute("aria-label", `Report @${match.username}`);
       const flag = document.createElement("i");

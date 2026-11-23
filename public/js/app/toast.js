@@ -19,8 +19,7 @@
     }
 
     toast.textContent = current;
-    toast.className =
-      "toast fixed bottom-24 right-6 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium z-50 transition-all duration-300";
+    toast.className = "toast";
     toast.style.display = "block";
     toast.style.opacity = "1";
     toast.style.transform = "translateY(0)";

@@ -5,6 +5,13 @@
     return document.getElementById("searchInput")?.value?.toLowerCase() || "";
   }
 
+  // Size labels arrive upper case ("QUICK REVIEW"); labels read in sentence case.
+  function sentenceCase(text) {
+    const lower = String(text).toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }
+  app.sentenceCase = sentenceCase;
+
   function escapeHtml(value) {
     return String(value ?? "").replace(
       /[&<>"']/g,
@@ -73,7 +80,10 @@
     // Changing degree program only applies to Browse subjects.
     document
       .getElementById("programPicker")
-      ?.classList.toggle("hidden", app.state.currentFilter !== "all");
+      ?.classList.toggle(
+        "hidden",
+        app.state.currentFilter !== "all" || Boolean(app.state.selectedSubject),
+      );
     const browsingSubjects =
       app.state.currentFilter === "all" &&
       !app.state.selectedSubject &&
@@ -97,9 +107,16 @@
     }
 
     if (app.state.selectedSubject) {
-      sectionTitle.textContent = app.state.selectedSubject;
+      const subject = (app.state.subjects || []).find(
+        (item) => item.code === app.state.selectedSubject,
+      );
+      sectionTitle.textContent = subject?.description
+        ? app.titleCase(subject.description)
+        : app.state.selectedSubject;
       if (sectionSubtitle) {
-        sectionSubtitle.textContent = "Notebooks for this subject";
+        sectionSubtitle.textContent = subject?.description
+          ? `${app.state.selectedSubject} notebooks shared by other students.`
+          : "Notebooks shared by other students.";
       }
       return;
     }
@@ -227,7 +244,7 @@
     reportBtn.type = "button";
     reportBtn.innerHTML = '<i data-lucide="flag" class="w-4 h-4"></i>';
     reportBtn.className =
-      "inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-lg border border-gray-200 dark:border-purple-500/30 text-gray-400 dark:text-purple-300 hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-400/40 transition";
+      "inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-lg border";
     reportBtn.title = "Report";
     reportBtn.setAttribute("aria-label", "Report this notebook");
     reportBtn.dataset.action = "report";
@@ -249,7 +266,7 @@
       const chatBadge = document.createElement("span");
       chatBadge.dataset.chatButtonBadge = "";
       chatBadge.className =
-        "bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 inline-flex items-center justify-center";
+        "text-xs font-bold rounded-full min-w-[20px] h-5 px-1 inline-flex items-center justify-center";
       chatBadge.textContent = unread > 9 ? "9+" : String(unread);
       chatBadge.classList.toggle("hidden", unread === 0);
       chatBtn.appendChild(chatBadge);
@@ -334,11 +351,11 @@
         : notebook.description
       : "No description provided";
 
-    const subjectLabel = escapeHtml(
-      [notebook.department || "General", notebook.course_code, "Reviewer"]
-        .filter(Boolean)
-        .join(" \u2022 "),
-    );
+    // Each fact is its own span; spacing separates them, not dots.
+    const subjectLabel = [notebook.course_code, notebook.department || "General"]
+      .filter(Boolean)
+      .map((part) => `<span class="card-subject-text">${escapeHtml(part)}</span>`)
+      .join("");
     // FUNC-007 REQT-002: the author's stored trust score.
     const trustScore = escapeHtml(notebook.trustScore ?? 100);
     const trustTone = app.trustTone(Number(notebook.trustScore ?? 100));
@@ -347,7 +364,7 @@
     const description = escapeHtml(displayDesc);
     const metrics = app.notebookMetrics(notebook);
 
-    card.className = "notebook-card fade-in";
+    card.className = "notebook-card";
     card.innerHTML = `
       <div class="card-top">
         <div>
@@ -360,10 +377,10 @@
       </div>
 
       <div class="card-subject-row">
-        <span class="card-subject-text">${subjectLabel}</span>
+        ${subjectLabel}
       </div>
 
-      ${metrics.size ? `<div class="card-badge-row"><span class="card-badge">${escapeHtml(metrics.size)}</span></div>` : ""}
+      ${metrics.size ? `<div class="card-badge-row"><span class="card-badge">${escapeHtml(sentenceCase(metrics.size))}</span></div>` : ""}
 
       ${
         metrics.pills.length
@@ -390,7 +407,7 @@
         }
         <div class="trust-score trust-${trustTone}">
           <i data-lucide="shield-check" class="w-4 h-4"></i>
-          ${trustScore}% Trust Score
+          Trust score ${trustScore}%
         </div>
       </div>
 

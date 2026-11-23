@@ -143,7 +143,7 @@
         const format = root.SWAPPRDates.formatLongDate;
         dates.textContent =
           data.chat.status === "active"
-            ? `Started ${format(data.chat.created_at)} · Closes ${format(data.chat.expires_at)}`
+            ? `Started ${format(data.chat.created_at)}. Closes ${format(data.chat.expires_at)}.`
             : `Ended ${format(data.chat.archived_at)}`;
       }
 

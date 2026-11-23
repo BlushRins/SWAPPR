@@ -23,14 +23,14 @@
     return document.getElementById(id);
   }
 
-  // "{code} · {title}"; just the code when the subject isn't loaded.
+  // "{title} ({code})"; just the code when the subject isn't loaded.
   function subjectText(notebook) {
     if (!notebook.course_code) return notebook.department || "";
     const subject = (app.state.subjects || []).find(
       (item) => item.code === notebook.course_code,
     );
     return subject?.description
-      ? `${notebook.course_code} · ${app.titleCase(subject.description)}`
+      ? `${app.titleCase(subject.description)} (${notebook.course_code})`
       : notebook.course_code;
   }
 
@@ -69,7 +69,7 @@
     if (metrics.size) {
       const badge = document.createElement("span");
       badge.className = "card-badge";
-      badge.textContent = metrics.size;
+      badge.textContent = app.sentenceCase(metrics.size);
       container.appendChild(badge);
     }
     const pills = [...metrics.pills];
@@ -207,7 +207,7 @@
     trust.className = `mt-3 inline-flex items-center gap-1.5 text-sm font-bold ${app
       .trustToneClasses(score)
       .join(" ")}`;
-    $("detailsTrustText").textContent = `${score}% Trust Score`;
+    $("detailsTrustText").textContent = `Trust score ${score}%`;
 
     renderActions(notebook, isOwn);
   }

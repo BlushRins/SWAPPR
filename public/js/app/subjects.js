@@ -254,14 +254,25 @@
     const visibleSubjects = app.getPaginatedItems(cardSubjects);
     app.renderPagination(cardSubjects.length);
 
+    // Notebooks already loaded for the feed give each subject a real count.
+    const counts = new Map();
+    for (const notebook of app.state.notebooks || []) {
+      counts.set(notebook.course_code, (counts.get(notebook.course_code) || 0) + 1);
+    }
+
     const list = document.createElement("ul");
     list.className = "subject-rows";
     visibleSubjects.forEach((subject) => {
-      const row = document.createElement("li");
+      const item = document.createElement("li");
+      // The whole row opens the subject; one target, one label.
+      const row = document.createElement("button");
+      row.type = "button";
       row.className = "subject-row";
-      const text = document.createElement("div");
+      row.setAttribute("aria-label", `View notebooks for ${subject.code}`);
+
+      const text = document.createElement("span");
       text.className = "subject-row-text";
-      const name = document.createElement("h3");
+      const name = document.createElement("span");
       name.className = "subject-row-name";
       name.textContent = subject.description ? app.titleCase(subject.description) : subject.code;
       const code = document.createElement("span");
@@ -269,15 +280,30 @@
       code.textContent = subject.code;
       text.append(name, code);
 
-      const action = document.createElement("button");
-      action.type = "button";
-      action.className = "btn-outline subject-row-action";
+      const side = document.createElement("span");
+      side.className = "subject-row-side";
+      const count = counts.get(subject.code);
+      if (count) {
+        const countEl = document.createElement("span");
+        countEl.className = "subject-row-count num";
+        countEl.textContent = `${count} notebook${count === 1 ? "" : "s"}`;
+        side.appendChild(countEl);
+      }
+      const action = document.createElement("span");
+      action.className = "subject-row-action";
       action.textContent = "View notebooks";
-      action.setAttribute("aria-label", `View notebooks for ${subject.code}`);
-      action.addEventListener("click", () => app.selectSubject(subject.code));
-      row.append(text, action);
-      list.appendChild(row);
+      const chevron = document.createElement("i");
+      chevron.dataset.lucide = "chevron-right";
+      chevron.className = "w-4 h-4";
+      chevron.setAttribute("aria-hidden", "true");
+      side.append(action, chevron);
+
+      row.append(text, side);
+      row.addEventListener("click", () => app.selectSubject(subject.code));
+      item.appendChild(row);
+      list.appendChild(item);
     });
     grid.appendChild(list);
+    root.lucide?.createIcons();
   };
 })(window);

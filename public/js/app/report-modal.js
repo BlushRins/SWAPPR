@@ -9,16 +9,16 @@
       <button type="button" data-report-close class="report-modal-close" aria-label="Close">
         <i data-lucide="x" class="w-5 h-5"></i>
       </button>
-      <h3 class="text-xl font-extrabold mb-1 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2">
+      <h3 class="text-xl font-extrabold mb-1 pr-8 flex items-center gap-2">
         <i data-lucide="flag" class="w-5 h-5"></i>
         <span id="reportModalHeading">Report Notebook</span>
       </h3>
-      <p id="reportModalSubject" class="text-sm text-gray-500 dark:text-gray-400 mb-5 break-words"></p>
+      <p id="reportModalSubject" class="text-sm mb-5 break-words"></p>
 
       <div class="space-y-4">
         <div>
           <label for="reportReason" class="field-section-label">
-            Reason <span class="text-red-500">*</span>
+            Reason <span class="">*</span>
           </label>
           <select id="reportReason" class="input-field">
             <option value="" disabled selected>Select a reason</option>
@@ -33,7 +33,7 @@
 
         <div>
           <label for="reportDetails" class="field-section-label">
-            Details <span class="text-red-500">*</span>
+            Details <span class="">*</span>
           </label>
           <textarea id="reportDetails" rows="4" maxlength="500" class="input-field resize-none"></textarea>
           <p id="reportDetailsError" class="report-error hidden">Missing input.</p>
@@ -41,11 +41,11 @@
 
         <div class="flex justify-end gap-3 pt-2">
           <button type="button" data-report-close
-            class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition">
+            class="text-sm font-semibold px-4 py-2 rounded-lg">
             Cancel
           </button>
           <button id="reportSubmitBtn" type="button"
-            class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
+            class="btn-primary">
             Submit Report
           </button>
         </div>
@@ -135,7 +135,7 @@
     subject.replaceChildren();
     const strong = (text) => {
       const element = document.createElement("strong");
-      element.className = "text-gray-700 dark:text-purple-100";
+      element.className = "";
       element.textContent = text;
       return element;
     };

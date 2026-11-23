@@ -6,7 +6,10 @@
 
     const isDark = document.documentElement.classList.contains("dark");
     const nextIcon = isDark ? "sun" : "moon";
-    themeToggle.innerHTML = `<i data-lucide="${nextIcon}" class="w-5 h-5"></i>`;
+    themeToggle.innerHTML = `<i data-lucide="${nextIcon}" class="w-5 h-5" aria-hidden="true"></i>`;
+    const label = isDark ? "Switch to light theme" : "Switch to dark theme";
+    themeToggle.setAttribute("aria-label", label);
+    themeToggle.title = label;
     root.lucide?.createIcons();
   }
 

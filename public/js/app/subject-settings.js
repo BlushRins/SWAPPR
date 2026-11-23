@@ -42,7 +42,7 @@
     if (!app.state._allSubjects?.length) {
       const list = document.getElementById("subjectCheckboxList");
       if (list)
-        list.innerHTML = `<p class="text-sm text-purple-400 py-2 px-1">Loading subjects…</p>`;
+        list.innerHTML = `<p class="text-sm py-2 px-1">Loading subjects…</p>`;
       try {
         const data = await app.api.getSubjects("ALL");
         app.state._allSubjects = data.subjects || [];
@@ -72,7 +72,7 @@
     }
 
     if (subjects.length === 0) {
-      list.innerHTML = `<p class="text-sm text-purple-400 py-2 px-1">${q ? "No subjects match." : "No subjects found."}</p>`;
+      list.innerHTML = `<p class="text-sm py-2 px-1">${q ? "No subjects match." : "No subjects found."}</p>`;
       return;
     }
 
@@ -90,10 +90,10 @@
       group.open = true;
       group.className = "mb-1";
       const heading = document.createElement("summary");
-      heading.className = "cursor-pointer text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-400 py-1.5 px-1 select-none hover:text-purple-700 dark:hover:text-purple-200 transition";
+      heading.className = "panel-label cursor-pointer py-1.5 px-1 select-none";
       heading.append(department + " ");
       const count = document.createElement("span");
-      count.className = "font-normal normal-case text-gray-400";
+      count.className = "font-normal normal-case";
       count.textContent = `(${items.length})`;
       heading.append(count);
 
@@ -101,16 +101,16 @@
       choices.className = "pl-2";
       for (const subject of items) {
         const label = document.createElement("label");
-        label.className = "flex items-start gap-2 py-1 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded px-1";
+        label.className = "flex items-start gap-2 py-1 cursor-pointer rounded px-1";
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.className = "subj-cb accent-purple-600 w-4 h-4 mt-0.5 shrink-0";
+        checkbox.className = "subj-cb w-4 h-4 mt-0.5 shrink-0";
         checkbox.value = subject.code;
         checkbox.checked = selected.has(subject.code);
         const description = document.createElement("span");
-        description.className = "text-sm leading-snug text-gray-500 dark:text-gray-400";
+        description.className = "text-sm leading-snug";
         const code = document.createElement("span");
-        code.className = "font-semibold text-gray-800 dark:text-purple-100";
+        code.className = "font-semibold";
         code.textContent = subject.code;
         description.append(code, ` — ${subject.description || ""}`);
         label.append(checkbox, description);
