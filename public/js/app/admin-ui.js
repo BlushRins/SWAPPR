@@ -53,7 +53,7 @@
   const STATUSES = {
     notebook: {
       active: ["Active", "green"],
-      under_review: ["Under Review", "amber"],
+      under_review: ["Under review", "amber"],
       removed: ["Removed", "red"],
     },
     report: {
@@ -196,7 +196,9 @@
               {
                 type: "button",
                 class: `admin-sort${active ? " active" : ""}`,
-                title: `Sort by ${column.label}`,
+                title: direction
+                  ? `Sorted by ${column.label}, ${direction === "asc" ? "ascending" : "descending"}. Select to reverse.`
+                  : `Sort by ${column.label}`,
                 onClick: () => {
                   sort = {
                     key: column.key,

@@ -3059,3 +3059,75 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ── Admin tables (redesign PR 3): sentence-case headers, sort arrows that
+   stay visible, status badges with a border so state isn't color alone. ── */
+.admin-sort,
+.admin-table th:not(:has(.admin-sort)) {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-text);
+  min-height: 44px;
+}
+.admin-sort:hover,
+.admin-sort.active,
+.dark .admin-sort:hover,
+.dark .admin-sort.active {
+  color: var(--color-primary);
+}
+.dark .admin-sort,
+.dark .admin-table th:not(:has(.admin-sort)) {
+  color: var(--color-text);
+}
+.admin-sort-arrow {
+  font-size: 0.75rem;
+  opacity: 1;
+  color: var(--color-text-muted);
+}
+.admin-sort.active .admin-sort-arrow {
+  color: var(--color-primary);
+}
+.admin-badge {
+  border: 1px solid currentColor;
+}
+.admin-row:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+/* ── Publishing: optional counts grouped under one disclosure. ── */
+.optional-details > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.optional-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.dark .field-hint {
+  color: var(--color-text-muted);
+}
+
+/* Field labels: sentence case at text contrast (was #9b8ec4, 3.0:1 on white). */
+.field-section-label,
+.dark .field-section-label {
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-text);
+}

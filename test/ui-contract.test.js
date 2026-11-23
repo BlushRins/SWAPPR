@@ -115,3 +115,34 @@ test("notebook actions say Open notebook and Request swap", () => {
   assert.match(notebooks, /Request swap/);
   assert.doesNotMatch(notebooks, /UNLOCK VIA SWAP/);
 });
+
+test("publishing groups optional counts and explains the file link", () => {
+  const index = read("index.html");
+  const form = index.slice(index.indexOf('id="addModal"'), index.indexOf('id="portfolioActionBtn"'));
+  const details = form.match(/<details id="optionalNotebookDetails"[\s\S]*?<\/details>/)?.[0];
+  assert.ok(details, "counts sit in an Optional notebook details disclosure");
+  assert.match(details, /<summary>Optional notebook details<\/summary>/);
+  for (const id of ["newWordCount", "newPageCount", "newDiagramCount"]) {
+    assert.match(details, new RegExp(`id="${id}"`));
+  }
+  const order = ["newTitle", "newSubject", "newFileUrl", "optionalNotebookDetails"].map((id) =>
+    form.indexOf(`id="${id}"`),
+  );
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "title, subject and link come first");
+  assert.match(form, /id="newFileUrlHint"[^>]*>[\s\S]*anyone with the link can\s+view/);
+  for (const id of ["newTitle", "newSubject", "newFileUrl", "newDescription"]) {
+    assert.match(form, new RegExp(`<label for="${id}"`), `#${id} has a label`);
+  }
+});
+
+test("the profile shows notebooks before About, under a short header", () => {
+  const profile = read("profile.html");
+  assert.ok(profile.indexOf('id="notebooksList"') < profile.indexOf('id="aboutCard"'));
+  assert.match(profile, /\.cover \{\s*height: 88px;/);
+});
+
+test("admin status labels are words in sentence case", () => {
+  const adminUi = read("js/app/admin-ui.js");
+  assert.match(adminUi, /under_review: \["Under review"/);
+  assert.match(adminUi, /Sorted by \$\{column\.label\}/);
+});
