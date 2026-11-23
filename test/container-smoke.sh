@@ -24,7 +24,7 @@ start_container() {
     -e "APP_ORIGIN=${origin}" -e "SESSION_SECRET=${session_secret}" \
     -p 127.0.0.1::3000 "${image}" >/dev/null
   base_url="http://$(docker port "${container}" 3000/tcp)"
-  if ! curl --fail --silent --show-error --max-time 3 --retry 8 --retry-delay 1 --retry-connrefused \
+  if ! curl --fail --silent --show-error --max-time 3 --retry 8 --retry-delay 1 --retry-connrefused --retry-all-errors \
     "${base_url}/login.html" --output /dev/null; then
     docker logs "${container}" >&2 || true
     return 1
