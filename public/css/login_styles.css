@@ -1,3 +1,9 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: brand · redesign: full
+ * paper: #f7f5fa / #15121f · accent: #5735ad / #c4b2ff · display: Inter · body: Inter
+ * nav: none (sign-in) · signature: the sign-in form on the first screen · states: error, sending, verify
+ * axes: light/grotesk-sans/chromatic-violet · posture: settled · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E5 S3 R5 V3 · weakest: S, a sign-in form is generic by nature; the one sentence about swapping notebooks carries the product */
+
 /* Sign-in page and registration dialog. Colors come from tokens.css, so
    dark mode (FUNC-005: .dark on <html>, set by login-theme.js) needs no
    separate overrides here. */
@@ -6,6 +12,11 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: clip;
 }
 
 body {
@@ -32,7 +43,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 32px 16px;
+  padding: var(--space-xl) var(--space-md);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -41,7 +52,7 @@ body {
 .auth-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-sm);
 }
 
 .auth-logo {
@@ -58,7 +69,7 @@ body {
 }
 
 .auth-intro {
-  margin: 12px 0 20px;
+  margin: var(--space-sm) 0 var(--space-lg);
   font-size: 0.9375rem;
   line-height: 1.5;
   color: var(--color-text-muted);
@@ -68,11 +79,11 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-md);
-  padding: 24px;
+  padding: var(--space-lg);
 }
 
 .auth-title {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-md);
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-text);
@@ -80,12 +91,12 @@ body {
 
 /* ── Fields ────────────────────────────────────────────────────────────── */
 .field {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-md);
 }
 
 .field-label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-xs);
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text);
@@ -93,7 +104,7 @@ body {
 
 .field-hint,
 .field-error {
-  margin: 6px 0 0;
+  margin: var(--space-xs) 0 0;
   font-size: 0.8125rem;
   line-height: 1.4;
 }
@@ -115,7 +126,7 @@ body {
   display: block;
   width: 100%;
   min-height: 44px;
-  padding: 10px 12px;
+  padding: var(--space-sm) var(--space-sm);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -128,27 +139,22 @@ body {
   color: var(--color-placeholder);
 }
 
+/* Focus is an outline ring, never only a border change. */
 .input-field:focus {
-  outline: none;
-}
-
-.input-field:focus-visible,
-.input-field:focus {
-  border-color: var(--color-focus);
-  box-shadow: 0 0 0 2px var(--color-focus);
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
 }
 
 /* FUNC-001 REQT-008, FUNC-002 REQT-006: an empty or rejected field turns red. */
-.input-field.error,
-.input-field.error:focus {
+.input-field.error {
   border-color: var(--color-error);
-  box-shadow: 0 0 0 1px var(--color-error);
+  box-shadow: inset 0 0 0 1px var(--color-error);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 @media (max-width: 400px) {
@@ -164,7 +170,7 @@ body {
   display: block;
   width: 100%;
   min-height: 44px;
-  padding: 10px 16px;
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
   font: inherit;
   font-size: 1rem;
@@ -205,7 +211,7 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 8px;
+  padding: var(--space-xs);
   border: none;
   background: none;
   color: var(--color-primary);
@@ -220,13 +226,13 @@ body {
 #registerForm .btn-link {
   display: flex;
   width: 100%;
-  margin-top: 8px;
+  margin-top: var(--space-xs);
 }
 
 .divider {
   display: flex;
   align-items: center;
-  margin: 20px 0 12px;
+  margin: var(--space-lg) 0 var(--space-sm);
   font-size: 0.875rem;
   color: var(--color-text-muted);
 }
@@ -239,15 +245,15 @@ body {
 }
 
 .divider span {
-  padding: 0 12px;
+  padding: 0 var(--space-sm);
 }
 
 /* ── Messages ──────────────────────────────────────────────────────────── */
 .error-msg,
 .success-msg {
   display: none;
-  margin-bottom: 16px;
-  padding: 10px 12px;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-sm);
   border-radius: var(--radius-sm);
   border: 1px solid currentColor;
   font-size: 0.875rem;
@@ -274,7 +280,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -307,16 +313,14 @@ body {
 }
 
 .custom-select-group {
-  padding: 10px 12px 4px;
+  padding: var(--space-sm) var(--space-sm) var(--space-2xs);
   font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--color-text-muted);
 }
 
 .custom-select-option {
-  padding: 10px 12px;
+  padding: var(--space-sm) var(--space-sm);
   font-size: 0.9375rem;
   color: var(--color-text);
   cursor: pointer;
@@ -335,8 +339,8 @@ body {
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  background: rgba(21, 18, 31, 0.6);
+  padding: var(--space-md);
+  background: var(--color-overlay);
 }
 
 .modal-overlay.active {
@@ -355,7 +359,7 @@ body {
 
 .modal-header {
   position: relative;
-  padding: 20px 56px 16px 24px;
+  padding: var(--space-lg) var(--space-2xl) var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--color-divider);
 }
 
@@ -388,26 +392,26 @@ body {
 }
 
 .reg-step {
-  margin: 4px 0 0;
+  margin: var(--space-2xs) 0 0;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-primary);
 }
 
 .modal-body {
-  padding: 20px 24px 24px;
+  padding: var(--space-lg) var(--space-lg) var(--space-lg);
 }
 
 /* ── Step 2: one-time code ─────────────────────────────────────────────── */
 .otp-prompt {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-md);
   font-size: 0.9375rem;
   color: var(--color-text-muted);
 }
 
 .otp-email {
   display: block;
-  margin-top: 2px;
+  margin-top: var(--space-3xs);
   color: var(--color-text);
   word-break: break-all;
 }
@@ -415,8 +419,8 @@ body {
 .otp-boxes {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
 }
 
 .otp-box {
@@ -445,12 +449,17 @@ body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
-  margin-top: 8px;
+  gap: var(--space-2xs);
+  margin-top: var(--space-xs);
 }
 
 .resend-timer {
-  padding: 8px;
+  padding: var(--space-xs);
   font-size: 0.875rem;
   color: var(--color-text-muted);
+}
+
+.btn-primary-solid:active,
+.btn-secondary:active {
+  transform: translateY(1px);
 }
