@@ -23,29 +23,14 @@
     return document.getElementById(id);
   }
 
-  // Subject titles are stored in upper case (courses.db). Small joining words
-  // stay lower case and Roman numerals stay upper case: "Web Development II".
-  const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "for", "in", "of", "on", "or", "the", "to", "with"]);
-  function titleCase(text) {
-    return String(text)
-      .toLowerCase()
-      .split(" ")
-      .map((word, index) => {
-        if (/^[ivx]+$/.test(word)) return word.toUpperCase();
-        if (index > 0 && SMALL_WORDS.has(word)) return word;
-        return word.replace(/^\w/, (ch) => ch.toUpperCase());
-      })
-      .join(" ");
-  }
-
   // "{code} · {title}"; just the code when the subject isn't loaded.
   function subjectText(notebook) {
-    if (!notebook.course_code) return "—";
+    if (!notebook.course_code) return notebook.department || "";
     const subject = (app.state.subjects || []).find(
       (item) => item.code === notebook.course_code,
     );
     return subject?.description
-      ? `${notebook.course_code} · ${titleCase(subject.description)}`
+      ? `${notebook.course_code} · ${app.titleCase(subject.description)}`
       : notebook.course_code;
   }
 
@@ -99,6 +84,14 @@
       container.appendChild(element);
     });
     container.classList.toggle("hidden", !container.children.length);
+  }
+
+  // The one metric shown beside the summary: pages, else words, else size.
+  function summaryMetric(notebook) {
+    const has = (value) => value !== null && value !== undefined && value !== "";
+    if (has(notebook.pageCount)) return `${Number(notebook.pageCount).toLocaleString()} pages`;
+    if (has(notebook.wordCount)) return `${Number(notebook.wordCount).toLocaleString()} words`;
+    return app.notebookMetrics(notebook).size || "";
   }
 
   function renderLikeButton(notebook) {
@@ -169,22 +162,14 @@
     // The author can always open their own file.
     ownActions.appendChild(app.createAccessButton(notebook));
     if (notebook.status !== "removed") {
-      const editBtn = button(
-        "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition shadow-sm",
-        "pencil",
-        "Edit",
-      );
+      const editBtn = button("btn-outline", "pencil", "Edit");
       editBtn.addEventListener("click", () => {
         app.closeNotebookDetails();
         app.openEditNotebookModal(notebook);
       });
       ownActions.appendChild(editBtn);
     }
-    const deleteBtn = button(
-      "inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border-2 border-red-200 dark:border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 font-semibold transition",
-      "trash-2",
-      "Delete",
-    );
+    const deleteBtn = button("btn-danger-outline", "trash-2", "Delete");
     deleteBtn.addEventListener("click", () => deleteNotebook(notebook));
     ownActions.appendChild(deleteBtn);
     container.appendChild(ownActions);
@@ -210,11 +195,16 @@
     $("detailsStatus").classList.toggle("hidden", !isOwn);
     $("detailsStatus").textContent = STATUS_LABELS[status] || status;
 
+    const metric = summaryMetric(notebook);
+    $("detailsSummaryMetric").textContent = metric;
+    $("detailsSummaryMetric").classList.toggle("hidden", !metric);
+    $("detailsAccessNote").textContent = app.notebookAccessNote(notebook);
+
     renderMetrics(notebook);
 
     const score = Number(notebook.trustScore ?? 100);
     const trust = $("detailsTrust");
-    trust.className = `mt-4 inline-flex items-center gap-1.5 text-sm font-bold ${app
+    trust.className = `mt-3 inline-flex items-center gap-1.5 text-sm font-bold ${app
       .trustToneClasses(score)
       .join(" ")}`;
     $("detailsTrustText").textContent = `${score}% Trust Score`;
