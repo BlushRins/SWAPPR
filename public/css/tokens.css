@@ -1,0 +1,72 @@
+/* SWAPPR design tokens ("Campus Library" direction).
+   Loaded before every page's own stylesheet. Pages adopt these variables
+   screen by screen; contrast ratios below were checked against WCAG 2.2 AA
+   (4.5:1 text, 3:1 control boundaries and focus indicators). */
+
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-canvas: #f7f5fa;
+  --color-surface: #ffffff;
+  --color-text: #242032; /* 15.8:1 on surface */
+  --color-text-muted: #5c566b; /* 7.0:1 on surface */
+  --color-placeholder: #6e6880; /* 5.3:1 on surface */
+  --color-border: #8d86a0; /* 3.5:1 on surface: field boundaries */
+  --color-divider: #e4e0ec; /* decorative only */
+
+  --color-primary: #5735ad; /* 8.3:1 with white text */
+  --color-primary-hover: #482a93;
+  --color-on-primary: #ffffff;
+  --color-primary-soft: #efeafb;
+  --color-focus: #5735ad;
+
+  --color-error: #b42318; /* 6.6:1 on surface */
+  --color-error-bg: #fef3f2;
+  --color-success: #067647; /* 5.4:1 on success bg */
+  --color-success-bg: #ecfdf3;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --shadow-dialog: 0 20px 48px rgba(36, 32, 50, 0.18);
+}
+
+.dark {
+  --color-canvas: #15121f;
+  --color-surface: #1f1b2c;
+  --color-text: #ece8f5; /* 13.9:1 on surface */
+  --color-text-muted: #b3abc8; /* 7.7:1 on surface */
+  --color-placeholder: #9d95b5; /* 5.9:1 on surface */
+  --color-border: #7d7594; /* 3.9:1 on surface */
+  --color-divider: #322c44;
+
+  --color-primary: #c4b2ff; /* 9.3:1 with dark text */
+  --color-primary-hover: #d5c8ff;
+  --color-on-primary: #1b1530;
+  --color-primary-soft: #2b2440;
+  --color-focus: #c4b2ff; /* 8.9:1 on surface */
+
+  --color-error: #fda29b; /* 8.6:1 on surface */
+  --color-error-bg: #3a1d22;
+  --color-success: #75e0a7; /* 10.4:1 on surface */
+  --color-success-bg: #163227;
+
+  --shadow-dialog: 0 20px 48px rgba(0, 0, 0, 0.55);
+}
+
+/* Keyboard focus is always visible. Mouse clicks do not show the ring. */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Reduced motion: no animation or transition anywhere in the app. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

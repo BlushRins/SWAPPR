@@ -3,11 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SWAPPR — Login</title>
+    <title>SWAPPR — Sign in</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="css/tokens.css" />
     <link rel="stylesheet" href="css/login_styles.css" />
     <link rel="stylesheet" href="css/tailwind.css" />
     <script src="js/login-theme.js"></script>
@@ -18,282 +19,249 @@
   </head>
 
   <body>
-    <!-- Background particles -->
-    <div
-      class="bg-particle"
-      style="
-        width: 300px;
-        height: 300px;
-        top: 10%;
-        left: 5%;
-        animation-delay: 0s;
-      "
-    ></div>
-    <div
-      class="bg-particle"
-      style="
-        width: 200px;
-        height: 200px;
-        top: 60%;
-        left: 10%;
-        animation-delay: 5s;
-      "
-    ></div>
-    <div
-      class="bg-particle"
-      style="
-        width: 250px;
-        height: 250px;
-        top: 30%;
-        right: 10%;
-        animation-delay: 3s;
-      "
-    ></div>
-    <div
-      class="bg-particle"
-      style="
-        width: 180px;
-        height: 180px;
-        bottom: 20%;
-        right: 15%;
-        animation-delay: 7s;
-      "
-    ></div>
+    <main class="auth-shell">
+      <header class="auth-brand">
+        <img
+          src="Images/swappr_logo_updated.jpg"
+          alt=""
+          class="auth-logo"
+          id="loginBrandLogo"
+          width="40"
+          height="40"
+        />
+        <span class="auth-wordmark">SWAPPR</span>
+      </header>
 
-    <!-- MAIN CONTAINER -->
-    <div class="container">
-      <div class="content-wrapper">
-        <!-- LEFT SIDE - BRANDING -->
-        <div class="branding">
-          <div class="logo-section">
-            <img
-              src="Images/swappr_logo_updated.jpg"
-              alt="SWAPPR Logo"
-              class="logo-img"
-              id="loginBrandLogo"
-            />
-            <h1 class="brand-name">SWAPPR</h1>
-          </div>
+      <p class="auth-intro">
+        Swap study notebooks with other USC students: share one of yours,
+        open one of theirs.
+      </p>
 
-          <p class="tagline">
-            Connect with students, trade notes, and achieve academic success
-            together.
-          </p>
+      <section class="auth-card" aria-labelledby="signInTitle">
+        <h1 id="signInTitle" class="auth-title">Sign in</h1>
 
-          <div class="features">
-            <div class="feature-item">
-              <i data-lucide="book-open" class="feature-icon"></i>
-              <span>Exchange study materials instantly</span>
-            </div>
-            <div class="feature-item">
-              <i data-lucide="handshake" class="feature-icon"></i>
-              <span>Find your perfect study partner</span>
-            </div>
-            <div class="feature-item">
-              <i data-lucide="target" class="feature-icon"></i>
-              <span>Improve grades through collaboration</span>
-            </div>
-          </div>
-        </div>
+        <div id="loginError" class="error-msg" role="alert"></div>
 
-        <!-- RIGHT SIDE - LOGIN CARD -->
-        <div class="login-card">
-          <h2 class="login-title">Welcome Back</h2>
-          <p class="login-subtitle">Sign in to continue to SWAPPR</p>
-
-          <div id="loginError" class="error-msg"></div>
-
-          <form id="loginForm" novalidate>
+        <form id="loginForm" novalidate>
+          <div class="field">
+            <label for="loginUsername" class="field-label">Username</label>
             <input
               type="text"
               id="loginUsername"
-              placeholder="Username"
               class="input-field"
               autocomplete="username"
               required
             />
+          </div>
+          <div class="field">
+            <label for="loginPassword" class="field-label">Password</label>
             <input
               type="password"
               id="loginPassword"
-              placeholder="Password"
               class="input-field"
               autocomplete="current-password"
               required
             />
-            <button type="submit" class="btn-login" id="loginBtn">
-              Log In
-            </button>
-          </form>
-
-          <div class="divider">
-            <span>or</span>
           </div>
-
-          <button data-action="openRegisterModal" class="btn-register">
-            Create New Account
+          <button type="submit" class="btn-primary-solid" id="loginBtn">
+            Sign in
           </button>
-        </div>
-      </div>
-    </div>
+        </form>
 
-    <!-- REGISTRATION MODAL -->
+        <div class="divider"><span>New to SWAPPR?</span></div>
+
+        <button
+          type="button"
+          data-action="openRegisterModal"
+          class="btn-secondary"
+          id="openRegisterBtn"
+        >
+          Create an account
+        </button>
+      </section>
+    </main>
+
+    <!-- REGISTRATION DIALOG -->
     <div
       id="registerModal"
       class="modal-overlay"
       data-action="closeModalOnOutsideClick-overlay"
     >
-      <div class="modal-content">
+      <div
+        class="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="registerTitle"
+        aria-describedby="regStepLabel"
+      >
         <div class="modal-header">
-          <button class="modal-close" data-action="closeRegisterModal">
-            <i data-lucide="x" class="w-5 h-5"></i>
+          <button
+            type="button"
+            class="modal-close"
+            data-action="closeRegisterModal"
+            aria-label="Close"
+          >
+            <i data-lucide="x" class="w-5 h-5" aria-hidden="true"></i>
           </button>
-          <h2 class="modal-title">Create Account</h2>
-          <p class="modal-subtitle">Join SWAPPR and start collaborating</p>
-
-          <!-- Step indicator -->
-          <div style="display:flex;align-items:center;gap:6px;margin-top:12px;justify-content:center;">
-            <div id="stepDot1" style="width:20px;height:8px;border-radius:4px;background:#6d28d9;transition:all .3s;"></div>
-            <div id="stepDot2" style="width:8px;height:8px;border-radius:50%;background:#d1d5db;transition:all .3s;"></div>
-          </div>
+          <h2 id="registerTitle" class="modal-title">Create an account</h2>
+          <p id="regStepLabel" class="reg-step" aria-live="polite">
+            Step 1 of 2: Account details
+          </p>
         </div>
         <div class="modal-body">
-          <div id="registerError" class="error-msg"></div>
-          <div id="registerSuccess" class="success-msg"></div>
+          <div id="registerError" class="error-msg" role="alert"></div>
+          <div id="registerSuccess" class="success-msg" role="status"></div>
 
-          <!-- ── STEP 1: Full registration form ── -->
+          <!-- ── STEP 1: Account details ── -->
           <form id="registerForm" novalidate>
-            <input
-              type="email"
-              id="regEmail"
-              placeholder="USC Email (e.g. 23200114@usc.edu.ph)"
-              class="input-field"
-              autocomplete="email"
-              style="margin-bottom:12px;"
-              required
-            />
+            <div class="field">
+              <label for="regEmail" class="field-label">USC email</label>
+              <input
+                type="email"
+                id="regEmail"
+                class="input-field"
+                autocomplete="email"
+                aria-describedby="regEmailHint regEmailError"
+                required
+              />
+              <p id="regEmailHint" class="field-hint">
+                Your student number, then @usc.edu.ph. Example:
+                23200114@usc.edu.ph
+              </p>
+              <p id="regEmailError" class="field-error" hidden></p>
+            </div>
             <div class="form-row">
+              <div class="field">
+                <label for="regName" class="field-label">Full name</label>
+                <input
+                  type="text"
+                  id="regName"
+                  maxlength="100"
+                  class="input-field"
+                  autocomplete="name"
+                  aria-describedby="regNameError"
+                  required
+                />
+                <p id="regNameError" class="field-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="regStudentId" class="field-label">Student ID</label>
+                <input
+                  type="text"
+                  id="regStudentId"
+                  maxlength="64"
+                  inputmode="numeric"
+                  class="input-field"
+                  autocomplete="off"
+                  aria-describedby="regStudentIdHint regStudentIdError"
+                  required
+                />
+                <p id="regStudentIdHint" class="field-hint">
+                  Same number as your email.
+                </p>
+                <p id="regStudentIdError" class="field-error" hidden></p>
+              </div>
+            </div>
+            <div class="field">
+              <span id="regCourseLabel" class="field-label">Degree program</span>
+              <div class="custom-select-wrapper">
+                <select id="regCourse" class="hidden" aria-hidden="true" tabindex="-1">
+                  <option value="">Select your degree program</option>
+                </select>
+                <button
+                  type="button"
+                  id="regCourseButton"
+                  class="input-field custom-select-button"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                  aria-labelledby="regCourseLabel regCourseButton"
+                  aria-describedby="regCourseError"
+                >
+                  <span class="custom-select-label">Select your degree program</span>
+                  <span class="custom-select-icon" aria-hidden="true">▾</span>
+                </button>
+                <div
+                  id="regCourseList"
+                  class="custom-select-list hidden"
+                  role="listbox"
+                  aria-labelledby="regCourseLabel"
+                  tabindex="0"
+                ></div>
+              </div>
+              <p id="regCourseError" class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="regUsername" class="field-label">Username</label>
               <input
                 type="text"
-                id="regName" maxlength="100"
-                placeholder="Full name"
+                id="regUsername"
+                maxlength="40"
                 class="input-field"
-                autocomplete="name"
+                autocomplete="username"
+                aria-describedby="regUsernameHint regUsernameError"
                 required
               />
+              <p id="regUsernameHint" class="field-hint">
+                Letters, digits, dots, underscores or hyphens.
+              </p>
+              <p id="regUsernameError" class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="regPassword" class="field-label">Password</label>
               <input
-                type="text"
-                id="regStudentId" maxlength="64" inputmode="numeric"
-                placeholder="Student ID"
+                type="password"
+                id="regPassword"
                 class="input-field"
-                autocomplete="off"
+                autocomplete="new-password"
+                aria-describedby="regPasswordHint regPasswordError"
                 required
+                minlength="8"
+                maxlength="128"
               />
+              <p id="regPasswordHint" class="field-hint">At least 8 characters.</p>
+              <p id="regPasswordError" class="field-error" hidden></p>
             </div>
-            <div class="custom-select-wrapper" style="position: relative; width: 100%; margin-bottom: 1rem;">
-              <select id="regCourse" class="input-field" style="display: none;">
-                <option value="">Select your course</option>
-              </select>
-              <button
-                type="button"
-                id="regCourseButton"
-                class="input-field custom-select-button"
-                aria-haspopup="listbox"
-                aria-expanded="false"
-              >
-                <span class="custom-select-label">Select your course</span>
-                <span class="custom-select-icon">▾</span>
-              </button>
-              <div id="regCourseList" class="custom-select-list hidden" role="listbox" tabindex="0"></div>
-            </div>
-            <input
-              type="text"
-              id="regUsername" maxlength="40"
-              placeholder="Username"
-              class="input-field"
-              style="margin-bottom: 12px"
-              autocomplete="username"
-              required
-            />
-            <input
-              type="password"
-              id="regPassword"
-              placeholder="New password (min. 8 characters)"
-              class="input-field"
-              autocomplete="new-password"
-              required
-              minlength="8" maxlength="128"
-            />
-            <button type="submit" class="btn-signup" id="registerBtn">
-              Register
+            <button type="submit" class="btn-primary-solid" id="registerBtn">
+              Send verification code
             </button>
             <!-- FUNC-002 REQT-002 -->
-            <button type="button" class="back-to-login" data-action="closeRegisterModal">
-              Back to Log In
+            <button type="button" class="btn-link" data-action="closeRegisterModal">
+              Back to sign in
             </button>
           </form>
 
-          <!-- ── STEP 2: OTP verification ── -->
-          <div id="regStep2" style="display:none;">
-            <p class="otp-prompt">Enter the 6-digit code sent to</p>
-            <p id="otpEmailLabel" style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:20px;word-break:break-all;"></p>
+          <!-- ── STEP 2: Verify your USC email ── -->
+          <div id="regStep2" hidden>
+            <p class="otp-prompt" id="otpPrompt">
+              Enter the 6-digit code sent to
+              <strong id="otpEmailLabel" class="otp-email"></strong>
+            </p>
 
-            <div id="otpBoxes" style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;">
-              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" />
-              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" />
-              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" />
-              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" />
-              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" />
-              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" />
+            <div id="otpBoxes" class="otp-boxes" role="group" aria-labelledby="otpPrompt">
+              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" aria-label="Digit 1" />
+              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" aria-label="Digit 2" />
+              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" aria-label="Digit 3" />
+              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" aria-label="Digit 4" />
+              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" aria-label="Digit 5" />
+              <input type="text" maxlength="1" class="otp-box" inputmode="numeric" pattern="[0-9]" aria-label="Digit 6" />
             </div>
 
-            <button type="button" id="verifyOtpBtn" class="btn-signup" data-action="handleVerifyOtp" style="margin-bottom:12px;">
-              Verify &amp; Create Account
+            <button type="button" id="verifyOtpBtn" class="btn-primary-solid" data-action="handleVerifyOtp">
+              Verify &amp; create account
             </button>
-            <div style="text-align:center;">
-              <button type="button" id="resendBtn" data-action="handleResend" style="background:none;border:none;font-size:13px;color:#6d28d9;cursor:pointer;text-decoration:underline;">
+            <div class="otp-actions">
+              <button type="button" id="resendBtn" class="btn-link" data-action="handleResend">
                 Resend code
               </button>
-              <span id="resendTimer" style="font-size:13px;color:#9ca3af;display:none;"></span>
-            </div>
-            <div style="text-align:center;margin-top:10px;">
-              <button type="button" data-action="back-to-registration" style="background:none;border:none;font-size:13px;color:#9ca3af;cursor:pointer;">
-                ← Back to form
+              <span id="resendTimer" class="resend-timer" style="display: none"></span>
+              <button type="button" class="btn-link" data-action="back-to-registration">
+                Back to account details
               </button>
             </div>
           </div>
-
         </div>
       </div>
     </div>
-
-    <style>
-      .otp-box {
-        width: 44px;
-        height: 52px;
-        text-align: center;
-        font-size: 22px;
-        font-weight: 700;
-        border: 2px solid #d1d5db;
-        border-radius: 10px;
-        outline: none;
-        color: #4f46e5;
-        background: #f9fafb;
-        transition: border-color 0.2s;
-      }
-      .otp-box:focus {
-        border-color: #6d28d9;
-        background: #fff;
-      }
-      .dark .otp-box {
-        background: #1e1b4b;
-        border-color: #312e81;
-        color: #c4b5fd;
-      }
-      .dark .otp-box:focus {
-        border-color: #8b5cf6;
-        background: #1e1b4b;
-      }
-    </style>
 
     <script src="js/login.js"></script>
   </body>
