@@ -514,8 +514,8 @@
     if (!button) return;
     const editing = Boolean(app.state.editingNotebookId);
     button.disabled = isSaving;
-    if (isSaving) button.textContent = editing ? "Saving..." : "Publishing...";
-    else button.textContent = editing ? "Save Changes" : "Publish Notebook";
+    if (isSaving) button.textContent = editing ? "Saving…" : "Publishing…";
+    else button.textContent = editing ? "Save changes" : "Publish notebook";
   }
 
   app.submitPortfolio = async function submitPortfolio() {

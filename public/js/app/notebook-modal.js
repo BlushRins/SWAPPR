@@ -27,6 +27,8 @@
       if (parsed.ok) counts[key] = parsed.value;
       else valid = false;
     }
+    // A count error inside the collapsed group must be visible.
+    if (!valid) document.getElementById("optionalNotebookDetails").open = true;
     return valid ? counts : null;
   };
 
@@ -83,12 +85,13 @@
       setCountError(key, false);
     });
     Object.keys(REQUIRED_FIELDS).forEach((field) => app.setNotebookFieldError(field, false));
-    if (actionBtn) actionBtn.textContent = "Publish Notebook";
+    if (actionBtn) actionBtn.textContent = "Publish notebook";
+    document.getElementById("optionalNotebookDetails").open = false;
   };
 
   app.openAddModal = function openAddModal() {
     app.state.editingNotebookId = null;
-    document.getElementById("modalHeading").textContent = "New Notebook";
+    document.getElementById("modalHeading").textContent = "New notebook";
     app.clearPortfolioForm();
 
     // Pre-select the subject the user drilled into, if any.
@@ -125,7 +128,7 @@
 
   app.openEditNotebookModal = function openEditNotebookModal(notebook) {
     app.state.editingNotebookId = notebook.id;
-    document.getElementById("modalHeading").textContent = "Edit Notebook";
+    document.getElementById("modalHeading").textContent = "Edit notebook";
     document.getElementById("newTitle").value = notebook.title || "";
     document.getElementById("newDescription").value = notebook.description || "";
     selectSubject(notebook.course_code || "");
@@ -138,7 +141,11 @@
     Object.keys(REQUIRED_FIELDS).forEach((field) => app.setNotebookFieldError(field, false));
 
     const actionBtn = document.getElementById("portfolioActionBtn");
-    if (actionBtn) actionBtn.textContent = "Save Changes";
+    if (actionBtn) actionBtn.textContent = "Save changes";
+    // Show the counts when the notebook already has some.
+    document.getElementById("optionalNotebookDetails").open = Object.keys(COUNT_FIELDS).some(
+      (key) => notebook[key] !== null && notebook[key] !== undefined && notebook[key] !== "",
+    );
 
     document.getElementById("addModal").classList.remove("hidden");
     setTimeout(() => root.lucide?.createIcons(), 100);

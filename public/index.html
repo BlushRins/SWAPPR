@@ -543,77 +543,84 @@
           id="modalHeading"
           class="text-2xl font-extrabold mb-5 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2"
         >
-          <i data-lucide="book-open" class="w-6 h-6"></i>
-          New Notebook
+          New notebook
         </h3>
         <div class="space-y-4">
           <div>
-            <label class="field-section-label"
-              >Title <span class="text-red-500">*</span></label
+            <label for="newTitle" class="field-section-label"
+              >Title <span class="text-red-500" aria-hidden="true">*</span></label
             >
             <input
               type="text"
               id="newTitle" maxlength="120"
               class="input-field"
               placeholder="e.g. Data Structures Notes"
+              aria-describedby="newTitleError"
               required
             />
             <p id="newTitleError" class="report-error hidden">Missing input.</p>
           </div>
           <div>
-            <label class="field-section-label">Short Description</label>
-            <textarea
-              id="newDescription" maxlength="3000"
-              rows="3"
-              class="input-field resize-none"
-              placeholder="What's this notebook about? Help others discover your content!"
-            ></textarea>
-          </div>
-          <div>
-            <label class="field-section-label">Subject</label>
+            <label for="newSubject" class="field-section-label">Subject</label>
             <select id="newSubject" class="input-field">
               <!-- Options populated dynamically by populateSubjectDropdown() from /api/subjects -->
               <option value="">— Select subject —</option>
             </select>
           </div>
           <div>
-            <label class="field-section-label"
-              >File URL
-              <span class="text-purple-400 font-normal normal-case"
-                >(Google Drive, Notion, etc.)</span
-              >
-              <span class="text-red-500">*</span></label
+            <label for="newFileUrl" class="field-section-label"
+              >Link to your notes <span class="text-red-500" aria-hidden="true">*</span></label
             >
             <input
               type="url"
               id="newFileUrl"
               class="input-field"
               placeholder="https://drive.google.com/…"
+              aria-describedby="newFileUrlHint newFileUrlError"
+              required
             />
+            <p id="newFileUrlHint" class="field-hint">
+              Paste a share link to your file, such as Google Drive, OneDrive or Notion.
+              Set it so anyone with the link can view, or your swap partner can't open it.
+            </p>
             <p id="newFileUrlError" class="report-error hidden">Missing input.</p>
           </div>
-          <!-- Optional counts: drive the card's size label and reading time (FUNC-007 REQT-002) -->
-          <div class="grid grid-cols-3 gap-3">
-            <div>
-              <label for="newWordCount" class="field-section-label">Word count</label>
-              <input id="newWordCount" type="text" inputmode="numeric" maxlength="7" class="input-field" placeholder="6200" />
-              <p id="newWordCountError" class="report-error hidden">Enter a whole number.</p>
-            </div>
-            <div>
-              <label for="newPageCount" class="field-section-label">Page count</label>
-              <input id="newPageCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="40" />
-              <p id="newPageCountError" class="report-error hidden">Enter a whole number.</p>
-            </div>
-            <div>
-              <label for="newDiagramCount" class="field-section-label">Diagram count</label>
-              <input id="newDiagramCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="12" />
-              <p id="newDiagramCountError" class="report-error hidden">Enter a whole number.</p>
-            </div>
+          <div>
+            <label for="newDescription" class="field-section-label">Short description</label>
+            <textarea
+              id="newDescription" maxlength="3000"
+              rows="3"
+              class="input-field resize-none"
+              placeholder="What does it cover? Which lessons or exams is it for?"
+            ></textarea>
           </div>
+          <!-- Optional counts: drive the card's size label and reading time (FUNC-007 REQT-002) -->
+          <details id="optionalNotebookDetails" class="optional-details">
+            <summary>Optional notebook details</summary>
+            <p class="field-hint">Counts help other students judge the notebook's size and reading time.</p>
+            <div class="optional-details-grid">
+              <div>
+                <label for="newWordCount" class="field-section-label">Word count</label>
+                <input id="newWordCount" type="text" inputmode="numeric" maxlength="7" class="input-field" placeholder="6200" />
+                <p id="newWordCountError" class="report-error hidden">Enter a whole number.</p>
+              </div>
+              <div>
+                <label for="newPageCount" class="field-section-label">Page count</label>
+                <input id="newPageCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="40" />
+                <p id="newPageCountError" class="report-error hidden">Enter a whole number.</p>
+              </div>
+              <div>
+                <label for="newDiagramCount" class="field-section-label">Diagram count</label>
+                <input id="newDiagramCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="12" />
+                <p id="newDiagramCountError" class="report-error hidden">Enter a whole number.</p>
+              </div>
+            </div>
+          </details>
           <div class="flex justify-end gap-3 pt-2">
             <button
+              type="button"
               data-action="closeAddModal"
-              class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+              class="btn-outline"
             >
               Cancel
             </button>
@@ -621,9 +628,9 @@
               id="portfolioActionBtn"
               type="button"
               data-action="submitPortfolio"
-              class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+              class="btn-solid"
             >
-              Publish Notebook
+              Publish notebook
             </button>
           </div>
         </div>
