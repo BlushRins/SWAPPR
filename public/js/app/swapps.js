@@ -148,7 +148,10 @@
         <div class="request-card-head">
           <div class="min-w-0">
             <p class="request-title">@${escapeHtml(swapp.sender)} wants to swap</p>
-            <p class="request-meta">Pending your approval · Trust score ${escapeHtml(swapp.senderTrustScore ?? 100)}%</p>
+            <p class="request-meta request-meta-row">
+              <span>Pending your approval</span>
+              <span>Trust score ${escapeHtml(swapp.senderTrustScore ?? 100)}%</span>
+            </p>
             ${sentLabel(swapp)}
           </div>
           <span class="status-pill status-pending">${state ? escapeHtml(BUSY_LABELS[state]) : "Pending"}</span>

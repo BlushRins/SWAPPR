@@ -22,10 +22,10 @@
         { key: "department", label: "Department", render: (row) => row.department || "—" },
         {
           key: "createdAt",
-          label: "Date Created",
+          label: "Date created",
           render: (row) => ui.formatDate(row.createdAt),
         },
-        { key: "reportCount", label: "Report Count", className: "admin-col-num" },
+        { key: "reportCount", label: "Report count", className: "admin-col-num" },
         {
           key: "status",
           label: "Status",

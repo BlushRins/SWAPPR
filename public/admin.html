@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SWAPPR — Admin Panel</title>
+    <title>Moderation | SWAPPR</title>
+    <meta name="description" content="SWAPPR moderation: flagged notebooks, reports and user accounts." />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
@@ -15,48 +16,36 @@
     <script src="js/actions.js"></script>
   </head>
 
-  <body
-    class="font-sans min-h-screen overflow-x-hidden transition-colors duration-300 text-gray-900 dark:text-purple-100 bg-transparent"
-  >
-    <!-- Header -->
-    <header
-      class="w-full overflow-hidden px-4 py-4 flex items-center justify-between gap-3 bg-gradient-to-r from-[#0f172a] via-[#4f46e5] to-[#9333ea] text-white sticky top-0 z-40 shadow-lg"
-    >
-      <a href="#notebooks" data-view="notebooks" class="flex items-center gap-2 shrink-0 min-w-0">
-        <i data-lucide="repeat" class="w-6 h-6"></i>
-        <h1
-          class="text-2xl font-extrabold tracking-tight truncate text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-500 dark:from-purple-300 dark:to-indigo-300"
-        >
-          SWAPPR
-        </h1>
-        <span class="admin-pill">Admin</span>
+  <body>
+    <!-- Header: wordmark, admin tag, theme, account -->
+    <header class="app-bar">
+      <a href="#notebooks" data-view="notebooks" class="app-brand">
+        <i data-lucide="repeat" class="app-brand-icon" aria-hidden="true"></i>
+        <span class="app-brand-name">SWAPPR</span>
+        <span class="admin-tag">Admin</span>
       </a>
-      <div class="flex items-center gap-2 min-w-0 flex-nowrap">
-        <span
-          class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-btn text-xs font-bold text-[#4a0080] dark:text-[#d0c0f8]"
-        >
-          <i data-lucide="shield" class="w-4 h-4"></i>
+      <div class="app-bar-actions">
+        <span class="hidden sm:inline-flex account-btn account-static">
+          <i data-lucide="shield" class="w-4 h-4" aria-hidden="true"></i>
           <span id="adminName"></span>
         </span>
         <button
           id="themeToggle"
-          class="w-8 h-8 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
-          title="Toggle theme"
-          aria-label="Toggle theme"
+          type="button"
+          class="icon-btn"
+          title="Switch theme"
+          aria-label="Switch theme"
         >
           <i data-lucide="moon" class="w-5 h-5"></i>
         </button>
-        <button
-          data-action="adminLogout"
-          class="hidden md:inline-flex text-xs font-bold px-3 py-1.5 rounded-full glass-btn hover:bg-red-500/20 hover:scale-105 transition"
-        >
-          Logout
+        <button type="button" data-action="adminLogout" class="hidden md:inline-flex btn-outline">
+          Log out
         </button>
         <button
           id="mobileMenuToggle"
           type="button"
           data-action="toggleMobileMenu"
-          class="md:hidden w-9 h-9 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
+          class="md:hidden icon-btn"
           aria-label="Open menu"
           aria-expanded="false"
           aria-controls="mobileMenu"
@@ -69,61 +58,58 @@
     <!-- Mobile navigation -->
     <div id="mobileMenuOverlay" class="mobile-menu-overlay" data-action="closeMobileMenu"></div>
     <nav id="mobileMenu" class="mobile-menu" aria-label="Admin navigation">
-      <p class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400">
-        Admin Panel
+      <p class="panel-label mb-2 px-2">
+        Moderation
       </p>
-      <a href="#notebooks" data-view="notebooks" class="sidebar-link active flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
-        <span class="flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4"></i>Flagged Notebooks</span>
+      <a href="#notebooks" data-view="notebooks" class="sidebar-link active flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold">
+        <span class="flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4"></i>Flagged notebooks</span>
         <span data-count="notebooks" class="admin-count hidden">0</span>
       </a>
-      <a href="#reports" data-view="reports" class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+      <a href="#reports" data-view="reports" class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold">
         <span class="flex items-center gap-2"><i data-lucide="file-warning" class="w-4 h-4"></i>Reports</span>
         <span data-count="reports" class="admin-count hidden">0</span>
       </a>
-      <a href="#users" data-view="users" class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
-        <i data-lucide="users" class="w-4 h-4"></i>User Accounts
+      <a href="#users" data-view="users" class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold">
+        <i data-lucide="users" class="w-4 h-4"></i>User accounts
       </a>
       <button
         data-action="adminLogout"
-        class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
+        class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold w-full text-left"
       >
         <i data-lucide="log-out" class="w-4 h-4"></i>
-        Logout
+        Log out
       </button>
     </nav>
 
-    <div class="flex min-w-0">
+    <div class="dashboard-shell">
       <!-- Sidebar (FUNC-016 REQT-002, REQT-003) -->
-      <aside
-        class="w-56 bg-white/70 backdrop-blur-md dark:bg-[#110e20] p-5 hidden md:flex flex-col gap-6 shrink-0 border-r border-purple-100 dark:border-white/[0.06] sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto"
+      <aside class="app-sidebar hidden md:flex" aria-label="Moderation"
       >
         <div>
-          <p class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400">
-            Admin Panel
+          <p class="panel-label mb-2 px-2">
+            Moderation
           </p>
           <nav class="space-y-1">
-            <a href="#notebooks" data-view="notebooks" class="sidebar-link active flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
-              <span class="flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4"></i>Flagged Notebooks</span>
+            <a href="#notebooks" data-view="notebooks" class="sidebar-link active flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold">
+              <span class="flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4"></i>Flagged notebooks</span>
               <span data-count="notebooks" class="admin-count hidden" title="Notebooks under review">0</span>
             </a>
-            <a href="#reports" data-view="reports" class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
+            <a href="#reports" data-view="reports" class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold">
               <span class="flex items-center gap-2"><i data-lucide="file-warning" class="w-4 h-4"></i>Reports</span>
               <span data-count="reports" class="admin-count hidden" title="Open reports">0</span>
             </a>
-            <a href="#users" data-view="users" class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition">
-              <i data-lucide="users" class="w-4 h-4"></i>User Accounts
+            <a href="#users" data-view="users" class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold">
+              <i data-lucide="users" class="w-4 h-4"></i>User accounts
             </a>
           </nav>
         </div>
       </aside>
 
-      <main class="flex-1 min-w-0 p-4 md:p-8">
-        <div class="max-w-7xl mx-auto">
-          <div class="mb-6">
-            <h2 id="adminTitle" class="text-3xl font-extrabold text-gray-800 dark:text-purple-100">
-              Flagged Notebooks
-            </h2>
-            <p id="adminSubtitle" class="text-sm text-gray-600 dark:text-gray-400 mt-1"></p>
+      <main class="dashboard-main">
+        <div class="page-column page-column-wide">
+          <div class="page-head">
+            <h1 id="adminTitle" class="page-title">Flagged notebooks</h1>
+            <p id="adminSubtitle" class="page-subtitle"></p>
           </div>
 
           <!-- ADM001 — Flagged Notebooks -->
@@ -184,7 +170,7 @@
         </button>
         <h3
           id="adminModalTitle"
-          class="text-xl font-extrabold mb-4 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2"
+          class="text-xl font-extrabold mb-4 pr-8 flex items-center gap-2"
         ></h3>
         <div id="adminModalBody"></div>
       </div>
@@ -196,7 +182,7 @@
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-2">
           <i data-lucide="user" class="w-5 h-5"></i>
-          <span class="text-sm font-extrabold tracking-widest uppercase text-purple-800 dark:text-purple-200">
+          <span class="panel-label">
             User Account
           </span>
         </div>
@@ -204,7 +190,7 @@
           type="button"
           data-action="closeAdminUserPanel"
           aria-label="Close"
-          class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-purple-400 hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
+          class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold"
         >
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>

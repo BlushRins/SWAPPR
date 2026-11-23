@@ -31,14 +31,14 @@
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.value = String(notebook.id);
-        checkbox.className = "accent-purple-600 w-4 h-4 mt-0.5 shrink-0";
+        checkbox.className = "w-4 h-4 mt-0.5 shrink-0";
         checkbox.addEventListener("change", () => setError(""));
 
         const title = document.createElement("span");
-        title.className = "text-sm font-semibold text-gray-800 dark:text-purple-100";
+        title.className = "text-sm font-semibold";
         title.textContent = notebook.title || "Untitled notebook";
         const subject = document.createElement("span");
-        subject.className = "block text-xs text-gray-500 dark:text-gray-400";
+        subject.className = "block text-xs";
         subject.textContent = notebook.course_code || notebook.department || "";
 
         const text = document.createElement("span");

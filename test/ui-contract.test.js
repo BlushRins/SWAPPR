@@ -85,12 +85,15 @@ for (const [theme, block] of [["light", ":root {"], ["dark", ".dark {"]]) {
 }
 
 test("dark app fields keep a readable placeholder and visible boundary", () => {
-  // styles.css paints dark fields #1e1b4b and takes both colors from tokens.
+  // styles.css paints fields with the surface token and takes the
+  // placeholder and border from tokens, so both themes share one rule.
   const dark = tokens(".dark {");
   const styles = read("css/styles.css");
-  assert.match(styles, /\.dark \.input-field::placeholder\s*{\s*color:\s*var\(--color-placeholder\)/);
-  assert.ok(contrast(dark["color-placeholder"], "1e1b4b") >= 4.5);
-  assert.ok(contrast(dark["color-border"], "1e1b4b") >= 3);
+  assert.match(styles, /\.input-field::placeholder\s*{\s*color:\s*var\(--color-placeholder\)/);
+  assert.match(styles, /\.input-field\s*{[^}]*background:\s*var\(--color-surface\)/);
+  assert.match(styles, /\.input-field\s*{[^}]*border:\s*1px solid var\(--color-border\)/);
+  assert.ok(contrast(dark["color-placeholder"], dark["color-surface"]) >= 4.5);
+  assert.ok(contrast(dark["color-border"], dark["color-surface"]) >= 3);
 });
 
 test("browse has one labelled search and a secondary degree-program control", () => {
@@ -135,14 +138,23 @@ test("publishing groups optional counts and explains the file link", () => {
   }
 });
 
-test("the profile shows notebooks before About, under a short header", () => {
+test("the profile shows notebooks before About, with no banner above them", () => {
   const profile = read("profile.html");
   assert.ok(profile.indexOf('id="notebooksList"') < profile.indexOf('id="aboutCard"'));
-  assert.match(profile, /\.cover \{\s*height: 88px;/);
+  assert.doesNotMatch(profile, /class="cover"/);
+  assert.doesNotMatch(profile, /<style>/, "profile styles live in the shared stylesheet");
 });
 
 test("admin status labels are words in sentence case", () => {
   const adminUi = read("js/app/admin-ui.js");
   assert.match(adminUi, /under_review: \["Under review"/);
   assert.match(adminUi, /Sorted by \$\{column\.label\}/);
+});
+
+test("app stylesheets take every colour from tokens", () => {
+  for (const file of ["css/styles.css", "css/login_styles.css"]) {
+    const css = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+    const literals = css.match(/#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch)\(/gi) || [];
+    assert.deepEqual(literals, [], `${file} has colour literals`);
+  }
 });

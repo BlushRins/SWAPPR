@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SWAPPR — My Profile</title>
+    <title>Profile | SWAPPR</title>
+    <meta name="description" content="A SWAPPR student profile: their notebooks, swap partners and standing." />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
@@ -12,344 +13,42 @@
     <link rel="stylesheet" href="css/styles.css" />
     <script src="js/vendor/lucide.js"></script>
     <script src="js/actions.js"></script>
-    <style>
-      /* ── Page surfaces ───────────────────────────────────────────────────── */
-      .page-bg {
-        background: #f3f2ee;
-      }
-      .dark .page-bg {
-        background: #0c0a18;
-      }
-
-      .card {
-        background: white;
-        border-radius: 10px;
-        border: 1px solid #e5e0f0;
-        overflow: hidden;
-      }
-      .dark .card {
-        background: #110e20;
-        border-color: rgba(255, 255, 255, 0.06);
-      }
-
-      /* ── Cover banner ────────────────────────────────────────────────────── */
-      .cover {
-        height: 88px;
-        background: linear-gradient(
-          135deg,
-          #4a0080 0%,
-          #5b5bd6 55%,
-          #9b8ec4 100%
-        );
-        position: relative;
-      }
-      .dark .cover {
-        background: linear-gradient(
-          135deg,
-          #2a0858 0%,
-          #383478 60%,
-          #1e1535 100%
-        );
-      }
-
-      /* ── Avatar ──────────────────────────────────────────────────────────── */
-      .avatar {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #4a0080, #5b5bd6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: white;
-        border: 4px solid white;
-        box-shadow: 0 2px 12px rgba(74, 0, 128, 0.25);
-        position: absolute;
-        bottom: -28px;
-        left: 24px;
-        flex-shrink: 0;
-      }
-      .dark .avatar {
-        border-color: #110e20;
-      }
-
-      /* ── Identity block ──────────────────────────────────────────────────── */
-      .identity {
-        padding: 40px 24px 16px;
-      }
-
-      .profile-name {
-        font-size: 1.35rem;
-        font-weight: 800;
-        color: #1e1033;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      .dark .profile-name {
-        color: #f0eaff;
-      }
-
-      .profile-tagline {
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: #4a3d6b;
-        margin-top: 2px;
-      }
-      .dark .profile-tagline {
-        color: #b8aee8;
-      }
-
-      .profile-meta {
-        font-size: 0.8rem;
-        color: #7a6e90;
-        margin-top: 4px;
-      }
-      .dark .profile-meta {
-        color: #8878b8;
-      }
-
-      .profile-stats {
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: #4a0080;
-        margin-top: 6px;
-      }
-      .dark .profile-stats {
-        color: #a090c8;
-      }
-      .profile-stats span {
-        margin-right: 12px;
-      }
-
-      /* ── Action buttons ──────────────────────────────────────────────────── */
-      .btn-action {
-        padding: 6px 18px;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        font-family: "Inter", sans-serif;
-        cursor: pointer;
-        transition:
-          opacity 0.2s,
-          transform 0.15s;
-        border: 1.5px solid transparent;
-      }
-      .btn-action-primary {
-        background: linear-gradient(135deg, #4a0080, #7b2fbe);
-        color: white;
-        box-shadow: 0 2px 8px rgba(74, 0, 128, 0.25);
-      }
-      .btn-action-primary:hover {
-        opacity: 0.88;
-        transform: translateY(-1px);
-      }
-      .btn-action-outline {
-        background: transparent;
-        border-color: #7b2fbe;
-        color: #7b2fbe;
-      }
-      .dark .btn-action-outline {
-        border-color: #9b8ec4;
-        color: #c4baf0;
-      }
-      .btn-action-outline:hover {
-        background: rgba(123, 47, 190, 0.07);
-      }
-
-      /* ── Section cards ───────────────────────────────────────────────────── */
-      .section-body {
-        padding: 20px 24px 24px;
-      }
-
-      .section-heading {
-        font-size: 1rem;
-        font-weight: 800;
-        color: #1e1033;
-        margin-bottom: 14px;
-      }
-      .dark .section-heading {
-        color: #f0eaff;
-      }
-
-      /* ── About ───────────────────────────────────────────────────────────── */
-      .about-text {
-        font-size: 0.875rem;
-        line-height: 1.75;
-        color: #3d3550;
-        white-space: pre-wrap;
-      }
-      .dark .about-text {
-        color: #c0b8d8;
-      }
-
-      /* ── Notebook card ───────────────────────────────────────────────────── */
-      .notebook-item {
-        padding: 16px;
-        border-radius: 10px;
-        border: 1px solid #ede9fe;
-        background: #faf5ff;
-        transition:
-          box-shadow 0.2s,
-          transform 0.15s;
-      }
-      .dark .notebook-item {
-        background: #181428;
-        border-color: rgba(255, 255, 255, 0.06);
-      }
-      .notebook-item:hover {
-        box-shadow: 0 4px 16px rgba(74, 0, 128, 0.1);
-        transform: translateY(-1px);
-      }
-      .notebook-title {
-        font-size: 0.9rem;
-        font-weight: 800;
-        color: #1e1033;
-      }
-      .dark .notebook-title {
-        color: #f0eaff;
-      }
-      .notebook-title-link {
-        display: block;
-        padding: 0;
-        border: none;
-        background: none;
-        text-align: left;
-        cursor: pointer;
-        overflow-wrap: anywhere;
-      }
-      .notebook-title-link:hover,
-      .notebook-title-link:focus-visible {
-        text-decoration: underline;
-      }
-      .notebook-dept {
-        font-size: 0.75rem;
-        color: #8878b8;
-        margin-top: 2px;
-      }
-
-      /* ── Match pill ──────────────────────────────────────────────────────── */
-      .match-pill {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
-        border-radius: 10px;
-        border: 1px solid #ede9fe;
-        background: white;
-        text-decoration: none;
-        transition: background 0.15s;
-      }
-      .dark .match-pill {
-        background: #181428;
-        border-color: rgba(255, 255, 255, 0.06);
-      }
-      .match-pill:hover {
-        background: #faf5ff;
-      }
-      .dark .match-pill:hover {
-        background: rgba(108, 96, 184, 0.1);
-      }
-      .match-avatar-sm {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #4a0080, #7b2fbe);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.7rem;
-        font-weight: 800;
-        color: white;
-        flex-shrink: 0;
-      }
-
-      /* ── Own badge ───────────────────────────────────────────────────────── */
-      .own-badge {
-        font-size: 0.62rem;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 999px;
-        background: rgba(74, 0, 128, 0.1);
-        color: #4a0080;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-      }
-      .dark .own-badge {
-        background: rgba(155, 142, 196, 0.15);
-        color: #9b8ec4;
-      }
-
-      /* ── Divider ─────────────────────────────────────────────────────────── */
-      .divider {
-        height: 1px;
-        background: #ede9fe;
-        margin: 16px 0;
-      }
-      .dark .divider {
-        background: rgba(255, 255, 255, 0.06);
-      }
-
-      /* ── Empty state ─────────────────────────────────────────────────────── */
-      .empty-state {
-        font-size: 0.85rem;
-        color: #9b8ec4;
-        font-style: italic;
-        padding: 8px 0;
-      }
-    </style>
     <link rel="stylesheet" href="css/tailwind.css" />
   </head>
 
-  <body class="page-bg font-sans min-h-screen transition-colors duration-300">
-    <!-- Header -->
-    <header
-      class="px-6 py-4 flex items-center justify-between bg-white dark:bg-[#110e20] border-b border-purple-100 dark:border-white/[0.06] sticky top-0 z-40 shadow-sm transition-colors duration-300"
-    >
-      <button
-        data-action="goHome"
-        class="flex items-center gap-2 cursor-pointer bg-transparent border-none p-0 hover:opacity-75 transition-opacity"
-      >
-        <span class="text-2xl">⇄</span>
-        <h1
-          class="text-2xl font-extrabold tracking-tight text-purple-800 dark:text-purple-300"
-          style="
-            text-shadow:
-              0 0 8px rgba(167, 139, 250, 0.8),
-              0 0 20px rgba(124, 58, 237, 0.5);
-          "
-        >
-          SWAPPR
-        </h1>
+  <body>
+    <!-- Header: wordmark, theme, log out -->
+    <header class="app-bar">
+      <button type="button" data-action="goHome" class="app-brand">
+        <i data-lucide="repeat" class="app-brand-icon" aria-hidden="true"></i>
+        <span class="app-brand-name">SWAPPR</span>
       </button>
-      <div class="flex items-center gap-3">
-        <button
-          id="themeToggle"
-          class="w-8 h-8 rounded-full flex items-center justify-center text-sm border bg-[#faf5ff] dark:bg-[#181428] border-[#ddd6fe] dark:border-white/[0.06] transition"
-        >
-          <i data-lucide="moon" class="w-4 h-4"></i>
+      <div class="app-bar-actions">
+        <button type="button" data-action="goHome" class="hidden md:inline-flex btn-outline">
+          Browse subjects
         </button>
         <button
-          data-action="handleLogout"
-          class="hidden md:inline-flex text-xs font-bold px-3 py-1.5 rounded-full border transition text-purple-700 dark:text-purple-300 border-purple-200 dark:border-white/[0.1] hover:bg-purple-50 dark:hover:bg-white/[0.05]"
+          id="themeToggle"
+          type="button"
+          class="icon-btn"
+          title="Switch theme"
+          aria-label="Switch theme"
         >
-          Logout
+          <i data-lucide="moon" class="w-5 h-5"></i>
+        </button>
+        <button type="button" data-action="handleLogout" class="hidden md:inline-flex btn-outline">
+          Log out
         </button>
         <button
           id="mobileMenuToggle"
           type="button"
           data-action="toggleMobileMenu"
-          class="md:hidden mobile-menu-button border border-purple-200 dark:border-white/[0.1]"
+          class="md:hidden icon-btn"
           aria-label="Open menu"
           aria-expanded="false"
           aria-controls="mobileMenu"
         >
-          <span></span>
-          <span></span>
-          <span></span>
+          <i data-mobile-menu-icon data-lucide="menu" class="w-5 h-5"></i>
         </button>
       </div>
     </header>
@@ -365,99 +64,75 @@
       aria-label="Mobile navigation"
     >
       <p
-        class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400"
+        class="panel-label mb-2 px-2"
       >
         Profile
       </p>
       <button
         data-action="goHome"
-        class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
+        class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold w-full text-left"
       >
-        Home
+        Browse subjects
       </button>
       <button
         data-action="handleLogout"
-        class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
+        class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold w-full text-left"
       >
-        Logout
+        Log out
       </button>
     </nav>
 
     <!-- Content -->
-    <div class="max-w-2xl mx-auto px-4 py-6 space-y-3">
-      <!-- ── Hero card ─────────────────────────────────────────────────────── -->
-      <div class="card">
-        <!-- Cover -->
-        <div class="cover" style="position: relative">
-          <div class="avatar" id="avatarEl"></div>
-        </div>
-
-        <!-- Identity -->
-        <div class="identity">
-          <div class="flex items-start justify-between gap-3 flex-wrap">
-            <div class="flex-1 min-w-0">
-              <div class="profile-name">
-                <span id="profileNameEl">—</span>
-                <span class="own-badge" id="ownBadge" style="display: none"
-                  >You</span
-                >
-              </div>
-              <p class="profile-tagline" id="profileTaglineEl">—</p>
-              <p class="profile-meta" id="profileMetaEl">—</p>
-              <p class="profile-stats" id="profileStatsEl"></p>
-              <p class="profile-stats" id="profileStandingEl"></p>
-            </div>
-            <!-- Action buttons -->
-            <div class="flex gap-2 shrink-0 pt-1" id="profileActions"></div>
+    <main class="page-column profile-page">
+      <section class="profile-identity" aria-labelledby="profileNameEl">
+        <div class="avatar" id="avatarEl" aria-hidden="true"></div>
+        <div class="profile-identity-text">
+          <div class="profile-name-row">
+            <h1 class="profile-name" id="profileNameEl">Loading profile…</h1>
+            <span class="own-badge" id="ownBadge" style="display: none">You</span>
           </div>
+          <p class="profile-tagline" id="profileTaglineEl"></p>
+          <p class="profile-meta" id="profileMetaEl"></p>
         </div>
-      </div>
+        <!-- Action buttons -->
+        <div class="profile-actions" id="profileActions"></div>
+      </section>
 
-      <!-- ── About ─────────────────────────────────────────────────────────── -->
-      <div class="card">
-        <div class="section-body">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="section-heading" style="margin-bottom: 0">Notebooks</h2>
-            <button
-              id="addNotebookBtn"
-              class="btn-solid hidden"
-              data-action="addNotebook"
-            >
-              Add notebook
-            </button>
-          </div>
-          <div id="notebooksList" class="space-y-3"></div>
-          <p id="noNotebooks" class="empty-state hidden">No notebooks yet.</p>
+      <dl class="profile-figures" aria-label="Profile figures">
+        <div class="profile-figures-group" id="profileStatsEl"></div>
+        <div class="profile-figures-group" id="profileStandingEl"></div>
+      </dl>
+
+      <section class="profile-section" aria-labelledby="notebooksHeading">
+        <div class="profile-section-head">
+          <h2 class="section-heading" id="notebooksHeading">Notebooks</h2>
+          <button
+            id="addNotebookBtn"
+            type="button"
+            class="btn-solid hidden"
+            data-action="addNotebook"
+          >
+            Add notebook
+          </button>
         </div>
-      </div>
+        <div id="notebooksList" class="profile-list"></div>
+        <p id="noNotebooks" class="empty-state hidden">No notebooks yet.</p>
+      </section>
 
-      <div class="card" id="aboutCard">
-        <div class="section-body">
-          <h2 class="section-heading">About</h2>
-          <p class="about-text" id="bioText">—</p>
-        </div>
-      </div>
+      <section class="profile-section" id="aboutCard" aria-labelledby="aboutHeading">
+        <h2 class="section-heading" id="aboutHeading">About</h2>
+        <p class="about-text" id="bioText"></p>
+      </section>
 
-      <!-- ── Notebooks ──────────────────────────────────────────────────────── -->
-      <!-- ── Connections ────────────────────────────────────────────────────── -->
-      <div class="card">
-        <div class="section-body">
-          <h2 class="section-heading">
-            SWAPP Matches
-            <span
-              id="matchCount"
-              class="text-sm font-semibold text-purple-400 ml-2"
-            ></span>
-          </h2>
-          <div
-            id="matchesList"
-            class="grid grid-cols-1 sm:grid-cols-2 gap-3"
-          ></div>
-          <p id="noMatches" class="empty-state hidden">No SWAPP matches yet.</p>
-        </div>
-      </div>
-    </div>
-
+      <section class="profile-section" aria-labelledby="partnersHeading">
+        <h2 class="section-heading" id="partnersHeading">
+          Swap partners
+          <span id="matchCount" class="section-count"></span>
+        </h2>
+        <div id="matchesList" class="partner-grid"></div>
+        <p id="noMatches" class="empty-state hidden">No swap partners yet.</p>
+      </section>
+    </main>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script src="js/auth-storage.js"></script>

@@ -31,9 +31,9 @@ function showToast(message) {
 // PNL001 colour bands for a trust score: 95%+ green, 85%+ yellow,
 // below that red (the same bands as index.html).
 function trustToneClass(score) {
-  if (score >= 95) return "text-green-500 dark:text-green-400";
-  if (score >= 85) return "text-yellow-500 dark:text-yellow-400";
-  return "text-red-500 dark:text-red-400";
+  if (score >= 95) return "trust-high";
+  if (score >= 85) return "trust-mid";
+  return "trust-low";
 }
 
 // Shown to the author only: other students never receive these notebooks.
@@ -93,25 +93,34 @@ function renderProfile(p) {
         .slice(0, 2)
     : p.username.slice(0, 2).toUpperCase();
   document.getElementById("avatarEl").textContent = initials;
-  document.title = `SWAPPR — ${p.name || p.username}`;
+  document.title = `${p.name || p.username} | SWAPPR`;
 
   // Name + tagline
   document.getElementById("profileNameEl").textContent =
     p.name || p.username;
   const taglineParts = [p.course, p.yearLevel].filter(Boolean);
   document.getElementById("profileTaglineEl").textContent =
-    taglineParts.join(" · ") || "No course set";
+    taglineParts.join(", ") || "No course set";
   const metaParts = [`@${p.username}`];
   if (p.studentId) metaParts.push(`ID: ${p.studentId}`);
   if (p.department) metaParts.push(p.department);
-  document.getElementById("profileMetaEl").textContent =
-    metaParts.join(" · ");
+  // Each fact is its own span; spacing separates them, not dots.
+  document.getElementById("profileMetaEl").replaceChildren(
+    ...metaParts.map((part) => {
+      const span = document.createElement("span");
+      span.textContent = part;
+      return span;
+    }),
+  );
 
   // Stats
+  // Figures: a number over its label, tabular numerals.
+  const figure = (value, label, className = "") =>
+    `<div class="profile-figure"><dt>${label}</dt><dd class="num ${className}">${value}</dd></div>`;
   document.getElementById("profileStatsEl").innerHTML =
-    `<span>${p.portfolios.length} Notebook${p.portfolios.length !== 1 ? "s" : ""}</span>` +
-    `<span>${p.matches.length} SWAPP Connection${p.matches.length !== 1 ? "s" : ""}</span>` +
-    `<span>${Number(p.completedSwapps) || 0} Completed SWAPP${p.completedSwapps !== 1 ? "s" : ""}</span>`;
+    figure(p.portfolios.length, "Notebooks") +
+    figure(p.matches.length, "Swap partners") +
+    figure(Number(p.completedSwapps) || 0, "Completed swaps");
 
   // FUNC-014 REQT-003: trust score, warning count and account status,
   // read-only for students (REQT-010).
@@ -119,9 +128,9 @@ function renderProfile(p) {
   const warnings = Number(p.warningCount) || 0;
   const status = p.accountStatus === "suspended" ? "Suspended" : "Active";
   document.getElementById("profileStandingEl").innerHTML =
-    `<span class="${trustToneClass(trustScore)} font-bold">${trustScore}% Trust Score</span>` +
-    `<span>${warnings} Warning${warnings !== 1 ? "s" : ""}</span>` +
-    `<span>${status}</span>`;
+    figure(`${trustScore}%`, "Trust score", trustToneClass(trustScore)) +
+    figure(warnings, "Warnings") +
+    figure(status, "Account status");
 
   // Bio
   document.getElementById("bioText").textContent = p.bio || "No bio yet.";
@@ -184,7 +193,7 @@ function renderProfile(p) {
   const matchesList = document.getElementById("matchesList");
   const noMatches = document.getElementById("noMatches");
   document.getElementById("matchCount").textContent = p.matches.length
-    ? `· ${p.matches.length}`
+    ? String(p.matches.length)
     : "";
 
   if (p.matches.length === 0) {
@@ -197,12 +206,11 @@ function renderProfile(p) {
       .map(
         ({ username: u, trustScore: partnerTrust }) => `
       <a href="profile.html?user=${encodeURIComponent(u)}" class="match-pill">
-        <div class="match-avatar-sm">${escapeHtml(u.slice(0, 2).toUpperCase())}</div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-bold text-purple-900 dark:text-purple-100 truncate">@${escapeHtml(u)}</p>
-          <p class="text-xs text-purple-400">SWAPP match · <span class="${trustToneClass(Number(partnerTrust))} font-bold">${escapeHtml(partnerTrust)}% Trust Score</span></p>
-        </div>
-        <span class="text-xs text-emerald-500 font-bold shrink-0">✅ Matched</span>
+        <span class="match-avatar-sm" aria-hidden="true">${escapeHtml(u.slice(0, 2).toUpperCase())}</span>
+        <span class="match-text">
+          <span class="match-name">@${escapeHtml(u)}</span>
+          <span class="match-trust ${trustToneClass(Number(partnerTrust))}">Trust score ${escapeHtml(partnerTrust)}%</span>
+        </span>
       </a>`,
       )
       .join("");
