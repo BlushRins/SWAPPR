@@ -76,8 +76,22 @@ test("an active swap shows each side's notebooks and leads with Open chat", () =
     const html = loadApp(me, SWAPPS).renderRequests();
     assert.deepEqual(exchanges(html, "Active swaps"), [expected], me);
     assert.match(html, /class="open-chat-btn btn-solid"/);
+    assert.match(html, /class="open-chat-btn btn-solid"[^>]*data-chat-swapp="2"/);
+    assert.match(html, /data-chat-button-badge[^>]*class="chat-count hidden"/);
     assert.match(html, /<details class="more-menu">[\s\S]*Cancel swap/);
   }
+});
+
+test("newer declines do not hide an outstanding request", () => {
+  const declines = Array.from({ length: 11 }, (_, index) => ({
+    ...SWAPPS[0],
+    id: index + 3,
+    receiver: "other",
+    status: "rejected",
+  }));
+  const html = loadApp("ana", [SWAPPS[0], ...declines]).renderRequests();
+  assert.match(html, /Request to @bo/);
+  assert.equal(exchanges(html, "Your requests").length, 11);
 });
 
 test("usernames and titles are escaped", () => {

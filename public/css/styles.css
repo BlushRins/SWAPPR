@@ -2902,9 +2902,13 @@ body {
 .requests-layout {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
   gap: 1.75rem;
   max-width: 48rem;
-  padding: 0.5rem 0 1rem;
+  margin: 0 -0.75rem;
+  padding: 0.5rem 0.75rem 1rem;
 }
 .requests-section {
   display: flex;
@@ -3039,6 +3043,23 @@ body {
 }
 .more-menu-list button:hover {
   background: var(--color-error-bg);
+}
+
+@media (max-width: 768px) {
+  .requests-layout {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 480px) {
+  .request-actions {
+    align-items: flex-start;
+  }
+
+  .more-menu-list {
+    position: static;
+    margin-top: 0.25rem;
+  }
 }
 
 /* Phone menu: Add notebook is the first item. */

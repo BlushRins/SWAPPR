@@ -86,6 +86,16 @@
     cancelling: "Cancelling…",
   };
 
+  const BUSY_FOCUS = {
+    accepting: "accepted",
+    declining: "rejected",
+    cancelling: "more",
+  };
+
+  function progressFocus(state) {
+    return state ? `tabindex="-1" data-request-focus="${BUSY_FOCUS[state]}"` : "";
+  }
+
   function rerenderRequests() {
     if (app.state.currentFilter === "requests") app.renderNotebooks?.();
   }
@@ -151,15 +161,15 @@
             <p class="request-meta">Pending your approval · Trust score ${escapeHtml(swapp.senderTrustScore ?? 100)}%</p>
             ${sentLabel(swapp)}
           </div>
-          <span class="status-pill status-pending">${state ? escapeHtml(BUSY_LABELS[state]) : "Pending"}</span>
+          <span class="status-pill status-pending" ${progressFocus(state)}>${state ? BUSY_LABELS[state] : "Pending"}</span>
         </div>
         ${exchange(swapp.offeredNotebooks, swapp.requestedNotebooks)}
         ${failureLine(swapp)}
         <div class="request-actions">
-          <button type="button" class="respond-btn btn-solid" data-id="${id}" data-status="accepted" ${disabled}>
+          <button type="button" class="respond-btn btn-solid" data-id="${id}" data-status="accepted" data-request-focus="accepted" ${disabled}>
             ${state === "accepting" ? BUSY_LABELS.accepting : "Accept"}
           </button>
-          <button type="button" class="respond-btn btn-outline" data-id="${id}" data-status="rejected" ${disabled}>
+          <button type="button" class="respond-btn btn-outline" data-id="${id}" data-status="rejected" data-request-focus="rejected" ${disabled}>
             ${state === "declining" ? BUSY_LABELS.declining : "Decline"}
           </button>
         </div>
@@ -180,22 +190,23 @@
       <article class="request-card" data-swapp="${id}">
         <div class="request-card-head">
           <p class="request-title min-w-0">Swap with @${escapeHtml(partner)}</p>
-          <span class="status-pill status-active">${state ? escapeHtml(BUSY_LABELS[state]) : "Active"}</span>
+          <span class="status-pill status-active" ${progressFocus(state)}>${state ? BUSY_LABELS[state] : "Active"}</span>
         </div>
         ${exchange(youReceive, youShare)}
         ${failureLine(swapp)}
         <div class="request-actions">
-          <button type="button" class="open-chat-btn btn-solid" data-id="${id}" ${state ? "disabled" : ""}>
+          <button type="button" class="open-chat-btn btn-solid" data-id="${id}" data-chat-swapp="${id}" data-request-focus="chat" ${state ? "disabled" : ""}>
             <i data-lucide="message-circle" class="w-4 h-4"></i>
             Open chat
-            ${unread ? `<span class="chat-count" aria-label="${unread} unread">${unread > 9 ? "9+" : unread}</span>` : ""}
+            <span data-chat-button-badge aria-label="${unread} unread" class="chat-count${unread ? "" : " hidden"}">${unread > 9 ? "9+" : unread}</span>
           </button>
           <details class="more-menu">
-            <summary aria-label="More actions for this swap">More</summary>
+            <summary aria-label="More actions for this swap" data-request-focus="more">More</summary>
             <div class="more-menu-list">
               <button
                 type="button"
                 class="cancel-swapp-btn"
+                data-request-focus="more"
                 data-id="${id}"
                 data-partner="${escapeHtml(partner)}"
                 ${state ? "disabled" : ""}
@@ -231,7 +242,7 @@
     `;
   }
 
-  const SENT_LIMIT = 10;
+  const DECLINED_LIMIT = 10;
 
   function section(title, cards, emptyText) {
     return `
@@ -252,10 +263,13 @@
       (swapp) => swapp.receiver === me && swapp.status === "pending",
     );
     const active = mySwapps().filter(isOpen);
-    const sent = app.state.swapps
-      .filter((swapp) => swapp.sender === me && SENT_STATUS[swapp.status])
+    const outgoing = app.state.swapps.filter((swapp) => swapp.sender === me);
+    const recentDeclines = outgoing
+      .filter((swapp) => swapp.status === "rejected")
       .sort((a, b) => b.id - a.id)
-      .slice(0, SENT_LIMIT);
+      .slice(0, DECLINED_LIMIT);
+    const sent = [...outgoing.filter((swapp) => swapp.status === "pending"), ...recentDeclines]
+      .sort((a, b) => b.id - a.id);
 
     return [
       section("Needs a response", incoming.map(requestCard), "No requests are waiting for you."),
@@ -268,23 +282,38 @@
     ].join("");
   };
 
-  app.attachRequestListeners = function attachRequestListeners() {
-    document.querySelectorAll(".respond-btn").forEach((button) => {
+  app.renderRequestsView = function renderRequestsView(grid) {
+    const previousAction = document.activeElement.closest("[data-request-focus]");
+    const previousCard = previousAction?.closest("[data-swapp]");
+    const restoreFocus = previousCard && grid.contains(previousCard);
+
+    grid.innerHTML = app.renderRequests();
+    grid.querySelectorAll(".respond-btn").forEach((button) => {
       button.addEventListener("click", () => {
         app.respondSwapp(button.dataset.id, button.dataset.status);
       });
     });
 
-    document.querySelectorAll(".open-chat-btn").forEach((button) => {
+    grid.querySelectorAll(".open-chat-btn").forEach((button) => {
       button.addEventListener("click", () => app.openChatForSwapp?.(Number(button.dataset.id)));
     });
 
-    document.querySelectorAll(".cancel-swapp-btn").forEach((button) => {
+    grid.querySelectorAll(".cancel-swapp-btn").forEach((button) => {
       button.addEventListener("click", () => {
-        button.closest("details")?.removeAttribute("open");
         app.cancelSwapp(button.dataset.id, button.dataset.partner);
       });
     });
+
+    if (restoreFocus) {
+      const card = [...grid.querySelectorAll("[data-swapp]")].find(
+        (item) => item.dataset.swapp === previousCard.dataset.swapp,
+      );
+      const action = previousAction.dataset.requestFocus;
+      const target = card?.querySelector(`[data-request-focus="${action}"]:not(:disabled)`)
+        || card?.querySelector(".open-chat-btn:not(:disabled)")
+        || document.getElementById("sectionTitle");
+      target?.focus();
+    }
 
     root.lucide?.createIcons();
   };

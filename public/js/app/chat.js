@@ -28,7 +28,10 @@
     document.querySelectorAll("[data-chat-badge]").forEach((badge) => setBadge(badge, total));
     document.querySelectorAll("[data-chat-swapp]").forEach((button) => {
       const badge = button.querySelector("[data-chat-button-badge]");
-      if (badge) setBadge(badge, app.getChatUnreadForSwapp(button.dataset.chatSwapp));
+      if (!badge) return;
+      const unread = app.getChatUnreadForSwapp(button.dataset.chatSwapp);
+      setBadge(badge, unread);
+      badge.setAttribute("aria-label", `${unread} unread`);
     });
   }
 

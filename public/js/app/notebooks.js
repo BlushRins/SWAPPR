@@ -451,16 +451,16 @@
     }
 
     updateSectionTitle();
-    grid.innerHTML = "";
-    grid.className = "notebooks-grid";
 
     if (app.state.currentFilter === "requests") {
       grid.className = "requests-layout";
-      grid.innerHTML = app.renderRequests();
+      app.renderRequestsView(grid);
       app.renderPagination(0);
-      app.attachRequestListeners();
       return;
     }
+
+    grid.innerHTML = "";
+    grid.className = "notebooks-grid";
 
     if (app.state.notebooksError) {
       grid.appendChild(
