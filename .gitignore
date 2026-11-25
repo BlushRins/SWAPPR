@@ -1,6 +1,11 @@
 .env
 *.db
 *.db-journal
+*.db.*
+*.sqlite-*
+*.sqlite.*
+*.sqlite3-*
+*.sqlite3.*
 sql/swappr.db
 sql/swappr.db-journal
 sql/backup/swappr.db

@@ -7,10 +7,13 @@
 node_modules
 **/*.db
 **/*.db-*
+**/*.db.*
 **/*.sqlite
 **/*.sqlite-*
+**/*.sqlite.*
 **/*.sqlite3
 **/*.sqlite3-*
+**/*.sqlite3.*
 sql/backup
 !sql/courses.db
 public/css/tailwind.css

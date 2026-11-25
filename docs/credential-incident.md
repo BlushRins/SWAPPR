@@ -2,7 +2,7 @@
 
 1. Restrict access to the affected deployment while you scope the exposure. Identify affected accounts privately, including administrator accounts and accounts that already store a hash of the exposed password. Never copy passwords or database contents into issue comments, logs, or chat.
 2. Back up the live database with restricted access. Deploy this update, then reset the affected credentials before restoring service. Rotate relevant deployment and session secrets and notify affected users privately. Ask users to change reused credentials on other services.
-3. Coordinate removal of sensitive database files with the upstream repository and fork owners. Follow GitHub's guidance for rewriting affected refs, handling pull request references and caches, and coordinating cleanup of clones and forks. Keep issue #1 open until the exposure response has been verified.
+3. Coordinate removal of sensitive database files with the upstream repository and fork owners. GitHub secret scanning and push protection help with recognized secret formats. The repository CI check rejects SQLite databases and backup variants even when they do not contain a recognized secret pattern. Follow GitHub's guidance for rewriting affected refs, handling pull request references and caches, and coordinating cleanup of clones and forks. Keep issue #1 open until the exposure response has been verified.
 4. Enable GitHub secret scanning and push protection where available. Keep account databases and their backups out of Git. The tracked course catalogs contain course reference data.
 
 ## Reset a live account

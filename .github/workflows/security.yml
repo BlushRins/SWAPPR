@@ -23,6 +23,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
+          import re
           import subprocess
           from pathlib import PurePosixPath
 
@@ -35,7 +36,7 @@ jobs:
               if (
                   name == ".env" or name.startswith(".env.")
                   or ".vs" in PurePosixPath(path).parts
-                  or name.endswith((".db", ".sqlite", ".sqlite3", "-wal", "-shm", "-journal"))
+                  or re.search(r"\.(?:db|sqlite3?)(?:$|[.-])", name)
               ):
                   raise SystemExit(f"Remove sensitive file from Git: {path}")
           PY
