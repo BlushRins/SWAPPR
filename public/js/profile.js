@@ -31,9 +31,9 @@ function showToast(message) {
 // PNL001 colour bands for a trust score: 95%+ green, 85%+ yellow,
 // below that red (the same bands as index.html).
 function trustToneClass(score) {
-  if (score >= 95) return "text-green-500 dark:text-green-400";
-  if (score >= 85) return "text-yellow-500 dark:text-yellow-400";
-  return "text-red-500 dark:text-red-400";
+  if (score >= 95) return "text-[color:var(--color-success)]";
+  if (score >= 85) return "text-amber-700 dark:text-yellow-400";
+  return "text-[color:var(--color-error)]";
 }
 
 // Shown to the author only: other students never receive these notebooks.
@@ -110,8 +110,8 @@ function renderProfile(p) {
   // Stats
   document.getElementById("profileStatsEl").innerHTML =
     `<span>${p.portfolios.length} Notebook${p.portfolios.length !== 1 ? "s" : ""}</span>` +
-    `<span>${p.matches.length} SWAPP Connection${p.matches.length !== 1 ? "s" : ""}</span>` +
-    `<span>${Number(p.completedSwapps) || 0} Completed SWAPP${p.completedSwapps !== 1 ? "s" : ""}</span>`;
+    `<span>${p.matches.length} swap partner${p.matches.length !== 1 ? "s" : ""}</span>` +
+    `<span>${Number(p.completedSwapps) || 0} completed swap${p.completedSwapps !== 1 ? "s" : ""}</span>`;
 
   // FUNC-014 REQT-003: trust score, warning count and account status,
   // read-only for students (REQT-010).
@@ -200,9 +200,9 @@ function renderProfile(p) {
         <div class="match-avatar-sm">${escapeHtml(u.slice(0, 2).toUpperCase())}</div>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-bold text-purple-900 dark:text-purple-100 truncate">@${escapeHtml(u)}</p>
-          <p class="text-xs text-purple-400">SWAPP match · <span class="${trustToneClass(Number(partnerTrust))} font-bold">${escapeHtml(partnerTrust)}% Trust Score</span></p>
+          <p class="text-xs text-[color:var(--color-text-muted)]">Swap partner · <span class="${trustToneClass(Number(partnerTrust))} font-bold">${escapeHtml(partnerTrust)}% Trust Score</span></p>
         </div>
-        <span class="text-xs text-emerald-500 font-bold shrink-0">✅ Matched</span>
+        <span class="text-xs text-[color:var(--color-success)] font-bold shrink-0">✅ Matched</span>
       </a>`,
       )
       .join("");

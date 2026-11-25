@@ -9,10 +9,11 @@
     return "low";
   };
 
+  // Token colours keep the score at 4.5:1 or more in both themes.
   const TRUST_TONE_CLASSES = {
-    high: ["text-green-500", "dark:text-green-400"],
-    mid: ["text-yellow-500", "dark:text-yellow-400"],
-    low: ["text-red-500", "dark:text-red-400"],
+    high: ["text-[color:var(--color-success)]"],
+    mid: ["text-amber-700", "dark:text-yellow-400"],
+    low: ["text-[color:var(--color-error)]"],
   };
   // Also used by Notebook Details for the author's trust score.
   app.trustToneClasses = function trustToneClasses(score) {
@@ -58,8 +59,11 @@
       renderTrustScore(profile);
       renderProfileLists(profile);
 
-      document.getElementById("profilePanel").classList.add("open");
-      document.getElementById("profileOverlay").classList.add("active");
+      const panel = document.getElementById("profilePanel");
+      const overlay = document.getElementById("profileOverlay");
+      panel.classList.add("open");
+      overlay.classList.add("active");
+      app.openLayer?.(panel, { keep: [overlay] });
       setTimeout(() => root.lucide?.createIcons(), 100);
     } catch (err) {
       console.error("Failed to load profile:", err);
@@ -110,7 +114,7 @@
       const statusLabel = MODERATION_LABELS[portfolio.status];
       if (statusLabel) {
         const label = document.createElement("span");
-        label.className = "ml-1 text-xs font-semibold text-red-500 dark:text-red-400";
+        label.className = "ml-1 text-xs font-semibold text-[color:var(--color-error)]";
         label.textContent = `(${statusLabel})`;
         div.appendChild(label);
       }
@@ -123,8 +127,8 @@
     matchList.innerHTML = "";
     if (!profile.matches?.length) {
       const empty = document.createElement("p");
-      empty.className = "text-xs text-purple-300";
-      empty.textContent = "No matches yet.";
+      empty.className = "text-xs text-[color:var(--color-text-muted)]";
+      empty.textContent = "No swap partners yet.";
       matchList.appendChild(empty);
       return;
     }
@@ -133,7 +137,8 @@
     // opens their profile page; the flag reports the account (FUNC-015 REQT-002).
     profile.matches.forEach((match) => {
       const div = document.createElement("div");
-      div.className = "flex items-center justify-between gap-2 text-xs text-purple-400";
+      div.className =
+        "flex items-center justify-between gap-2 text-xs text-[color:var(--color-primary)]";
       const name = document.createElement("a");
       name.className = "min-w-0 break-words hover:underline hover:text-purple-600 dark:hover:text-purple-200";
       name.href = `profile.html?user=${encodeURIComponent(match.username)}`;
@@ -147,7 +152,7 @@
       const report = document.createElement("button");
       report.type = "button";
       report.className =
-        "inline-flex items-center justify-center w-6 h-6 rounded-md text-gray-400 dark:text-purple-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition";
+        "inline-flex items-center justify-center w-6 h-6 rounded-md text-[color:var(--color-text-muted)] hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition";
       report.title = "Report";
       report.setAttribute("aria-label", `Report @${match.username}`);
       const flag = document.createElement("i");
@@ -164,9 +169,24 @@
   }
 
   app.closeProfilePanel = function closeProfilePanel() {
-    document.getElementById("profilePanel").classList.remove("open");
+    const panel = document.getElementById("profilePanel");
+    panel.classList.remove("open");
     document.getElementById("profileOverlay").classList.remove("active");
+    app.closeLayer?.(panel);
   };
+
+  // The closed drawer stays in the page off-screen, so it's inert until
+  // opened; open, it's a modal dialog named Profile.
+  document.addEventListener("DOMContentLoaded", () => {
+    const panel = document.getElementById("profilePanel");
+    app.labelDialog?.(panel, "Profile");
+    app.registerDrawer?.(panel);
+    // The icon-only Close (x) is the first thing focused, so it needs a name.
+    const close = panel?.querySelector('[data-action="closeProfilePanel"]');
+    if (close && !close.hasAttribute("aria-label") && !close.textContent.trim()) {
+      close.setAttribute("aria-label", "Close profile");
+    }
+  });
 
   // Escape closes the panel, like its overlay. A popup opened on top of it
   // (Report User, Edit Profile) closes first; this runs in the capture phase

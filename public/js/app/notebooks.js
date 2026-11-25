@@ -30,7 +30,7 @@
   // IDX007). When a search empties it, FUNC-007 REQT-003 applies instead.
   const EMPTY_MESSAGES = {
     mine: "You have not shared any notebooks yet.",
-    matched: "You have no SWAPP matches yet.",
+    matched: "You have no swap partners yet.",
     top: "No notebooks have been shared yet.",
     recent: "No notebooks have been shared yet.",
   };
@@ -227,7 +227,7 @@
     reportBtn.type = "button";
     reportBtn.innerHTML = '<i data-lucide="flag" class="w-4 h-4"></i>';
     reportBtn.className =
-      "inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-lg border border-gray-200 dark:border-purple-500/30 text-gray-400 dark:text-purple-300 hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-400/40 transition";
+      "inline-flex items-center justify-center shrink-0 w-11 h-11 md:w-9 md:h-9 rounded-lg border border-gray-200 dark:border-purple-500/30 text-[color:var(--color-text-muted)] hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-400/40 transition";
     reportBtn.title = "Report";
     reportBtn.setAttribute("aria-label", "Report this notebook");
     reportBtn.dataset.action = "report";
@@ -272,7 +272,7 @@
       const cancelledLabel = document.createElement("span");
       cancelledLabel.className = "status-pill status-ended";
       cancelledLabel.textContent = "Cancelled";
-      cancelledLabel.title = "The SWAPP for this notebook was cancelled. You can request it again.";
+      cancelledLabel.title = "The swap for this notebook was cancelled. You can request it again.";
       actionContainer.appendChild(cancelledLabel);
     }
 

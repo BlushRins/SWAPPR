@@ -259,8 +259,8 @@
         ),
       ),
       ui.section(
-        `SWAPP history (${swapps.length})`,
-        list(swapps, "No SWAPP requests yet.", (swapp) =>
+        `Swap history (${swapps.length})`,
+        list(swapps, "No swap requests yet.", (swapp) =>
           el(
             "li",
             {},

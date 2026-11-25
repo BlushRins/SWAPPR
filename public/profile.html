@@ -105,11 +105,8 @@
 
       .profile-meta {
         font-size: 0.8rem;
-        color: #7a6e90;
+        color: var(--color-text-muted);
         margin-top: 4px;
-      }
-      .dark .profile-meta {
-        color: #8878b8;
       }
 
       .profile-stats {
@@ -227,7 +224,7 @@
       }
       .notebook-dept {
         font-size: 0.75rem;
-        color: #8878b8;
+        color: var(--color-text-muted);
         margin-top: 2px;
       }
       .notebook-item-row {
@@ -302,7 +299,7 @@
       }
       .dark .own-badge {
         background: rgba(155, 142, 196, 0.15);
-        color: #9b8ec4;
+        color: var(--color-text-muted);
       }
 
       /* ── Divider ─────────────────────────────────────────────────────────── */
@@ -318,7 +315,7 @@
       /* ── Empty state ─────────────────────────────────────────────────────── */
       .empty-state {
         font-size: 0.85rem;
-        color: #9b8ec4;
+        color: var(--color-text-muted);
         font-style: italic;
         padding: 8px 0;
       }
@@ -326,37 +323,38 @@
     <link rel="stylesheet" href="css/tailwind.css" />
   </head>
 
-  <body class="page-bg font-sans min-h-screen transition-colors duration-300">
+  <body class="page-bg font-sans min-h-screen transition-colors duration-300 text-gray-900 dark:text-purple-100">
     <!-- Header -->
     <header
-      class="px-6 py-4 flex items-center justify-between bg-white dark:bg-[#110e20] border-b border-purple-100 dark:border-white/[0.06] sticky top-0 z-40 shadow-sm transition-colors duration-300"
+      class="w-full overflow-hidden px-4 py-3 md:py-4 flex items-center justify-between gap-3 bg-gradient-to-r from-[#0f172a] via-[#4f46e5] to-[#9333ea] text-white sticky top-0 z-40 shadow-lg"
     >
       <button
         data-action="goHome"
-        class="flex items-center gap-2 cursor-pointer bg-transparent border-none p-0 hover:opacity-75 transition-opacity"
+        class="flex items-center gap-2 shrink-0 cursor-pointer bg-transparent border-none p-0"
       >
-        <span class="text-2xl">⇄</span>
-        <h1
-          class="text-2xl font-extrabold tracking-tight text-purple-800 dark:text-purple-300"
-          style="
-            text-shadow:
-              0 0 8px rgba(167, 139, 250, 0.8),
-              0 0 20px rgba(124, 58, 237, 0.5);
-          "
-        >
+        <img
+          src="Images/swappr_logo_updated.jpg"
+          alt=""
+          width="28"
+          height="28"
+          class="w-7 h-7 rounded-md shrink-0"
+        />
+        <h1 class="text-2xl font-extrabold tracking-tight truncate text-white">
           SWAPPR
         </h1>
       </button>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 min-w-0 flex-nowrap">
         <button
           id="themeToggle"
-          class="w-8 h-8 rounded-full flex items-center justify-center text-sm border bg-[#faf5ff] dark:bg-[#181428] border-[#ddd6fe] dark:border-white/[0.06] transition"
+          class="w-11 h-11 md:w-8 md:h-8 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
+          title="Toggle theme"
+          aria-label="Toggle theme"
         >
-          <i data-lucide="moon" class="w-4 h-4"></i>
+          <i data-lucide="moon" class="w-5 h-5"></i>
         </button>
         <button
           data-action="handleLogout"
-          class="hidden md:inline-flex text-xs font-bold px-3 py-1.5 rounded-full border transition text-purple-700 dark:text-purple-300 border-purple-200 dark:border-white/[0.1] hover:bg-purple-50 dark:hover:bg-white/[0.05]"
+          class="hidden md:inline-flex text-xs font-bold px-3 py-1.5 rounded-full glass-btn hover:bg-red-500/20 hover:scale-105 transition"
         >
           Logout
         </button>
@@ -364,14 +362,12 @@
           id="mobileMenuToggle"
           type="button"
           data-action="toggleMobileMenu"
-          class="md:hidden mobile-menu-button border border-purple-200 dark:border-white/[0.1]"
+          class="md:hidden w-11 h-11 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
           aria-label="Open menu"
           aria-expanded="false"
           aria-controls="mobileMenu"
         >
-          <span></span>
-          <span></span>
-          <span></span>
+          <i data-mobile-menu-icon data-lucide="menu" class="w-5 h-5"></i>
         </button>
       </div>
     </header>
@@ -387,7 +383,7 @@
       aria-label="Mobile navigation"
     >
       <p
-        class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400"
+        class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-[color:var(--color-text-muted)]"
       >
         Profile
       </p>
@@ -465,17 +461,17 @@
       <div class="card">
         <div class="section-body">
           <h2 class="section-heading">
-            SWAPP Matches
+            Swap partners
             <span
               id="matchCount"
-              class="text-sm font-semibold text-purple-400 ml-2"
+              class="text-sm font-semibold text-[color:var(--color-text-muted)] ml-2"
             ></span>
           </h2>
           <div
             id="matchesList"
             class="grid grid-cols-1 sm:grid-cols-2 gap-3"
           ></div>
-          <p id="noMatches" class="empty-state hidden">No SWAPP matches yet.</p>
+          <p id="noMatches" class="empty-state hidden">No swap partners yet.</p>
         </div>
       </div>
     </div>

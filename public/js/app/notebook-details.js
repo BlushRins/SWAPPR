@@ -226,13 +226,17 @@
 
     current = notebook;
     render(notebook);
-    $("notebookDetailsModal").classList.remove("hidden");
+    const modal = $("notebookDetailsModal");
+    modal.classList.remove("hidden");
     root.lucide?.createIcons();
+    app.labelDialog?.(modal.querySelector(".modal-box"), $("notebookDetailsHeading"));
+    app.openLayer?.(modal);
   };
 
   app.closeNotebookDetails = function closeNotebookDetails(event) {
     if (event && event.target.id !== "notebookDetailsModal") return;
     $("notebookDetailsModal")?.classList.add("hidden");
+    app.closeLayer?.($("notebookDetailsModal"));
     current = null;
   };
 

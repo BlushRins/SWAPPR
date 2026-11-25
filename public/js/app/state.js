@@ -17,11 +17,11 @@
     subjects: [],
     titles: {
       all: "Browse subjects",
-      mine: "My Subjects",
+      mine: "My notebooks",
       matched: "My swaps",
       requests: "Requests",
-      top: "Top Departments",
-      recent: "Recently Added",
+      top: "Top departments",
+      recent: "Recently added",
     },
   };
 })(window);

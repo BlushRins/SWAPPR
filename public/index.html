@@ -20,16 +20,20 @@
   >
     <!-- Header -->
     <header
-      class="w-full overflow-hidden px-4 py-4 flex items-center justify-between gap-3 bg-gradient-to-r from-[#0f172a] via-[#4f46e5] to-[#9333ea] text-white sticky top-0 z-40 shadow-lg"
+      class="w-full overflow-hidden px-4 py-3 md:py-4 flex items-center justify-between gap-3 bg-gradient-to-r from-[#0f172a] via-[#4f46e5] to-[#9333ea] text-white sticky top-0 z-40 shadow-lg"
     >
       <button
         data-action="all-subjects"
         class="flex items-center gap-2 shrink-0"
       >
-        <i data-lucide="repeat" class="w-6 h-6"></i>
-        <h1
-          class="text-2xl font-extrabold tracking-tight truncate text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-500 dark:from-purple-300 dark:to-indigo-300"
-        >
+        <img
+          src="Images/swappr_logo_updated.jpg"
+          alt=""
+          width="28"
+          height="28"
+          class="w-7 h-7 rounded-md shrink-0"
+        />
+        <h1 class="text-2xl font-extrabold tracking-tight truncate text-white">
           SWAPPR
         </h1>
       </button>
@@ -40,7 +44,7 @@
           class="hidden mobile-header-extra items-center gap-2 px-3 py-1.5 rounded-full glass-btn"
         >
           <span
-            class="text-xs font-bold text-[#4a0080] dark:text-[#d0c0f8]"
+            class="text-xs font-bold text-white"
             id="userBadgeName"
           ></span>
           <i data-lucide="user" class="w-4 h-4"></i>
@@ -48,13 +52,13 @@
         <button
           id="addPortfolioBtn"
           data-action="openAddModal"
-          class="hidden mobile-header-extra text-xs font-bold px-4 py-2 rounded-full text-white bg-gradient-to-r from-purple-500 to-indigo-500 shadow"
+          class="hidden mobile-header-extra text-xs font-bold px-4 py-2 rounded-full bg-white text-[#482a93] hover:bg-[#efeafb] shadow transition"
         >
           + Notebook
         </button>
         <button
           id="themeToggle"
-          class="w-8 h-8 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
+          class="w-11 h-11 md:w-8 md:h-8 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
           title="Toggle theme"
         >
           <i data-lucide="moon" class="w-5 h-5"></i>
@@ -69,7 +73,7 @@
           id="mobileMenuToggle"
           type="button"
           data-action="toggleMobileMenu"
-          class="md:hidden w-9 h-9 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
+          class="md:hidden w-11 h-11 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
           aria-label="Open menu"
           aria-expanded="false"
           aria-controls="mobileMenu"
@@ -98,7 +102,7 @@
         Add notebook
       </button>
       <p
-        class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400"
+        class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-[color:var(--color-text-muted)]"
       >
         Browse
       </p>
@@ -116,7 +120,7 @@
         class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="notebook" class="w-4 h-4"></i>
-        My Subjects
+        My notebooks
       </a>
       <a
         href="#"
@@ -156,7 +160,7 @@
         class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="trophy" class="w-4 h-4"></i>
-        Top Departments
+        Top departments
       </a>
       <a
         href="#"
@@ -164,7 +168,7 @@
         class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="clock" class="w-4 h-4"></i>
-        Recently Added
+        Recently added
       </a>
       <button
         data-action="mobile-subject-settings"
@@ -172,7 +176,7 @@
         title="Choose which departments' subjects to display"
       >
         <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-        Subject Filter
+        Subject filter
       </button>
       <button
         type="button"
@@ -200,7 +204,7 @@
         <!-- Browse nav -->
         <div>
           <p
-            class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400"
+            class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-[color:var(--color-text-muted)]"
           >
             Browse
           </p>
@@ -219,7 +223,7 @@
               class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="notebook" class="w-4 h-4"></i>
-              My Subjects
+              My notebooks
             </a>
             <a
               href="#"
@@ -259,7 +263,7 @@
               class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="trophy" class="w-4 h-4"></i>
-              Top Departments
+              Top departments
             </a>
 
             <a
@@ -268,7 +272,7 @@
               class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="clock" class="w-4 h-4"></i>
-              Recently Added
+              Recently added
             </a>
             <button
               data-action="openSubjectSettings"
@@ -276,7 +280,7 @@
               title="Choose which departments' subjects to display"
             >
               <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-              Subject Filter
+              Subject filter
             </button>
           </nav>
         </div>
@@ -284,9 +288,9 @@
         <div class="space-y-6 mt-6">
           <div>
             <p
-              class="text-xs font-bold uppercase tracking-widest mb-3 px-2 text-purple-300 dark:text-purple-400"
+              class="text-xs font-bold uppercase tracking-widest mb-3 px-2 text-[color:var(--color-text-muted)]"
             >
-              Top Contributors
+              Popular notebooks
             </p>
             <div
               id="sidebarTop"
@@ -296,9 +300,9 @@
 
           <div>
             <p
-              class="text-xs font-bold uppercase tracking-widest mb-3 px-2 text-purple-300 dark:text-purple-400"
+              class="text-xs font-bold uppercase tracking-widest mb-3 px-2 text-[color:var(--color-text-muted)]"
             >
-              Recently Added
+              Recently added
             </p>
             <div
               id="sidebarRecent"
@@ -416,7 +420,7 @@
         </div>
         <button
           data-action="closeProfilePanel"
-          class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-purple-400 hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
+          class="w-11 h-11 md:w-7 md:h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-[color:var(--color-primary)] hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
         >
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
@@ -431,10 +435,10 @@
           id="profileName"
         ></p>
         <p
-          class="text-xs text-purple-300 font-medium text-center mt-1"
+          class="text-xs text-white font-medium text-center mt-1"
           id="profileUsername"
         ></p>
-        <p class="text-xs text-purple-400 text-center mt-2" id="profileBio"></p>
+        <p class="text-xs text-white text-center mt-2" id="profileBio"></p>
       </div>
 
       <!-- FUNC-014 REQT-005 -->
@@ -449,7 +453,7 @@
       <!-- PNL001: the full profile page (PRF001) -->
       <a
         href="profile.html"
-        class="block -mt-4 mb-6 text-center text-xs font-semibold text-purple-500 dark:text-purple-300 hover:underline"
+        class="block -mt-4 mb-6 text-center text-xs font-semibold text-[color:var(--color-primary)] hover:underline"
       >
         View full profile
       </a>
@@ -463,22 +467,22 @@
             0
           </p>
           <p
-            class="text-xs text-purple-400 font-semibold mt-1 uppercase tracking-wider"
+            class="text-xs text-[color:var(--color-text-muted)] font-semibold mt-1 uppercase tracking-wider"
           >
             Notebooks
           </p>
         </div>
         <div class="stat-card">
           <p
-            class="text-3xl font-extrabold text-indigo-500 dark:text-indigo-300"
+            class="text-3xl font-extrabold text-indigo-600 dark:text-indigo-300"
             id="profileSwappCount"
           >
             0
           </p>
           <p
-            class="text-xs text-purple-400 font-semibold mt-1 uppercase tracking-wider"
+            class="text-xs text-[color:var(--color-text-muted)] font-semibold mt-1 uppercase tracking-wider"
           >
-            Completed SWAPPs
+            Completed swaps
           </p>
         </div>
       </div>
@@ -502,7 +506,7 @@
           class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2"
         >
           <i data-lucide="book-open" class="w-4 h-4"></i>
-          My Notebooks
+          My notebooks
         </p>
         <div
           id="profilePortfolioList"
@@ -517,7 +521,7 @@
           class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2"
         >
           <i data-lucide="handshake" class="w-4 h-4"></i>
-          SWAPP Matches
+          Swap partners
         </p>
         <div id="profileMatchList" class="space-y-2"></div>
       </div>
@@ -690,7 +694,7 @@
           class="text-xl font-extrabold mb-1 text-purple-900 dark:text-purple-100 flex items-center gap-2"
         >
           <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
-          Subject Filter
+          Subject filter
         </h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-5">
           Choose which subjects appear in your feed.
@@ -796,9 +800,9 @@
         </button>
         <p
           id="notebookDetailsHeading"
-          class="text-xs font-bold uppercase tracking-widest mb-3 pr-8 text-purple-400"
+          class="text-xs font-bold uppercase tracking-widest mb-3 pr-8 text-[color:var(--color-text-muted)]"
         >
-          Notebook Details
+          Notebook details
         </p>
 
         <h3

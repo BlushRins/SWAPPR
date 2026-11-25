@@ -1536,7 +1536,7 @@ app.post("/api/portfolios/delete", requireAuth, async (req, res) => {
     if (err.code === "SQLITE_CONSTRAINT" && err.message.includes("notebook_in_open_swapp")) {
       return res.status(409).json({
         success: false,
-        message: "This notebook is part of an active SWAPP and can't be deleted until the SWAPP session is closed.",
+        message: "This notebook is part of an active swap. It can be deleted after the swap ends.",
       });
     }
     internalError(res, err);
@@ -1723,7 +1723,7 @@ app.post("/api/swapps", requireAuth, async (req, res) => {
     if (notebook.author_id === senderId) {
       return res.status(400).json({
         success: false,
-        message: "You can't send a SWAPP request for your own notebook.",
+        message: "You can't send a swap request for your own notebook.",
       });
     }
     if (await findAccessSwapp(senderId, notebookId)) {
@@ -1880,7 +1880,7 @@ app.get("/api/swapps/:username", requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("[SWAPPS] list failed:", err.message);
-    res.status(500).json({ success: false, message: "Could not load SWAPPs." });
+    res.status(500).json({ success: false, message: "Could not load swaps." });
   }
 });
 
@@ -1900,7 +1900,7 @@ app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
         [id, req.currentUser.id],
       );
       if (!swapp) {
-        return [404, "SWAPP not found"];
+        return [404, "Swap not found"];
       }
 
       // Only a pending request can be answered, and only once.
@@ -1953,17 +1953,17 @@ app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
         [id, me, me],
       );
       if (!swapp) {
-        return [404, "SWAPP not found"];
+        return [404, "Swap not found"];
       }
       if (swapp.status !== "accepted") {
-        return [409, "Only an accepted SWAPP can be cancelled."];
+        return [409, "Only an accepted swap can be cancelled."];
       }
       const ended = await get(
         `SELECT id FROM Chats WHERE swapp_id = ? AND status = 'archived'`,
         [swapp.id],
       );
       if (ended) {
-        return [409, "This SWAPP has already ended and can't be cancelled."];
+        return [409, "This swap has already ended and can't be cancelled."];
       }
 
       const update = await run(
@@ -1974,7 +1974,7 @@ app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
         [me, swapp.id],
       );
       if (!update.changes) {
-        return [409, "Only an accepted SWAPP can be cancelled."];
+        return [409, "Only an accepted swap can be cancelled."];
       }
       await run(
         `UPDATE Chats SET status = 'archived', archived_at = CURRENT_TIMESTAMP,
@@ -1990,7 +1990,7 @@ app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
     console.error("[SWAPPS] cancel failed:", err.message);
     res
       .status(500)
-      .json({ success: false, message: "Could not cancel the SWAPP. Please try again." });
+      .json({ success: false, message: "Could not cancel the swap. Please try again." });
   }
 });
 
