@@ -40,6 +40,8 @@
     const input = id && document.getElementById(id);
     if (!input) return false;
     input.classList.toggle("error", hasError);
+    if (hasError) input.setAttribute("aria-invalid", "true");
+    else input.removeAttribute("aria-invalid");
     document.getElementById(`${id}Error`)?.classList.toggle("hidden", !hasError);
     return true;
   };
@@ -71,12 +73,15 @@
   app.clearPortfolioForm = function clearPortfolioForm() {
     const titleInput = document.getElementById("newTitle");
     const descriptionInput = document.getElementById("newDescription");
+    const subjectSearch = document.getElementById("newSubjectSearch");
     const subjectInput = document.getElementById("newSubject");
     const fileUrlInput = document.getElementById("newFileUrl");
     const actionBtn = document.getElementById("portfolioActionBtn");
 
     if (titleInput) titleInput.value = "";
     if (descriptionInput) descriptionInput.value = "";
+    if (subjectSearch) subjectSearch.value = "";
+    app.filterSubjectDropdown?.("");
     if (subjectInput) subjectInput.value = "";
     if (fileUrlInput) fileUrlInput.value = "";
     Object.entries(COUNT_FIELDS).forEach(([key, id]) => {
@@ -139,6 +144,9 @@
     document.getElementById("modalHeading").textContent = "Edit notebook";
     document.getElementById("newTitle").value = notebook.title || "";
     document.getElementById("newDescription").value = notebook.description || "";
+    const subjectSearch = document.getElementById("newSubjectSearch");
+    if (subjectSearch) subjectSearch.value = "";
+    app.filterSubjectDropdown?.("");
     selectSubject(notebook.course_code || "");
     document.getElementById("newFileUrl").value = notebook.file_url || "";
     Object.entries(COUNT_FIELDS).forEach(([key, id]) => {
@@ -166,6 +174,11 @@
       if (event.key === "Escape" && modal && !modal.classList.contains("hidden")) {
         app.closeAddModal();
       }
+    });
+
+    // Filter subject options by code or name as the student types.
+    document.getElementById("newSubjectSearch")?.addEventListener("input", (event) => {
+      app.filterSubjectDropdown?.(event.target.value);
     });
 
     // A required field stops being red once it's filled in correctly.
