@@ -6,6 +6,10 @@
 
   let pollTimer = null;
   let activeChatId = null;
+  // The Open chat button that opened the panel, and its SWAPP id in case
+  // the button is re-rendered while the chat is open.
+  let chatOpener = null;
+  let chatOpenerSwapp = null;
 
   let notifyTimer = null;
   let lastSeenIncoming = null; // chat id -> newest incoming message id; null until first check
@@ -138,6 +142,12 @@
         header.textContent = data.chat.otherUsername
           ? `@${data.chat.otherUsername}`
           : "SWAPPR Chat";
+        document
+          .getElementById("chatPanel")
+          ?.setAttribute(
+            "aria-label",
+            data.chat.otherUsername ? `Chat with @${data.chat.otherUsername}` : "SWAPPR Chat",
+          );
       }
 
       // FUNC-013 REQT-003 / REQT-005: when the workspace opened and closes.
@@ -168,7 +178,13 @@
     // Don't show the previous chat's dates while this one loads.
     const dates = document.getElementById("chatDates");
     if (dates) dates.textContent = "";
-    document.getElementById("chatPanel")?.classList.remove("hidden");
+    const panel = document.getElementById("chatPanel");
+    if (panel?.classList.contains("hidden")) {
+      const active = document.activeElement;
+      chatOpener = active && active !== document.body && !panel.contains(active) ? active : null;
+      chatOpenerSwapp = chatOpener?.closest("[data-chat-swapp]")?.dataset.chatSwapp || null;
+    }
+    panel?.classList.remove("hidden");
     root.lucide?.createIcons();
     await loadMessages(chatId);
     app.refreshChatNotifications();
@@ -181,9 +197,40 @@
   app.closeChat = function closeChat() {
     activeChatId = null;
     stopPolling();
-    document.getElementById("chatPanel")?.classList.add("hidden");
+    const panel = document.getElementById("chatPanel");
+    const hadFocus = panel?.contains(document.activeElement);
+    panel?.classList.add("hidden");
     app.refreshChatNotifications();
+    // Focus goes back to the Open chat button (or its re-rendered copy).
+    if (hadFocus) {
+      const rerendered =
+        chatOpenerSwapp &&
+        document.querySelector(`[data-chat-swapp="${CSS.escape(chatOpenerSwapp)}"]`);
+      [chatOpener, rerendered].find((node) => app.canFocus?.(node))?.focus();
+    }
+    chatOpener = null;
+    chatOpenerSwapp = null;
   };
+
+  // The panel is a non-modal dialog named after the other student, so the
+  // page behind it stays usable. Escape closes it wherever focus is (it can
+  // cover a focused control on a phone), unless a popup above it was open
+  // when Escape was pressed: that popup gets the Escape.
+  document.addEventListener("DOMContentLoaded", () => {
+    const panel = document.getElementById("chatPanel");
+    if (!panel) return;
+    panel.setAttribute("role", "dialog");
+    if (!panel.hasAttribute("aria-label")) panel.setAttribute("aria-label", "SWAPPR Chat");
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key !== "Escape" || panel.classList.contains("hidden")) return;
+        if (app.isLayerOpen?.() || app.keyStartedOverLayer?.(event)) return;
+        app.closeChat();
+      },
+      true,
+    );
+  });
 
   // Opens the chat workspace of one SWAPP (FUNC-013 REQT-002).
   app.openChatForSwapp = async function openChatForSwapp(swappId) {

@@ -18,18 +18,16 @@
       return;
     }
 
+    // Look and placement come from .toast in styles.css (it wraps on
+    // phones). The live region stays in the page; only its text and the
+    // .show class change, so each message is announced.
     toast.textContent = current;
-    toast.className =
-      "toast fixed bottom-24 right-6 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium z-50 transition-all duration-300";
-    toast.style.display = "block";
-    toast.style.opacity = "1";
-    toast.style.transform = "translateY(0)";
+    toast.classList.add("show");
 
     setTimeout(() => {
-      toast.style.opacity = "0";
-      toast.style.transform = "translateY(10px)";
+      toast.classList.remove("show");
       setTimeout(() => {
-        toast.style.display = "none";
+        toast.textContent = "";
         showNext();
       }, FADE_MS);
     }, SHOW_MS);

@@ -66,14 +66,20 @@
     fields.password.value = "";
     fields.currentPassword.value = "";
 
-    document.getElementById("editProfileModal")?.classList.remove("hidden");
+    const modal = document.getElementById("editProfileModal");
+    modal?.classList.remove("hidden");
     root.lucide?.createIcons();
-    fields.name.focus();
+    app.labelDialog?.(
+      modal?.querySelector(".modal-box"),
+      document.getElementById("editProfileHeading"),
+    );
+    app.openLayer?.(modal, { focus: fields.name });
   };
 
   app.closeEditProfileModal = function closeEditProfileModal(event) {
     if (event && event.target.id !== "editProfileModal") return;
     document.getElementById("editProfileModal")?.classList.add("hidden");
+    app.closeLayer?.(document.getElementById("editProfileModal"));
     resetErrors();
     const fields = getFields();
     fields.password.value = "";
@@ -149,8 +155,8 @@
   app.openEditProfileIfRequested = function openEditProfileIfRequested() {
     if (sessionStorage.getItem(HANDOFF_KEY) !== "1") return;
     sessionStorage.removeItem(HANDOFF_KEY);
-    app.openProfilePanel();
-    app.openEditProfileModal();
+    // The panel opens first, so the modal sits on top of it.
+    app.openProfilePanel().then(() => app.openEditProfileModal());
   };
 
   function closeOnEscape(event) {

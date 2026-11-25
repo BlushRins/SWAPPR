@@ -37,12 +37,18 @@
     app._syncSubjectModeUI(pref.mode);
     modal.classList.remove("hidden");
     root.lucide?.createIcons();
+    app.labelDialog?.(
+      modal.querySelector(".modal-box"),
+      modal.querySelector("h3"),
+      "subjectSettingsHeading",
+    );
+    app.openLayer?.(modal, { focus: modal.querySelector("[name=subjectMode]:checked") });
 
     // Always pre-fetch so the list is ready the moment "custom" is selected
     if (!app.state._allSubjects?.length) {
       const list = document.getElementById("subjectCheckboxList");
       if (list)
-        list.innerHTML = `<p class="text-sm text-purple-400 py-2 px-1">Loading subjects…</p>`;
+        list.innerHTML = `<p class="text-sm text-[color:var(--color-text-muted)] py-2 px-1">Loading subjects…</p>`;
       try {
         const data = await app.api.getSubjects("ALL");
         app.state._allSubjects = data.subjects || [];
@@ -72,7 +78,7 @@
     }
 
     if (subjects.length === 0) {
-      list.innerHTML = `<p class="text-sm text-purple-400 py-2 px-1">${q ? "No subjects match." : "No subjects found."}</p>`;
+      list.innerHTML = `<p class="text-sm text-[color:var(--color-text-muted)] py-2 px-1">${q ? "No subjects match." : "No subjects found."}</p>`;
       return;
     }
 
@@ -90,10 +96,10 @@
       group.open = true;
       group.className = "mb-1";
       const heading = document.createElement("summary");
-      heading.className = "cursor-pointer text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-400 py-1.5 px-1 select-none hover:text-purple-700 dark:hover:text-purple-200 transition";
+      heading.className = "cursor-pointer text-xs font-bold uppercase tracking-widest text-[color:var(--color-primary)] py-1.5 px-1 select-none hover:text-purple-700 dark:hover:text-purple-200 transition";
       heading.append(department + " ");
       const count = document.createElement("span");
-      count.className = "font-normal normal-case text-gray-400";
+      count.className = "font-normal normal-case text-[color:var(--color-text-muted)]";
       count.textContent = `(${items.length})`;
       heading.append(count);
 
@@ -125,6 +131,7 @@
   app.closeSubjectSettings = function (event) {
     if (!event || event.target.id === "subjectSettingsModal") {
       document.getElementById("subjectSettingsModal")?.classList.add("hidden");
+      app.closeLayer?.(document.getElementById("subjectSettingsModal"));
     }
   };
 

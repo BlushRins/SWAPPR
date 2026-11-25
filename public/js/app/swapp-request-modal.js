@@ -77,9 +77,14 @@
     renderChoices(choices);
     setError("");
     setSending(false);
-    document.getElementById("swappRequestModal").classList.remove("hidden");
+    const modal = document.getElementById("swappRequestModal");
+    modal.classList.remove("hidden");
     root.lucide?.createIcons();
-    document.querySelector("#swappRequestChoices input")?.focus();
+    app.labelDialog?.(
+      modal.querySelector(".modal-box"),
+      document.getElementById("swappRequestHeading"),
+    );
+    app.openLayer?.(modal, { focus: document.querySelector("#swappRequestChoices input") });
   };
 
   app.closeSwappRequestModal = function closeSwappRequestModal(event) {
@@ -88,6 +93,7 @@
     document.getElementById("swappRequestModal").classList.add("hidden");
     document.getElementById("swappRequestChoices").replaceChildren();
     requestedNotebook = null;
+    app.closeLayer?.(document.getElementById("swappRequestModal"));
   };
 
   async function refreshSwapps() {

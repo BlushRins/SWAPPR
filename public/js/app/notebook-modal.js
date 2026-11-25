@@ -99,10 +99,18 @@
       selectSubject(app.state.selectedSubject);
     }
 
-    document.getElementById("addModal").classList.remove("hidden");
-    setTimeout(() => root.lucide?.createIcons(), 100);
-    document.getElementById("newTitle").focus();
+    showModal();
   };
+
+  // Shows the New/Edit notebook dialog with the cursor in Title. Tab stays
+  // in the dialog until it closes.
+  function showModal() {
+    const modal = document.getElementById("addModal");
+    modal.classList.remove("hidden");
+    setTimeout(() => root.lucide?.createIcons(), 100);
+    app.labelDialog?.(modal.querySelector(".modal-box"), document.getElementById("modalHeading"));
+    app.openLayer?.(modal, { focus: document.getElementById("newTitle") });
+  }
 
   // Form-prefill helper: set the upload form's subject select to `code`,
   // adding an option if the code isn't already in the list.
@@ -147,9 +155,7 @@
       (key) => notebook[key] !== null && notebook[key] !== undefined && notebook[key] !== "",
     );
 
-    document.getElementById("addModal").classList.remove("hidden");
-    setTimeout(() => root.lucide?.createIcons(), 100);
-    document.getElementById("newTitle").focus();
+    showModal();
   };
 
   // A count stops being red once it's valid again.
@@ -186,6 +192,7 @@
       document.getElementById("addModal").classList.add("hidden");
       app.state.editingNotebookId = null;
       app.clearPortfolioForm();
+      app.closeLayer?.(document.getElementById("addModal"));
     }
   };
 })(window);

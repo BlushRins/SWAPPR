@@ -338,7 +338,9 @@ body.mobile-menu-open {
 }
 
 .panel-hero {
-  background: linear-gradient(135deg, #4a0080 0%, #5b5bd6 60%, #9b8ec4 100%);
+  /* Last stop deepened from #9b8ec4 so the white username and bio keep
+     4.5:1 across the whole card. */
+  background: linear-gradient(135deg, #4a0080 0%, #5b5bd6 60%, #6e62c8 100%);
   border-radius: 14px;
   padding: 24px 16px 20px;
 }
@@ -414,30 +416,53 @@ body.mobile-menu-open {
   background: rgba(139, 92, 246, 0.15);
   color: #ede9fe;
 }
+@media (max-width: 767px) {
+  .report-modal-close {
+    top: 12px;
+    right: 12px;
+    width: 44px;
+    height: 44px;
+  }
+}
 
 /* ── Toast ───────────────────────────────────────────────────────────────── */
+/* All toast styling lives here; js/app/toast.js only toggles .show. The
+   message wraps, so a long one stays readable on a 320px phone. */
 .toast {
   position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: #1e1033;
+  right: 1.5rem;
+  bottom: 6rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+  background: #9333ea; /* white text 5.4:1 */
   color: white;
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 10px 20px;
-  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1);
   opacity: 0;
+  transform: translateY(10px);
   transition:
-    opacity 0.25s,
-    transform 0.25s;
+    opacity 0.3s,
+    transform 0.3s;
   pointer-events: none;
   z-index: 200;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .toast.show {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
+}
+@media (max-width: 767px) {
+  .toast {
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
 }
 .toast.green {
   background: #166534;
@@ -500,6 +525,23 @@ body.mobile-menu-open {
 .chat-panel-end:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+.chat-panel-close {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+.chat-panel-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+@media (max-width: 767px) {
+  .chat-panel-close {
+    width: 44px;
+    height: 44px;
+    margin: -6px -10px -6px 0;
+  }
+}
 
 .chat-panel-messages {
   flex: 1;
@@ -516,7 +558,7 @@ body.mobile-menu-open {
 .chat-panel-empty {
   margin: auto;
   font-size: 0.78rem;
-  color: #a78bfa;
+  color: var(--color-text-muted);
 }
 
 .chat-bubble-row {
@@ -727,7 +769,7 @@ body.mobile-menu-open {
 }
 
 .card-username {
-  color: #8b5cf6;
+  color: var(--color-primary);
   font-size: 0.9rem;
   font-weight: 700;
   margin: 0.15rem 0 0.85rem;
@@ -891,25 +933,6 @@ body.mobile-menu-open {
 
 .dark .card-footer {
   border-top-color: rgba(255, 255, 255, 0.04);
-}
-
-/* ── Like Button ───────────────── */
-.like-btn {
-  background: #e0e7ff;
-  color: #4f46e5;
-  font-weight: 600;
-  border-radius: 10px;
-  padding: 6px 12px;
-  font-size: 0.75rem;
-  transition: 0.2s;
-}
-.like-btn:hover {
-  background: #c7d2fe;
-}
-
-.dark .like-btn {
-  background: rgba(99, 102, 241, 0.15);
-  color: #c4b5fd;
 }
 
 /* ── SWAPP Button ───────────────── */
@@ -1619,7 +1642,7 @@ body {
   font-size: 0.78rem;
   font-weight: 700;
 
-  color: #22c55e;
+  color: var(--color-success);
 }
 
 /* Selected-subject notebook gallery */
@@ -1708,6 +1731,17 @@ body {
   font-weight: 800;
 }
 
+.dark .notebooks-grid .meta-pill,
+.dark .notebooks-grid .read-time {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-divider);
+}
+
+.dark .notebooks-grid .card-subject-text {
+  color: var(--color-primary);
+}
+
 .notebooks-grid .meta-bottom-row {
   flex-direction: column;
   align-items: flex-start;
@@ -1716,7 +1750,7 @@ body {
 }
 
 .notebooks-grid .trust-score {
-  color: #00bf63;
+  color: var(--color-success);
   font-size: 0.78rem;
   font-weight: 800;
 }
@@ -1764,7 +1798,7 @@ body {
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.35);
   color: white;
 }
@@ -2147,7 +2181,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #9b8ec4;
+  color: var(--color-text-muted);
   margin-bottom: 0.6rem;
 }
 
@@ -2289,7 +2323,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #9b8ec4;
+  color: var(--color-text-muted);
 }
 .admin-stat--red {
   background: #fef2f2;
@@ -2451,7 +2485,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9b8ec4;
+  color: var(--color-text-muted);
   margin-bottom: 0.3rem;
 }
 .request-notebooks {
@@ -2506,7 +2540,7 @@ body {
 /* Notebook cards use the PNL001 colour bands: 95%+ green (the default
    .trust-score colour), 85%+ yellow, below that red. */
 .notebooks-grid .trust-score.trust-mid {
-  color: #d97706;
+  color: #b45309;
 }
 .notebooks-grid .trust-score.trust-low {
   color: #dc2626;
@@ -2515,7 +2549,7 @@ body {
   color: #fbbf24;
 }
 .dark .notebooks-grid .trust-score.trust-low {
-  color: #f87171;
+  color: #fca5a5;
 }
 
 /* Profile panel: read-only account standing (FUNC-014 REQT-003). */
@@ -2530,7 +2564,7 @@ body {
 }
 .profile-standing dt {
   font-weight: 700;
-  color: #9b8ec4;
+  color: var(--color-text-muted);
 }
 .profile-standing dd {
   margin: 0;
@@ -2596,10 +2630,12 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  min-height: 44px;
   padding: 0.5rem 0.9rem;
   border-radius: 0.5rem;
   border: 1px solid #fbcfe8;
-  color: #db2777;
+  background: transparent;
+  color: #be185d; /* 6.0:1 on white */
   font-size: 0.875rem;
   font-weight: 700;
   transition: background-color 0.15s ease;

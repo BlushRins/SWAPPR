@@ -27,7 +27,7 @@
         container.appendChild(
           quickLink(
             notebook,
-            "text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200",
+            "text-[color:var(--color-primary)] hover:text-purple-800 dark:hover:text-purple-200",
           ),
         );
       });

@@ -387,11 +387,11 @@
     const names = [...new Set(notices.map((swapp) => swapp.cancelledBy))];
     let message;
     if (names.length > 1) {
-      message = `@${names[0]} and ${names.length - 1} more cancelled SWAPPs with you.`;
+      message = `@${names[0]} and ${names.length - 1} more cancelled swaps with you.`;
     } else if (notices.length > 1) {
-      message = `@${names[0]} cancelled ${notices.length} SWAPPs with you.`;
+      message = `@${names[0]} cancelled ${notices.length} swaps with you.`;
     } else {
-      message = `@${names[0]} cancelled a SWAPP with you.`;
+      message = `@${names[0]} cancelled a swap with you.`;
     }
     app.showToast(message);
 

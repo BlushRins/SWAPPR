@@ -18,7 +18,7 @@
       <div class="space-y-4">
         <div>
           <label for="reportReason" class="field-section-label">
-            Reason <span class="text-red-500">*</span>
+            Reason <span class="text-[color:var(--color-error)]">*</span>
           </label>
           <select id="reportReason" class="input-field">
             <option value="" disabled selected>Select a reason</option>
@@ -33,7 +33,7 @@
 
         <div>
           <label for="reportDetails" class="field-section-label">
-            Details <span class="text-red-500">*</span>
+            Details <span class="text-[color:var(--color-error)]">*</span>
           </label>
           <textarea id="reportDetails" rows="4" maxlength="500" class="input-field resize-none"></textarea>
           <p id="reportDetailsError" class="report-error hidden">Missing input.</p>
@@ -41,7 +41,7 @@
 
         <div class="flex justify-end gap-3 pt-2">
           <button type="button" data-report-close
-            class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition">
+            class="text-sm font-semibold px-4 py-2 rounded-lg text-[color:var(--color-primary)] hover:bg-purple-50 dark:hover:bg-purple-900/20 transition">
             Cancel
           </button>
           <button id="reportSubmitBtn" type="button"
@@ -166,14 +166,16 @@
     resetReportForm();
     renderSubject();
 
-    document.getElementById("reportModal").classList.remove("hidden");
+    const modal = document.getElementById("reportModal");
+    modal.classList.remove("hidden");
     root.lucide?.createIcons();
-    document.getElementById("reportReason").focus();
+    app.openLayer?.(modal, { focus: document.getElementById("reportReason") });
   };
 
   app.closeReportModal = function closeReportModal(event) {
     if (event && event.target.id !== "reportModal") return;
     document.getElementById("reportModal")?.classList.add("hidden");
+    app.closeLayer?.(document.getElementById("reportModal"));
     resetReportForm();
     target = null;
   };

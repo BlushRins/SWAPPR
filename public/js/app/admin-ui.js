@@ -229,13 +229,20 @@
         {
           class: `admin-row${extraClass ? ` ${extraClass}` : ""}`,
           tabindex: "0",
+          // Lets focus come back to this row after the table re-renders.
+          "data-focus-key":
+            row.id === undefined || row.id === null ? null : `${container.id}:${row.id}`,
           title: `${ui.openVerb(openOn)} to view`,
           [openEvent]: (event) => {
             if (event.target.closest("button, a")) return;
             open();
           },
           onKeydown: (event) => {
-            if (event.key === "Enter" && event.target === event.currentTarget) open();
+            if (event.key !== "Enter" || event.target !== event.currentTarget) return;
+            // The popup takes focus; without this the same Enter would also
+            // press its first button (Close).
+            event.preventDefault();
+            open();
           },
         },
         columns.map((column) => {
@@ -364,22 +371,29 @@
   ui.openModal = function openModal(title, content, { icon = "file-text" } = {}) {
     document.getElementById("adminModalTitle").replaceChildren(ui.icon(icon, "w-5 h-5"), title);
     document.getElementById("adminModalBody").replaceChildren(content);
-    document.getElementById("adminModal").classList.remove("hidden");
+    const modal = document.getElementById("adminModal");
+    modal.classList.remove("hidden");
     ui.refreshIcons();
+    app.openLayer?.(modal);
   };
 
   ui.closeModal = function closeModal(event) {
     if (event && event.target.id !== "adminModal") return;
-    document.getElementById("adminModal").classList.add("hidden");
+    const modal = document.getElementById("adminModal");
+    modal.classList.add("hidden");
     document.getElementById("adminModalBody").replaceChildren();
+    app.closeLayer?.(modal);
   };
 
   // ── User slide-over (View Specific User) ────────────────────────────────
   ui.openPanel = function openPanel(content) {
     document.getElementById("adminUserPanelBody").replaceChildren(content);
-    document.getElementById("adminUserPanel").classList.add("open");
-    document.getElementById("adminUserOverlay").classList.add("active");
+    const panel = document.getElementById("adminUserPanel");
+    const overlay = document.getElementById("adminUserOverlay");
+    panel.classList.add("open");
+    overlay.classList.add("active");
     ui.refreshIcons();
+    app.openLayer?.(panel, { keep: [overlay] });
   };
 
   ui.setPanelContent = function setPanelContent(content) {
@@ -388,9 +402,19 @@
   };
 
   ui.closePanel = function closePanel() {
-    document.getElementById("adminUserPanel").classList.remove("open");
+    const panel = document.getElementById("adminUserPanel");
+    panel.classList.remove("open");
     document.getElementById("adminUserOverlay").classList.remove("active");
+    app.closeLayer?.(panel);
   };
+
+  // The closed slide-over stays in the page off-screen, so it's inert until
+  // opened; open, it's a modal dialog.
+  document.addEventListener("DOMContentLoaded", () => {
+    const panel = document.getElementById("adminUserPanel");
+    app.labelDialog?.(panel, "User details");
+    app.registerDrawer?.(panel);
+  });
 
   ui.isPanelOpen = () =>
     document.getElementById("adminUserPanel")?.classList.contains("open");
