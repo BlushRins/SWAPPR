@@ -207,6 +207,7 @@ function renderProfile(p) {
       )
       .join("");
   }
+  window.lucide?.createIcons();
 }
 
 // ── Edit Profile ──────────────────────────────────────────────────────────

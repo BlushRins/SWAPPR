@@ -470,11 +470,17 @@
 
     if (app.state.notebooksError) {
       grid.appendChild(
-        app.stateMessage("Couldn't load notebooks.", "Try again", () => {
-          grid.replaceChildren(app.stateMessage("Loading notebooks…"));
-          app.loadNotebooks();
-        }),
+        app.stateMessage(
+          "Couldn't load notebooks.",
+          "Try again",
+          () => {
+            grid.replaceChildren(app.stateMessage("Loading notebooks…", null, null, { icon: null }));
+            app.loadNotebooks();
+          },
+          { icon: "triangle-alert", subtitle: "Check your connection and try again." },
+        ),
       );
+      root.lucide?.createIcons();
       app.renderPagination(0);
       return;
     }
@@ -487,13 +493,44 @@
       const scope = [selectedSubjectName(), app.state.selectedProgram].filter(Boolean).join(" in ");
       if (searchEmptied) {
         const message = scope ? `No notebooks match your search in ${scope}.` : NO_SEARCH_MATCH;
-        grid.appendChild(app.stateMessage(message, "Clear search", app.clearSearch));
+        grid.appendChild(
+          app.stateMessage(message, "Clear search", app.clearSearch, {
+            icon: "search",
+            subtitle: "Try a different title or author username.",
+          }),
+        );
+      } else if (scope) {
+        grid.appendChild(
+          app.stateMessage(`No shared notebooks for ${scope} yet.`, null, null, {
+            icon: "book-open",
+            subtitle: "Be the first to share a study notebook for this subject.",
+          }),
+        );
+      } else if (app.state.currentFilter === "mine") {
+        grid.appendChild(
+          app.stateMessage(EMPTY_MESSAGES.mine, "Add notebook", () => app.openAddModal?.(), {
+            icon: "notebook",
+            subtitle: "Publish a study notebook so you can swap with classmates.",
+            actionClass: "btn-solid",
+          }),
+        );
+      } else if (app.state.currentFilter === "matched") {
+        grid.appendChild(
+          app.stateMessage(EMPTY_MESSAGES.matched, null, null, {
+            icon: "handshake",
+            subtitle: "Request a swap on any notebook to unlock notes from classmates.",
+          }),
+        );
       } else {
-        const message = scope
-          ? `No shared notebooks for ${scope} yet.`
-          : EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH;
-        grid.appendChild(app.stateMessage(message));
+        const message = EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH;
+        grid.appendChild(
+          app.stateMessage(message, null, null, {
+            icon: "book-open",
+            subtitle: "Shared study notebooks will appear here.",
+          }),
+        );
       }
+      root.lucide?.createIcons();
       app.renderPagination(0);
       return;
     }

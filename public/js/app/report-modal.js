@@ -40,12 +40,10 @@
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
-          <button type="button" data-report-close
-            class="text-sm font-semibold px-4 py-2 rounded-lg text-[color:var(--color-primary)] hover:bg-purple-50 dark:hover:bg-purple-900/20 transition">
+          <button type="button" data-report-close class="btn-outline">
             Cancel
           </button>
-          <button id="reportSubmitBtn" type="button"
-            class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
+          <button id="reportSubmitBtn" type="button" class="btn-solid">
             Submit Report
           </button>
         </div>
