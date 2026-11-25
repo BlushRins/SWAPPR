@@ -35,8 +35,11 @@
 
   app.setNotebookFieldError = function setNotebookFieldError(field, hasError) {
     const id = REQUIRED_FIELDS[field];
-    document.getElementById(id)?.classList.toggle("error", hasError);
+    const input = id && document.getElementById(id);
+    if (!input) return false;
+    input.classList.toggle("error", hasError);
     document.getElementById(`${id}Error`)?.classList.toggle("hidden", !hasError);
+    return true;
   };
 
   // A valid http(s) link, the same rule the server applies.

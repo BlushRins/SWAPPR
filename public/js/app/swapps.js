@@ -327,9 +327,9 @@
   const SWAPP_CHECK_INTERVAL_MS = 5000;
   let swappTimer = null;
 
-  app.startSwappUpdates = function startSwappUpdates() {
+  app.startSwappUpdates = function startSwappUpdates({ immediate = true } = {}) {
     if (swappTimer) clearInterval(swappTimer);
-    app.checkSwappUpdates();
+    if (immediate) app.checkSwappUpdates();
     swappTimer = setInterval(app.checkSwappUpdates, SWAPP_CHECK_INTERVAL_MS);
   };
 

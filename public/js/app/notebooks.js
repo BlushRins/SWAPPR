@@ -166,7 +166,7 @@
     accessBtn.dataset.action = "access";
     accessBtn.addEventListener("click", () => {
       const url = notebook.fileUrl || notebook.file_url;
-      if (url) window.open(url, "_blank", "noopener");
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
       else app.showToast("No file URL available");
     });
     return accessBtn;
@@ -522,8 +522,7 @@
       app.loadSidebar();
     } catch (err) {
       // The server names the field it refused ("Missing input.").
-      if (err.field) {
-        app.setNotebookFieldError(err.field, true);
+      if (err.field && app.setNotebookFieldError(err.field, true)) {
         return;
       }
       console.error("Could not save the notebook:", err);
@@ -538,13 +537,16 @@
   };
 
   app.likeNotebook = async function likeNotebook(id) {
-    await app.api.likeNotebook({
-      username: app.state.currentUser.username,
-      notebookId: id,
-    });
-
-    app.loadNotebooks();
-    app.loadSidebar();
+    try {
+      await app.api.likeNotebook({
+        username: app.state.currentUser.username,
+        notebookId: id,
+      });
+      app.loadNotebooks();
+      app.loadSidebar();
+    } catch {
+      app.showToast("Could not update the notebook like. Please try again.");
+    }
   };
 
   app.filterBy = function filterBy(type) {

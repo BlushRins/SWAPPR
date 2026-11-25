@@ -39,6 +39,7 @@ const {
 const app = express();
 const IS_PRODUCTION = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 const SESSION_SECRET = process.env.SESSION_SECRET;
+const credentialKey = SESSION_SECRET || crypto.randomBytes(32);
 const APP_ORIGIN = process.env.APP_ORIGIN;
 if (IS_PRODUCTION && Buffer.byteLength(SESSION_SECRET || "") < 32) {
   throw new Error("Production requires a random SESSION_SECRET of at least 32 bytes.");
@@ -131,10 +132,7 @@ const sessionCookieOptions = {
 };
 
 function credentialDigest(token) {
-  const hash = SESSION_SECRET
-    ? crypto.createHmac("sha256", SESSION_SECRET)
-    : crypto.createHash("sha256");
-  return hash.update(token).digest("hex");
+  return crypto.createHmac("sha256", credentialKey).update(token).digest("hex");
 }
 
 async function startSession(res, role, id, passwordHash) {
@@ -390,7 +388,8 @@ app.get("/login.html", (req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 const SQL_DIR = process.env.SWAPPR_SQL_DIR || path.join(__dirname, "sql");
-const db = new sqlite3.Database(path.join(SQL_DIR, "swappr.db"), (err) => {
+const accountDbPath = path.join(SQL_DIR, "swappr.db");
+const db = new sqlite3.Database(accountDbPath, (err) => {
   if (err) return console.error(err.message);
   console.log("Connected to SQLite database.");
 });
@@ -412,21 +411,64 @@ async function loadCatalog() {
   catalogByCode = new Map(courseCatalog.map((row) => [row.course_code, row]));
 }
 
-const dbRun = (sql, params = []) =>
-  new Promise((resolve, reject) => {
-    db.run(sql, params, function onRun(err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
+function accountQueries(connection) {
+  return {
+    run(sql, params = []) {
+      return new Promise((resolve, reject) => {
+        connection.run(sql, params, function onRun(err) {
+          if (err) reject(err);
+          else resolve(this);
+        });
+      });
+    },
+    get(sql, params = []) {
+      return new Promise((resolve, reject) => {
+        connection.get(sql, params, (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+    },
+  };
+}
 
-const dbGet = (sql, params = []) =>
-  new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
+const { run: dbRun, get: dbGet } = accountQueries(db);
+
+async function withAccountTransaction(change) {
+  // Use a separate connection so unrelated requests cannot enter this transaction.
+  const connection = await new Promise((resolve, reject) => {
+    const opened = new sqlite3.Database(accountDbPath, sqlite3.OPEN_READWRITE, (err) => {
       if (err) reject(err);
-      else resolve(row);
+      else resolve(opened);
     });
   });
+  connection.configure("busyTimeout", 5000);
+  const queries = accountQueries(connection);
+  try {
+    await queries.run("PRAGMA foreign_keys = ON");
+    await queries.run("BEGIN IMMEDIATE");
+    try {
+      const result = await change(queries);
+      await queries.run("COMMIT");
+      return result;
+    } catch (error) {
+      await queries.run("ROLLBACK").catch((rollbackError) => {
+        console.error("[DB] transaction rollback failed:", rollbackError.message);
+      });
+      throw error;
+    }
+  } finally {
+    await new Promise((resolve) => connection.close((err) => {
+      if (err) console.error("[DB] transaction close failed:", err.message);
+      resolve();
+    }));
+  }
+}
+
+function sendChangeResult(res, result) {
+  if (result) return res.status(result[0]).json({ success: false, message: result[1] });
+  return res.json({ success: true });
+}
 
 const dbAll = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -509,6 +551,7 @@ async function initializeEnrollmentIdentity() {
 
 async function initializeDatabase() {
   try {
+    await dbRun("PRAGMA journal_mode = WAL");
     console.log("Creating tables...");
     await dbRun(`CREATE TABLE IF NOT EXISTS Users (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1620,8 +1663,8 @@ async function reportUser(req, res, reportedUserId, reason, details) {
 
 // Applies a trust change (see lib/trustScore.js) in one statement, so two
 // events at once can't overwrite each other. Same clamp as applyTrustChange.
-function adjustTrustScore(userId, change) {
-  return dbRun(
+function adjustTrustScore(userId, change, run = dbRun) {
+  return run(
     `UPDATE Users
      SET trust_score = MAX(?, MIN(?, COALESCE(trust_score, ?) + ?))
      WHERE id = ?`,
@@ -1834,54 +1877,52 @@ app.get("/api/swapps/:username", requireAuth, async (req, res) => {
 
 // FUNC-011 (UC-05): the receiver accepts or declines a pending request.
 app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
   const { status } = req.body;
   if (status !== "accepted" && status !== "rejected") {
     return res.status(400).json({ success: false, message: "Invalid response." });
   }
 
   try {
-    const swapp = await dbGet(
-      `SELECT * FROM Swapps WHERE id=? AND receiver_id=?`,
-      [req.params.id, req.currentUser.id],
-    );
-    if (!swapp) {
-      return res
-        .status(404)
-        .json({ success: false, message: "SWAPP not found" });
-    }
-
-    // Only a pending request can be answered, and only once.
-    const update = await dbRun(
-      `UPDATE Swapps SET status=? WHERE id=? AND status='pending'`,
-      [status, swapp.id],
-    );
-    if (!update.changes) {
-      return res.status(409).json({
-        success: false,
-        message: "This request has already been answered.",
-      });
-    }
-
-    if (status === "accepted") {
-      // REQT-006: accepting confirms every line of the manifest.
-      await dbRun(
-        `UPDATE Transaction_Manifest SET is_confirmed = 1 WHERE SWAPP_ID = ?`,
-        [swapp.id],
+    const result = await withAccountTransaction(async ({ run, get }) => {
+      const swapp = await get(
+        `SELECT * FROM Swapps WHERE id=? AND receiver_id=?`,
+        [id, req.currentUser.id],
       );
-      const existing = await dbGet(`SELECT id FROM Chats WHERE swapp_id=?`, [
-        swapp.id,
-      ]);
-      if (!existing) {
-        await dbRun(
-          `INSERT INTO Chats (swapp_id, user_a_id, user_b_id, expires_at)
-           VALUES (?, ?, ?, datetime(CURRENT_TIMESTAMP, ${CHAT_EXPIRY_OFFSET}))`,
-          [swapp.id, swapp.sender_id, swapp.receiver_id],
-        );
-        console.log(`[CHAT] Created chat for swapp ${swapp.id}`);
+      if (!swapp) {
+        return [404, "SWAPP not found"];
       }
-    }
 
-    res.json({ success: true });
+      // Only a pending request can be answered, and only once.
+      const update = await run(
+        `UPDATE Swapps SET status=? WHERE id=? AND status='pending'`,
+        [status, swapp.id],
+      );
+      if (!update.changes) {
+        return [409, "This request has already been answered."];
+      }
+
+      if (status === "accepted") {
+        // REQT-006: accepting confirms every line of the manifest.
+        await run(
+          `UPDATE Transaction_Manifest SET is_confirmed = 1 WHERE SWAPP_ID = ?`,
+          [swapp.id],
+        );
+        const existing = await get(`SELECT id FROM Chats WHERE swapp_id=?`, [
+          swapp.id,
+        ]);
+        if (!existing) {
+          await run(
+            `INSERT INTO Chats (swapp_id, user_a_id, user_b_id, expires_at)
+             VALUES (?, ?, ?, datetime(CURRENT_TIMESTAMP, ${CHAT_EXPIRY_OFFSET}))`,
+            [swapp.id, swapp.sender_id, swapp.receiver_id],
+          );
+          console.log(`[CHAT] Created chat for swapp ${swapp.id}`);
+        }
+      }
+    });
+    sendChangeResult(res, result);
   } catch (err) {
     console.error("[CHAT] respond failed:", err.message);
     res.status(500).json({ success: false, message: "Server error. Please try again." });
@@ -1893,55 +1934,49 @@ app.put("/api/swapps/:id/respond", requireAuth, async (req, res) => {
 // accepted SWAPPs, and its chat closes at once (FUNC-013 REQT-007). A SWAPP
 // whose chat was already ended is complete and can no longer be cancelled.
 app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
   const me = req.currentUser.id;
   try {
-    const swapp = await dbGet(
-      `SELECT * FROM Swapps WHERE id = ? AND (sender_id = ? OR receiver_id = ?)`,
-      [req.params.id, me, me],
-    );
-    if (!swapp) {
-      return res.status(404).json({ success: false, message: "SWAPP not found" });
-    }
-    if (swapp.status !== "accepted") {
-      return res.status(409).json({
-        success: false,
-        message: "Only an accepted SWAPP can be cancelled.",
-      });
-    }
-    const ended = await dbGet(
-      `SELECT id FROM Chats WHERE swapp_id = ? AND status = 'archived'`,
-      [swapp.id],
-    );
-    if (ended) {
-      return res.status(409).json({
-        success: false,
-        message: "This SWAPP has already ended and can't be cancelled.",
-      });
-    }
+    const result = await withAccountTransaction(async ({ run, get }) => {
+      const swapp = await get(
+        `SELECT * FROM Swapps WHERE id = ? AND (sender_id = ? OR receiver_id = ?)`,
+        [id, me, me],
+      );
+      if (!swapp) {
+        return [404, "SWAPP not found"];
+      }
+      if (swapp.status !== "accepted") {
+        return [409, "Only an accepted SWAPP can be cancelled."];
+      }
+      const ended = await get(
+        `SELECT id FROM Chats WHERE swapp_id = ? AND status = 'archived'`,
+        [swapp.id],
+      );
+      if (ended) {
+        return [409, "This SWAPP has already ended and can't be cancelled."];
+      }
 
-    const update = await dbRun(
-      `UPDATE Swapps
-       SET status = 'cancelled', cancelled_by = ?, cancelled_at = CURRENT_TIMESTAMP,
-           cancel_notified = 0
-       WHERE id = ? AND status = 'accepted'`,
-      [me, swapp.id],
-    );
-    if (!update.changes) {
-      return res.status(409).json({
-        success: false,
-        message: "Only an accepted SWAPP can be cancelled.",
-      });
-    }
-    await dbRun(
-      `UPDATE Chats SET status = 'archived', archived_at = CURRENT_TIMESTAMP,
-                        archived_reason = 'swapp_cancelled'
-       WHERE swapp_id = ? AND status = 'active'`,
-      [swapp.id],
-    );
-    // FUNC-011 REQT-011: only the student who cancelled loses trust.
-    await adjustTrustScore(me, TRUST_CHANGE.swappCancelled);
-
-    res.json({ success: true });
+      const update = await run(
+        `UPDATE Swapps
+         SET status = 'cancelled', cancelled_by = ?, cancelled_at = CURRENT_TIMESTAMP,
+             cancel_notified = 0
+         WHERE id = ? AND status = 'accepted'`,
+        [me, swapp.id],
+      );
+      if (!update.changes) {
+        return [409, "Only an accepted SWAPP can be cancelled."];
+      }
+      await run(
+        `UPDATE Chats SET status = 'archived', archived_at = CURRENT_TIMESTAMP,
+                          archived_reason = 'swapp_cancelled'
+         WHERE swapp_id = ? AND status = 'active'`,
+        [swapp.id],
+      );
+      // FUNC-011 REQT-011: only the student who cancelled loses trust.
+      await adjustTrustScore(me, TRUST_CHANGE.swappCancelled, run);
+    });
+    sendChangeResult(res, result);
   } catch (err) {
     console.error("[SWAPPS] cancel failed:", err.message);
     res
@@ -1952,13 +1987,15 @@ app.post("/api/swapps/:id/cancel", requireAuth, async (req, res) => {
 
 // The other student has seen the "cancelled" notice, so it isn't shown again.
 app.post("/api/swapps/:id/cancel-seen", requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
   const me = req.currentUser.id;
   try {
     await dbRun(
       `UPDATE Swapps SET cancel_notified = 1
        WHERE id = ? AND status = 'cancelled' AND cancelled_by != ?
          AND (sender_id = ? OR receiver_id = ?)`,
-      [req.params.id, me, me, me],
+      [id, me, me, me],
     );
     res.json({ success: true });
   } catch (err) {
@@ -2014,9 +2051,11 @@ ORDER BY Chats.id DESC`,
 });
 
 app.get("/api/chats/:id/messages", requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
   try {
     await archiveExpiredChats();
-    const chat = await findChatForUser(req.params.id, req.currentUser.id);
+    const chat = await findChatForUser(id, req.currentUser.id);
     if (!chat) {
       return res
         .status(404)
@@ -2057,9 +2096,11 @@ ORDER BY ChatMessages.id ASC`,
 app.post("/api/chats/:id/messages", requireAuth,
   requestLimit("chat-account", 60, 60_000, (req) => req.currentUser.id),
   async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
     try {
       await archiveExpiredChats();
-      const chat = await findChatForUser(req.params.id, req.currentUser.id);
+      const chat = await findChatForUser(id, req.currentUser.id);
       if (!chat) {
         return res
           .status(404)
@@ -2096,8 +2137,10 @@ app.post("/api/chats/:id/messages", requireAuth,
 );
 
 app.post("/api/chats/:id/archive", requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
   try {
-    const chat = await findChatForUser(req.params.id, req.currentUser.id);
+    const chat = await findChatForUser(id, req.currentUser.id);
     if (!chat) {
       return res
         .status(404)
@@ -2170,32 +2213,32 @@ function parseId(value) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-async function closeOpenReports(notebookId, status, adminId) {
-  await dbRun(
+async function closeOpenReports(notebookId, status, adminId, run) {
+  await run(
     `UPDATE Reports SET status = ?, resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
      WHERE notebook_ID = ? AND status = 'open'`,
     [status, adminId, notebookId],
   );
 }
 
-async function removeNotebook(notebook, adminId) {
+async function removeNotebook(notebook, adminId, run) {
   // Only the first removal counts against the author.
   if (notebook.status !== "removed") {
-    await dbRun(`UPDATE Notebooks SET status = 'removed' WHERE id = ?`, [
+    await run(`UPDATE Notebooks SET status = 'removed' WHERE id = ?`, [
       notebook.id,
     ]);
-    await dbRun(
+    await run(
       `UPDATE Users SET warning_count = COALESCE(warning_count, 0) + 1 WHERE id = ?`,
       [notebook.author_id],
     );
     // Platform conduct: each warning also lowers the author's trust.
-    await adjustTrustScore(notebook.author_id, TRUST_CHANGE.warning);
+    await adjustTrustScore(notebook.author_id, TRUST_CHANGE.warning, run);
   }
-  await closeOpenReports(notebook.id, "notebook_removed", adminId);
+  await closeOpenReports(notebook.id, "notebook_removed", adminId, run);
 }
 
-function getNotebookForAdmin(id) {
-  return dbGet(
+function getNotebookForAdmin(id, get = dbGet) {
+  return get(
     `SELECT Notebooks.*, COALESCE(Notebooks.status, 'active') AS status,
             COALESCE(Notebooks.report_count, 0) AS report_count
      FROM Notebooks WHERE id = ?`,
@@ -2263,19 +2306,19 @@ app.post("/api/admin/notebooks/:id/mark-safe", requireAdminAuth, async (req, res
   if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
 
   try {
-    const notebook = await getNotebookForAdmin(id);
-    if (!notebook) {
-      return res.status(404).json({ success: false, message: "Notebook not found" });
-    }
-    if (notebook.status !== "under_review") {
-      return res
-        .status(409)
-        .json({ success: false, message: "This notebook is not under review." });
-    }
+    const result = await withAccountTransaction(async ({ run, get }) => {
+      const notebook = await getNotebookForAdmin(id, get);
+      if (!notebook) {
+        return [404, "Notebook not found"];
+      }
+      if (notebook.status !== "under_review") {
+        return [409, "This notebook is not under review."];
+      }
 
-    await dbRun(`UPDATE Notebooks SET status = 'active' WHERE id = ?`, [id]);
-    await closeOpenReports(id, "disregarded", req.currentAdmin.id);
-    res.json({ success: true });
+      await run(`UPDATE Notebooks SET status = 'active' WHERE id = ?`, [id]);
+      await closeOpenReports(id, "disregarded", req.currentAdmin.id, run);
+    });
+    sendChangeResult(res, result);
   } catch (err) {
     console.error("[ADMIN] mark safe failed:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -2287,18 +2330,18 @@ app.post("/api/admin/notebooks/:id/mark-unsafe", requireAdminAuth, async (req, r
   if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
 
   try {
-    const notebook = await getNotebookForAdmin(id);
-    if (!notebook) {
-      return res.status(404).json({ success: false, message: "Notebook not found" });
-    }
-    if (notebook.status !== "under_review") {
-      return res
-        .status(409)
-        .json({ success: false, message: "This notebook is not under review." });
-    }
+    const result = await withAccountTransaction(async ({ run, get }) => {
+      const notebook = await getNotebookForAdmin(id, get);
+      if (!notebook) {
+        return [404, "Notebook not found"];
+      }
+      if (notebook.status !== "under_review") {
+        return [409, "This notebook is not under review."];
+      }
 
-    await removeNotebook(notebook, req.currentAdmin.id);
-    res.json({ success: true });
+      await removeNotebook(notebook, req.currentAdmin.id, run);
+    });
+    sendChangeResult(res, result);
   } catch (err) {
     console.error("[ADMIN] mark unsafe failed:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -2321,10 +2364,10 @@ app.get("/api/admin/reports", requireAdminAuth, async (req, res) => {
               COALESCE(target.id, author.id) AS reportedUserId,
               COALESCE(target.username, author.username) AS reportedUser,
               COALESCE(target.account_status, author.account_status, 'active') AS reportedUserStatus,
-              target.name AS reportedUserName,
-              target.course AS reportedUserCourse,
-              COALESCE(target.trust_score, ${TRUST_SCORE_DEFAULT}) AS reportedUserTrust,
-              COALESCE(target.warning_count, 0) AS reportedUserWarnings,
+              COALESCE(target.name, author.name) AS reportedUserName,
+              COALESCE(target.course, author.course) AS reportedUserCourse,
+              COALESCE(target.trust_score, author.trust_score, ${TRUST_SCORE_DEFAULT}) AS reportedUserTrust,
+              COALESCE(target.warning_count, author.warning_count, 0) AS reportedUserWarnings,
               Admin.username AS resolvedBy
        FROM Reports
        LEFT JOIN Users reporter ON reporter.id = Reports.reporter_ID
@@ -2350,59 +2393,52 @@ app.post("/api/admin/reports/:id/resolve", requireAdminAuth, async (req, res) =>
   }
 
   try {
-    const report = await dbGet(`SELECT * FROM Reports WHERE report_ID = ?`, [id]);
-    if (!report) {
-      return res.status(404).json({ success: false, message: "Report not found" });
-    }
-    if (report.status !== "open") {
-      return res
-        .status(409)
-        .json({ success: false, message: "This report is already resolved." });
-    }
+    const result = await withAccountTransaction(async ({ run, get }) => {
+      const report = await get(`SELECT * FROM Reports WHERE report_ID = ?`, [id]);
+      if (!report) {
+        return [404, "Report not found"];
+      }
+      if (report.status !== "open") {
+        return [409, "This report is already resolved."];
+      }
 
-    const notebook = report.notebook_ID
-      ? await getNotebookForAdmin(report.notebook_ID)
-      : null;
-    if (action === "remove_notebook" && !notebook) {
-      return res.status(409).json({
-        success: false,
-        message: report.reported_user_ID
-          ? "Only a notebook report can remove a notebook."
-          : "The reported notebook no longer exists.",
-      });
-    }
-    // Suspending hits the reported account, or the reported notebook's author.
-    const suspendId = report.reported_user_ID || notebook?.author_id;
-    if (action === "suspend_user" && !suspendId) {
-      return res.status(409).json({
-        success: false,
-        message: "The reported notebook no longer exists.",
-      });
-    }
-    const adminId = req.currentAdmin.id;
+      const notebook = report.notebook_ID
+        ? await getNotebookForAdmin(report.notebook_ID, get)
+        : null;
+      if (action === "remove_notebook" && !notebook) {
+        return [409, report.reported_user_ID
+            ? "Only a notebook report can remove a notebook."
+            : "The reported notebook no longer exists."];
+      }
+      // Suspending hits the reported account, or the reported notebook's author.
+      const suspendId = report.reported_user_ID || notebook?.author_id;
+      if (action === "suspend_user" && !suspendId) {
+        return [409, "The reported notebook no longer exists."];
+      }
+      const adminId = req.currentAdmin.id;
 
-    if (action === "remove_notebook") {
-      // Closes this report and every other open report on the notebook.
-      await removeNotebook(notebook, adminId);
-    } else if (action === "suspend_user") {
-      await dbRun(`UPDATE Users SET account_status = 'suspended' WHERE id = ?`, [
-        suspendId,
-      ]);
-      await dbRun(
-        `UPDATE Reports SET status = 'user_suspended', resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
-         WHERE report_ID = ?`,
-        [adminId, id],
-      );
-    } else {
-      await dbRun(
-        `UPDATE Reports SET status = 'disregarded', resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
-         WHERE report_ID = ?`,
-        [adminId, id],
-      );
+      if (action === "remove_notebook") {
+        // Closes this report and every other open report on the notebook.
+        await removeNotebook(notebook, adminId, run);
+      } else if (action === "suspend_user") {
+        await run(`UPDATE Users SET account_status = 'suspended' WHERE id = ?`, [
+          suspendId,
+        ]);
+        await run(
+          `UPDATE Reports SET status = 'user_suspended', resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
+           WHERE report_ID = ?`,
+          [adminId, id],
+        );
+      } else {
+        await run(
+          `UPDATE Reports SET status = 'disregarded', resolved_by = ?, date_resolved = CURRENT_TIMESTAMP
+           WHERE report_ID = ?`,
+          [adminId, id],
+        );
 
-    }
-
-    res.json({ success: true });
+      }
+    });
+    sendChangeResult(res, result);
   } catch (err) {
     console.error("[ADMIN] resolve report failed:", err.message);
     res.status(500).json({ success: false, message: "Server error" });

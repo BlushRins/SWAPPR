@@ -117,11 +117,11 @@
     app.attachProgramSearch();
     app.loadDepartments();
     app.loadSubjects();
+    await app.checkSwappUpdates();
     app.loadNotebooks();
-    app.loadSwapps();
     app.loadSidebar();
     app.startChatNotifications();
-    app.startSwappUpdates();
+    app.startSwappUpdates({ immediate: false });
     attachStaticEventListeners();
     app.openEditProfileIfRequested();
     applyProfileHandoffs();
