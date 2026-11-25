@@ -2519,6 +2519,15 @@ body {
   text-align: left;
   cursor: pointer;
 }
+/* Phones: a 44px tap target, text still left-aligned and centred in it. */
+@media (max-width: 767px) {
+  .card-title-link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+}
 .card-title-link:hover,
 .card-title-link:focus-visible {
   text-decoration: underline;
