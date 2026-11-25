@@ -50,8 +50,10 @@
               id="loginUsername"
               class="input-field"
               autocomplete="username"
+              aria-describedby="loginUsernameHint"
               required
             />
+            <p id="loginUsernameHint" class="field-hint">Use the username you chose when you registered.</p>
           </div>
           <div class="field">
             <label for="loginPassword" class="field-label">Password</label>
@@ -218,8 +220,8 @@
                 minlength="8"
                 maxlength="128"
               />
-              <p id="regPasswordHint" class="field-hint">At least 8 characters.</p>
-              <p id="regPasswordError" class="field-error" hidden></p>
+              <p id="regPasswordHint" class="field-hint">Use at least 8 characters and avoid common passwords.</p>
+              <p id="regPasswordError" class="field-error" aria-live="polite"></p>
             </div>
             <button type="submit" class="btn-primary-solid" id="registerBtn">
               Send verification code
@@ -263,6 +265,7 @@
       </div>
     </div>
 
+    <script src="js/password-policy.js"></script>
     <script src="js/login.js"></script>
   </body>
 </html>

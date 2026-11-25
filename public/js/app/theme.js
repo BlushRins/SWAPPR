@@ -5,6 +5,7 @@
     if (!themeToggle) return;
 
     const isDark = document.documentElement.classList.contains("dark");
+    // lucide-icons: sun moon
     const nextIcon = isDark ? "sun" : "moon";
     themeToggle.innerHTML = `<i data-lucide="${nextIcon}" class="w-5 h-5"></i>`;
     root.lucide?.createIcons();
