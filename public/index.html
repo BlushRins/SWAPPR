@@ -560,34 +560,47 @@
               class="input-field"
               placeholder="e.g. Data Structures Notes"
               aria-describedby="newTitleError"
-              required
+              aria-required="true"
             />
-            <p id="newTitleError" class="report-error hidden">Missing input.</p>
+            <p id="newTitleError" class="report-error hidden" role="alert">Missing input.</p>
           </div>
           <div>
+            <label for="newSubjectSearch" class="field-section-label">Find a subject</label>
+            <input
+              type="search"
+              id="newSubjectSearch"
+              class="input-field mb-2"
+              placeholder="Search by code or name, e.g. CIS 1202"
+              autocomplete="off"
+              aria-describedby="newSubjectSearchStatus"
+            />
             <label for="newSubject" class="field-section-label">Subject</label>
             <select id="newSubject" class="input-field">
               <!-- Options populated dynamically by populateSubjectDropdown() from /api/subjects -->
               <option value="">— Select subject —</option>
             </select>
+            <p id="newSubjectSearchStatus" class="field-hint hidden" aria-live="polite"></p>
           </div>
           <div>
             <label for="newFileUrl" class="field-section-label"
-              >Link to your notes <span class="text-red-500" aria-hidden="true">*</span></label
+              >Notebook share link <span class="text-red-500" aria-hidden="true">*</span></label
             >
             <input
-              type="url"
+              type="text"
+              inputmode="url"
               id="newFileUrl"
               class="input-field"
               placeholder="https://drive.google.com/…"
               aria-describedby="newFileUrlHint newFileUrlError"
-              required
+              aria-required="true"
+              autocomplete="off"
             />
             <p id="newFileUrlHint" class="field-hint">
-              Paste a share link to your file, such as Google Drive, OneDrive or Notion.
-              Set it so anyone with the link can view, or your swap partner can't open it.
+              Set it so anyone with the link can view. Open it in a private tab to check.
             </p>
-            <p id="newFileUrlError" class="report-error hidden">Missing input.</p>
+            <p id="newFileUrlError" class="report-error hidden" role="alert">
+              Enter a complete share link, for example https://drive.google.com/…
+            </p>
           </div>
           <div>
             <label for="newDescription" class="field-section-label">Short description</label>
@@ -652,16 +665,43 @@
             <span id="chatDates" class="chat-panel-dates"></span>
           </span>
         </span>
-        <div class="flex items-center gap-3 shrink-0">
-          <button id="chatEndBtn" data-action="endChat" class="chat-panel-end">
-            End Chat
-          </button>
+        <div class="chat-panel-controls">
+          <div id="chatMoreWrap" class="chat-more-wrap">
+            <button
+              id="chatMoreBtn"
+              type="button"
+              class="chat-panel-more"
+              aria-label="More chat options"
+              aria-expanded="false"
+              aria-controls="chatMoreMenu"
+              aria-haspopup="menu"
+            >
+              <i data-lucide="more-vertical" class="w-4 h-4" aria-hidden="true"></i>
+            </button>
+            <div
+              id="chatMoreMenu"
+              class="chat-more-menu hidden"
+              role="menu"
+              aria-labelledby="chatMoreBtn"
+            >
+              <button
+                id="chatEndBtn"
+                type="button"
+                role="menuitem"
+                data-action="endChat"
+                class="chat-panel-end"
+              >
+                End chat
+              </button>
+            </div>
+          </div>
           <button
+            type="button"
             data-action="closeChat"
             class="chat-panel-close"
             aria-label="Close chat"
           >
-            <i data-lucide="x" class="w-4 h-4"></i>
+            <i data-lucide="x" class="w-5 h-5" aria-hidden="true"></i>
           </button>
         </div>
       </div>
@@ -670,6 +710,7 @@
         This chat has ended.
       </p>
       <div id="chatInputRow" class="chat-panel-input-row">
+        <label for="chatMessageInput" class="sr-only">Message</label>
         <input
           type="text"
           id="chatMessageInput"
@@ -677,7 +718,7 @@
           placeholder="Type a message..."
           maxlength="1000"
         />
-        <button data-action="sendChatMessage" class="chat-panel-send">
+        <button type="button" data-action="sendChatMessage" class="chat-panel-send">
           Send
         </button>
       </div>

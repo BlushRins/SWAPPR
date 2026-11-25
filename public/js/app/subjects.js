@@ -87,20 +87,80 @@
     }
   };
 
-  function fillSubjects(select, placeholder) {
+  function subjectOptionLabel(subject) {
+    return subject.description
+      ? `${subject.code} \u00b7 ${app.titleCase(subject.description)}`
+      : subject.code;
+  }
+
+  function fillSubjects(select, placeholder, list = app.state.subjects) {
     if (!select) return;
     const selected = select.value;
     select.replaceChildren(new Option(placeholder, ""));
-    for (const subject of app.state.subjects) {
-      const option = new Option(`${subject.code} - ${subject.description || ""}`, subject.code);
+    for (const subject of list) {
+      const option = new Option(subjectOptionLabel(subject), subject.code);
       option.dataset.department = subject.department || "";
       select.appendChild(option);
     }
     select.value = [...select.options].some((option) => option.value === selected) ? selected : "";
   }
 
+  // Filters #newSubject by course code or subject name without changing the
+  // submitted course_code value or data-department attribute.
+  app.filterSubjectDropdown = function filterSubjectDropdown(rawQuery = "") {
+    const select = document.getElementById("newSubject");
+    const status = document.getElementById("newSubjectSearchStatus");
+    if (!select) return;
+    const trimmed = String(rawQuery).trim();
+    const qCompact = compact(trimmed);
+    const qLower = trimmed.toLowerCase();
+
+    if (!qCompact) {
+      fillSubjects(select, "— Select subject —", app.state.subjects);
+      if (status) {
+        status.textContent = "";
+        status.classList.add("hidden");
+      }
+      return;
+    }
+
+    const matches = app.state.subjects.filter(
+      (subject) =>
+        compact(subject.code).includes(qCompact) ||
+        compact(subject.description).includes(qCompact) ||
+        String(subject.description || "").toLowerCase().includes(qLower),
+    );
+
+    if (matches.length === 0) {
+      select.replaceChildren(new Option("No matching subjects", ""));
+      select.value = "";
+      if (status) {
+        status.textContent = `No subjects match "${trimmed}".`;
+        status.classList.remove("hidden");
+      }
+      return;
+    }
+
+    const placeholder =
+      matches.length === 1
+        ? "— Select subject —"
+        : `— Choose from ${matches.length} matching subjects —`;
+    fillSubjects(select, placeholder, matches);
+    if (matches.length === 1) {
+      select.value = matches[0].code;
+    }
+    if (status) {
+      status.textContent =
+        matches.length === 1
+          ? `1 match: ${subjectOptionLabel(matches[0])}.`
+          : `${matches.length} matching subjects.`;
+      status.classList.remove("hidden");
+    }
+  };
+
   app.populateSubjectDropdown = function populateSubjectDropdown() {
-    fillSubjects(document.getElementById("newSubject"), "- Select subject -");
+    const search = document.getElementById("newSubjectSearch");
+    app.filterSubjectDropdown(search?.value || "");
     const filter = document.getElementById("programSubject");
     if (app.state.selectedProgram && filter) {
       fillSubjects(filter, "All subjects");

@@ -218,6 +218,18 @@
     return "Locked. Request a swap to open it.";
   };
 
+  function createReportButton(notebook) {
+    const reportBtn = document.createElement("button");
+    reportBtn.type = "button";
+    reportBtn.innerHTML = '<i data-lucide="flag" class="w-4 h-4" aria-hidden="true"></i>';
+    reportBtn.className = "card-report-btn";
+    reportBtn.title = "Report";
+    reportBtn.setAttribute("aria-label", "Report this notebook");
+    reportBtn.dataset.action = "report";
+    reportBtn.addEventListener("click", () => app.openReportModal(notebook));
+    return reportBtn;
+  }
+
   function createActionControls(notebook, actionContainer) {
     const currentUser = app.state.currentUser;
     // Per-notebook SWAPP state from its Transaction_Manifest (FUNC-010,
@@ -230,19 +242,6 @@
       actionContainer.appendChild(app.createAccessButton(notebook));
       return;
     }
-
-    // Report sits before whichever swap control follows, so every card that
-    // isn't yours gets exactly one.
-    const reportBtn = document.createElement("button");
-    reportBtn.type = "button";
-    reportBtn.innerHTML = '<i data-lucide="flag" class="w-4 h-4"></i>';
-    reportBtn.className =
-      "inline-flex items-center justify-center shrink-0 w-11 h-11 md:w-9 md:h-9 rounded-lg border border-gray-200 dark:border-purple-500/30 text-[color:var(--color-text-muted)] hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:hover:border-red-400/40 transition";
-    reportBtn.title = "Report";
-    reportBtn.setAttribute("aria-label", "Report this notebook");
-    reportBtn.dataset.action = "report";
-    reportBtn.addEventListener("click", () => app.openReportModal(notebook));
-    actionContainer.appendChild(reportBtn);
 
     if (accessSwapp) {
       actionContainer.appendChild(app.createAccessButton(notebook));
@@ -266,6 +265,7 @@
 
       chatBtn.addEventListener("click", () => app.openChatForSwapp(accessSwapp.id));
       actionContainer.appendChild(chatBtn);
+      actionContainer.appendChild(createReportButton(notebook));
       return;
     }
 
@@ -274,25 +274,8 @@
       pendingBadge.className = "status-pill status-pending";
       pendingBadge.textContent = "Request pending";
       actionContainer.appendChild(pendingBadge);
+      actionContainer.appendChild(createReportButton(notebook));
       return;
-    }
-
-    // FUNC-011 REQT-009: the SWAPP that unlocked this notebook was cancelled.
-    if (cancelled) {
-      const cancelledLabel = document.createElement("span");
-      cancelledLabel.className = "status-pill status-ended";
-      cancelledLabel.textContent = "Cancelled";
-      cancelledLabel.title = "The swap for this notebook was cancelled. You can request it again.";
-      actionContainer.appendChild(cancelledLabel);
-    }
-
-    // FUNC-011 REQT-008: let the requester see their last request was declined.
-    if (declined) {
-      const declinedLabel = document.createElement("span");
-      declinedLabel.className = "status-pill status-ended";
-      declinedLabel.textContent = "Declined";
-      declinedLabel.title = "Your last request was declined. You can ask again.";
-      actionContainer.appendChild(declinedLabel);
     }
 
     // FUNC-010 REQT-003: opens the prompt to choose which notebooks to offer.
@@ -304,6 +287,45 @@
     swapBtn.dataset.action = "swap";
     swapBtn.addEventListener("click", () => app.openSwappRequestModal(notebook));
     actionContainer.appendChild(swapBtn);
+
+    // FUNC-011 REQT-009 / REQT-008: show cancelled or declined state inline when inside details.
+    if (cancelled && actionContainer.closest("#detailsActions")) {
+      const cancelledLabel = document.createElement("span");
+      cancelledLabel.className = "status-pill status-ended";
+      cancelledLabel.textContent = "Cancelled";
+      cancelledLabel.title = "The swap for this notebook was cancelled. You can request it again.";
+      actionContainer.appendChild(cancelledLabel);
+    } else if (declined && actionContainer.closest("#detailsActions")) {
+      const declinedLabel = document.createElement("span");
+      declinedLabel.className = "status-pill status-ended";
+      declinedLabel.textContent = "Declined";
+      declinedLabel.title = "Your last request was declined. You can ask again.";
+      actionContainer.appendChild(declinedLabel);
+    }
+
+    actionContainer.appendChild(createReportButton(notebook));
+  }
+
+  // Sentence-case labels for the card's single quiet metadata line.
+  const SIZE_LABELS = {
+    "QUICK REVIEW": "Quick review",
+    STANDARD: "Standard",
+    COMPREHENSIVE: "Comprehensive",
+  };
+
+  function cardMetadataLine(notebook, metrics) {
+    const has = (value) => value !== null && value !== undefined && value !== "";
+    const parts = [];
+    if (metrics.size) parts.push(SIZE_LABELS[metrics.size] || metrics.size);
+    if (has(notebook.pageCount)) {
+      const pages = Number(notebook.pageCount);
+      parts.push(`${pages.toLocaleString()} ${pages === 1 ? "page" : "pages"}`);
+    } else if (has(notebook.diagramCount)) {
+      const diagrams = Number(notebook.diagramCount);
+      parts.push(`${diagrams.toLocaleString()} ${diagrams === 1 ? "diagram" : "diagrams"}`);
+    }
+    if (metrics.readTime) parts.push(metrics.readTime);
+    return parts.join(" \u00b7 ");
   }
 
   // The size label, count pills and reading time for a notebook. Each is left
@@ -336,76 +358,50 @@
   };
 
   function createNotebookCard(notebook) {
-    const card = document.createElement("div");
-    const maxDescLength = 140;
-    const displayDesc = notebook.description
-      ? notebook.description.length > maxDescLength
-        ? `${notebook.description.slice(0, maxDescLength)}...`
-        : notebook.description
-      : "No description provided";
-
-    const subjectLabel = escapeHtml(
-      [notebook.department || "General", notebook.course_code, "Reviewer"]
-        .filter(Boolean)
-        .join(" \u2022 "),
-    );
+    const card = document.createElement("article");
+    const isOwn = notebook.username === app.state.currentUser?.username;
+    const { accessSwapp, cancelled, declined } = app.swappStateFor(notebook);
+    const subjectCode = escapeHtml(notebook.course_code || notebook.department || "General");
     // FUNC-007 REQT-002: the author's stored trust score.
     const trustScore = escapeHtml(notebook.trustScore ?? 100);
     const trustTone = app.trustTone(Number(notebook.trustScore ?? 100));
     const title = escapeHtml(notebook.title || "Untitled Notebook");
     const username = escapeHtml(notebook.username || "anonymous");
-    const description = escapeHtml(displayDesc);
+    const description = escapeHtml(notebook.description || "No description provided");
     const metrics = app.notebookMetrics(notebook);
+    const metaLine = escapeHtml(cardMetadataLine(notebook, metrics));
+
+    let stateTag = "";
+    if (isOwn) {
+      stateTag = '<span class="card-state-tag">Your notebook</span>';
+    } else if (accessSwapp) {
+      stateTag = '<span class="card-state-tag card-state-unlocked">Unlocked</span>';
+    } else if (cancelled) {
+      stateTag = '<span class="card-state-tag card-state-ended">Cancelled</span>';
+    } else if (declined) {
+      stateTag = '<span class="card-state-tag card-state-ended">Declined</span>';
+    }
 
     card.className = "notebook-card fade-in";
     card.innerHTML = `
-      <div class="card-top">
-        <div>
-          <h3 class="card-title">
-            <button type="button" class="card-title-link">${title}</button>
-          </h3>
-          <p class="card-username">by @${username}</p>
-          <p class="card-description">${description}</p>
-        </div>
+      <div class="card-head-row">
+        <span class="card-subject-code">${subjectCode}</span>
+        ${stateTag}
       </div>
-
-      <div class="card-subject-row">
-        <span class="card-subject-text">${subjectLabel}</span>
+      <h3 class="card-title">
+        <button type="button" class="card-title-link">${title}</button>
+      </h3>
+      <div class="card-byline">
+        <span class="card-username">by @${username}</span>
+        <span class="card-byline-sep" aria-hidden="true">\u00b7</span>
+        <span class="trust-score trust-${trustTone}">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5" aria-hidden="true"></i>
+          ${trustScore}% trust
+        </span>
       </div>
-
-      ${metrics.size ? `<div class="card-badge-row"><span class="card-badge">${escapeHtml(metrics.size)}</span></div>` : ""}
-
-      ${
-        metrics.pills.length
-          ? `<div class="metadata-dashboard">${metrics.pills
-              .map(
-                (pill) => `
-        <div class="meta-pill">
-          <i data-lucide="${pill.icon}" class="w-3.5 h-3.5"></i>
-          ${escapeHtml(pill.text)}
-        </div>`,
-              )
-              .join("")}</div>`
-          : ""
-      }
-
-      <div class="meta-bottom-row">
-        ${
-          metrics.readTime
-            ? `<div class="read-time">
-          <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-          ${escapeHtml(metrics.readTime)}
-        </div>`
-            : "<div></div>"
-        }
-        <div class="trust-score trust-${trustTone}">
-          <i data-lucide="shield-check" class="w-4 h-4"></i>
-          ${trustScore}% Trust Score
-        </div>
-      </div>
-
+      <p class="card-description">${description}</p>
+      ${metaLine ? `<p class="card-meta-line">${metaLine}</p>` : ""}
       <div class="card-footer">
-        <span class="footer-text">${escapeHtml(app.notebookAccessNote(notebook))}</span>
         <div class="action-container"></div>
       </div>
     `;
@@ -502,10 +498,7 @@
       return;
     }
 
-    grid.className =
-      app.state.selectedDepartment || app.state.selectedSubject || app.state.selectedProgram
-        ? "notebooks-grid"
-        : "subjects-list";
+    grid.className = "notebooks-grid";
     const visibleNotebooks = app.getPaginatedItems(filtered);
     app.renderPagination(filtered.length);
 
@@ -586,11 +579,9 @@
 
     // FUNC-009 REQT-006 / FUNC-008 REQT-007 and REQT-008.
     const flagged = data.status === "under_review";
-    if (editingNotebookId) app.showToast("Successfully edited notebook.");
-    if (!editingNotebookId && !flagged) app.showToast("Notebook published.");
-    if (flagged) {
-      app.showToast("Notebook submitted. It will appear once an admin has reviewed it.");
-    }
+    // Publishing a notebook to offer in a swap request goes straight back to
+    // that request, so its toast doesn't offer to open the notebook.
+    const resumesRequest = Boolean(app.addModalHasFollowUp?.());
     const publishedNotebook = editingNotebookId || flagged ? undefined : {
       id: data.id,
       title: title.trim(),
@@ -598,9 +589,25 @@
       department,
     };
     app.closeAddModal(undefined, publishedNotebook);
-    app.loadNotebooks();
+    const reloaded = app.loadNotebooks();
     app.loadSubjects();
     app.loadSidebar();
+    if (editingNotebookId) {
+      app.showToast("Successfully edited notebook.");
+    } else if (flagged) {
+      app.showToast("Notebook submitted. It will appear once an admin has reviewed it.");
+    } else if (resumesRequest) {
+      app.showToast("Notebook published.");
+    } else {
+      app.showToast("Notebook published.", {
+        actionLabel: "View notebook",
+        onAction: async () => {
+          await reloaded;
+          if (data.id) app.openNotebookDetails(data.id);
+          else app.filterBy("mine");
+        },
+      });
+    }
   };
 
   app.likeNotebook = async function likeNotebook(id) {
