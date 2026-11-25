@@ -73,7 +73,7 @@
     // Changing degree program only applies to Browse subjects.
     document
       .getElementById("programPicker")
-      ?.classList.toggle("hidden", app.state.currentFilter !== "all");
+      ?.classList.toggle("hidden", app.state.currentFilter !== "all" || Boolean(app.state.selectedSubject));
     const browsingSubjects =
       app.state.currentFilter === "all" &&
       !app.state.selectedSubject &&
@@ -85,22 +85,32 @@
     input.placeholder = browsingSubjects ? "e.g. CIS 2101" : "e.g. Data structures";
   }
 
+  function selectedSubjectName() {
+    const code = app.state.selectedSubject;
+    const subject = app.state.subjects?.find((item) => item.code === code);
+    return subject?.description ? app.titleCase(subject.description) : code;
+  }
+
   function updateSectionTitle() {
     const sectionTitle = document.getElementById("sectionTitle");
     const sectionSubtitle = document.getElementById("sectionSubtitle");
     if (!sectionTitle) return;
 
-    if (app.state.selectedProgram) {
-      sectionTitle.textContent = app.state.selectedProgram;
-      if (sectionSubtitle) sectionSubtitle.textContent = "Notebooks shared for this degree program.";
+    if (app.state.selectedSubject) {
+      const name = selectedSubjectName();
+      const code = app.state.selectedSubject;
+      sectionTitle.textContent = name;
+      if (sectionSubtitle) {
+        sectionSubtitle.textContent = name === code
+          ? "Notebooks for this subject"
+          : `${code} · Notebooks for this subject`;
+      }
       return;
     }
 
-    if (app.state.selectedSubject) {
-      sectionTitle.textContent = app.state.selectedSubject;
-      if (sectionSubtitle) {
-        sectionSubtitle.textContent = "Notebooks for this subject";
-      }
+    if (app.state.selectedProgram) {
+      sectionTitle.textContent = app.state.selectedProgram;
+      if (sectionSubtitle) sectionSubtitle.textContent = "Notebooks shared for this degree program.";
       return;
     }
 
@@ -401,9 +411,9 @@
     `;
 
     // FUNC-007 REQT-005: the title opens Notebook Details (MOD004).
-    card
-      .querySelector(".card-title-link")
-      .addEventListener("click", () => app.openNotebookDetails(notebook.id));
+    const titleButton = card.querySelector(".card-title-link");
+    titleButton.dataset.focusKey = `notebook-title-${notebook.id}`;
+    titleButton.addEventListener("click", () => app.openNotebookDetails(notebook.id));
     createActionControls(notebook, card.querySelector(".action-container"));
     return card;
   }
@@ -478,15 +488,16 @@
       // A search that empties the view offers to clear it; a view that has
       // nothing at all gets its own message.
       const searchEmptied = searchQuery && filterNotebooks("").length;
-      grid.appendChild(
-        searchEmptied
-          ? app.stateMessage(NO_SEARCH_MATCH, "Clear search", app.clearSearch)
-          : app.stateMessage(
-              app.state.selectedProgram
-                ? "No notebooks shared for this course or subject yet."
-                : EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH,
-            ),
-      );
+      const scope = [selectedSubjectName(), app.state.selectedProgram].filter(Boolean).join(" in ");
+      if (searchEmptied) {
+        const message = scope ? `No notebooks match your search in ${scope}.` : NO_SEARCH_MATCH;
+        grid.appendChild(app.stateMessage(message, "Clear search", app.clearSearch));
+      } else {
+        const message = scope
+          ? `No shared notebooks for ${scope} yet.`
+          : EMPTY_MESSAGES[app.state.currentFilter] || NO_SEARCH_MATCH;
+        grid.appendChild(app.stateMessage(message));
+      }
       app.renderPagination(0);
       return;
     }
@@ -541,34 +552,22 @@
       return;
     }
 
+    const payload = {
+      title,
+      description,
+      department,
+      courseCode,
+      fileUrl,
+      ...counts,
+      username: app.state.currentUser.username,
+    };
+
+    let data;
     setSaving(true);
     try {
-      const payload = {
-        title,
-        description,
-        department,
-        courseCode,
-        fileUrl,
-        ...counts,
-        username: app.state.currentUser.username,
-      };
-
-      const data = editingNotebookId
+      data = editingNotebookId
         ? await app.api.updatePortfolio(editingNotebookId, payload)
         : await app.api.createPortfolio(payload);
-
-      // FUNC-009 REQT-006 / FUNC-008 REQT-007 and REQT-008.
-      const flagged = data.status === "under_review";
-      if (editingNotebookId) app.showToast("Successfully edited notebook.");
-      if (!editingNotebookId && !flagged) app.showToast("Notebook published.");
-      if (flagged) {
-        app.showToast("Notebook submitted. It will appear once an admin has reviewed it.");
-      }
-      app.closeAddModal();
-      app.state.editingNotebookId = null;
-      app.loadNotebooks();
-      app.loadSubjects();
-      app.loadSidebar();
     } catch (err) {
       // The server names the field it refused ("Missing input.").
       if (err.field && app.setNotebookFieldError(err.field, true)) {
@@ -580,9 +579,28 @@
           ? err.message
           : "Could not save the notebook. Please try again.",
       );
+      return;
     } finally {
       setSaving(false);
     }
+
+    // FUNC-009 REQT-006 / FUNC-008 REQT-007 and REQT-008.
+    const flagged = data.status === "under_review";
+    if (editingNotebookId) app.showToast("Successfully edited notebook.");
+    if (!editingNotebookId && !flagged) app.showToast("Notebook published.");
+    if (flagged) {
+      app.showToast("Notebook submitted. It will appear once an admin has reviewed it.");
+    }
+    const publishedNotebook = editingNotebookId || flagged ? undefined : {
+      id: data.id,
+      title: title.trim(),
+      course_code: courseCode,
+      department,
+    };
+    app.closeAddModal(undefined, publishedNotebook);
+    app.loadNotebooks();
+    app.loadSubjects();
+    app.loadSidebar();
   };
 
   app.likeNotebook = async function likeNotebook(id) {

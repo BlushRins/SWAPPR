@@ -89,7 +89,10 @@
     document.getElementById("optionalNotebookDetails").open = false;
   };
 
-  app.openAddModal = function openAddModal() {
+  let onAddClose;
+
+  app.openAddModal = function openAddModal({ onClose } = {}) {
+    onAddClose = onClose;
     app.state.editingNotebookId = null;
     document.getElementById("modalHeading").textContent = "New notebook";
     app.clearPortfolioForm();
@@ -187,12 +190,16 @@
     });
   });
 
-  app.closeAddModal = function closeAddModal(event) {
-    if (!event || event.target.id === "addModal") {
-      document.getElementById("addModal").classList.add("hidden");
-      app.state.editingNotebookId = null;
-      app.clearPortfolioForm();
-      app.closeLayer?.(document.getElementById("addModal"));
-    }
+  app.closeAddModal = function closeAddModal(event, publishedNotebook) {
+    if (event && event.target.id !== "addModal") return;
+    if (document.getElementById("portfolioActionBtn").disabled) return;
+    const modal = document.getElementById("addModal");
+    modal.classList.add("hidden");
+    app.state.editingNotebookId = null;
+    app.clearPortfolioForm();
+    app.closeLayer?.(modal);
+    const resume = onAddClose;
+    onAddClose = undefined;
+    resume?.(publishedNotebook);
   };
 })(window);
