@@ -83,3 +83,15 @@ test("an imported cross-listing preserves its units without assigning ownership"
     "Department of Science and Mathematics Education", "Department of Teacher Education",
   ]);
 });
+
+test("civil-engineering-specific numerical methods stay in the civil program", () => {
+  const rows = [
+    subject("EM 4201", "Numerical Solutions to CE Problems", null),
+    subject("EM 4201L", "Numerical Solutions to CE Problems Laboratory", null),
+    subject("EM 1202", "Calculus 2", null),
+  ];
+  assert.deepEqual(subjectsForCourse(rows, "Bachelor of Science in Civil Engineering").map(({ code }) => code),
+    ["EM 1202", "EM 4201", "EM 4201L"]);
+  assert.deepEqual(subjectsForCourse(rows, "Bachelor of Science in Industrial Engineering").map(({ code }) => code),
+    ["EM 1202"]);
+});
