@@ -73,3 +73,13 @@ test("reviewed schedule matches require both code and title and preserve cross-l
   assert.deepEqual(pick("SPAN 1").reservedUnits, []);
   assert.equal(input[0].department_reserved, null);
 });
+
+test("an imported cross-listing preserves its units without assigning ownership", () => {
+  const [row] = normalizeCatalog([
+    subject("ES CAD", "Computer Aided Drafting", "DTE (20) DMSE"),
+  ]);
+  assert.equal(row.department, "");
+  assert.deepEqual(row.reservedUnits, [
+    "Department of Science and Mathematics Education", "Department of Teacher Education",
+  ]);
+});
