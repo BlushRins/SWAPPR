@@ -6,6 +6,7 @@ RUN npm ci
 COPY --chown=node:node assets/ assets/
 COPY --chown=node:node lib/ lib/
 COPY --chown=node:node public/ public/
+COPY --chown=node:node scripts/build-lucide.js scripts/build-lucide.js
 COPY --chown=node:node scripts/reset-password.js scripts/reset-password.js
 COPY --chown=node:node sql/courses.db sql/courses.db
 COPY --chown=node:node seed.js server.js tailwind.config.js ./

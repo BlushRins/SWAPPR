@@ -3,6 +3,7 @@ module.exports = {
     "./public/*.html",
     "./public/js/**/*.js",
     "!./public/js/**/*.test.js",
+    "!./public/js/vendor/lucide.js",
   ],
   darkMode: "class",
   theme: {

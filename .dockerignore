@@ -17,3 +17,4 @@ node_modules
 sql/backup
 !sql/courses.db
 public/css/tailwind.css
+public/js/vendor/lucide.js

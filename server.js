@@ -363,7 +363,7 @@ app.use("/api", (req, res, next) => {
   next();
 });
 app.get("/js/vendor/lucide.js", (req, res) => {
-  res.sendFile(path.resolve(path.dirname(require.resolve("lucide")), "../umd/lucide.min.js"));
+  res.sendFile(path.join(__dirname, "public", "js", "vendor", "lucide.js"));
 });
 app.get("/healthz", async (req, res) => {
   res.set("Cache-Control", "no-store");
@@ -806,6 +806,11 @@ app.post("/api/send-otp",
         success: false,
         message: "Email must be in the format: numbers@usc.edu.ph",
       });
+    }
+
+    const invalidPassword = passwordError(req.body.password);
+    if (invalidPassword) {
+      return res.status(400).json({ success: false, message: invalidPassword, field: "password" });
     }
 
     const transporter = createMailTransport();

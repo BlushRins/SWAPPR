@@ -12,6 +12,7 @@ const sqlite3 = require("sqlite3");
 const ADMIN_PASSWORD = "test operator credential 86";
 const STUDENT_PASSWORD = "old student credential 71";
 const REPLACEMENT_PASSWORD = " new student credential 91 ";
+const REGISTRATION_PASSWORD = " unique unrelated credential 11 ";
 const COURSE = "Bachelor of Science in Computer Science";
 
 function databaseCall(db, method, sql, ...params) {
@@ -150,9 +151,10 @@ test("seed and authentication hardening works through the app entry points", { t
   assert.equal(badLogin.status, 401);
   assert.equal(unknownLogin.status, 401);
   assert.deepEqual(await badLogin.json(), await unknownLogin.json());
-  const registeredRecipient = await post("/api/send-otp", { email: "100004@usc.edu.ph" });
+  const registeredOtpRequest = { email: "100004@usc.edu.ph", password: REGISTRATION_PASSWORD };
+  const registeredRecipient = await post("/api/send-otp", registeredOtpRequest);
   assert.deepEqual(await registeredRecipient.json(), { success: true });
-  assert.equal((await post("/api/send-otp", { email: "100004@usc.edu.ph" })).status, 429);
+  assert.equal((await post("/api/send-otp", registeredOtpRequest)).status, 429);
   assert.ok(!first.output().includes("Code for 100004@usc.edu.ph"));
 
   assert.equal((await post("/api/register", { name: ["bad"], username: { invalid: true } })).status, 400);
@@ -213,16 +215,23 @@ test("seed and authentication hardening works through the app entry points", { t
   assert.ok(Number(locked.headers.get("retry-after")) > 0);
 
   const email = "100001@usc.edu.ph";
+  const invalidOtpRequest = await post("/api/send-otp", { email, password: "Password123" });
+  assert.equal(invalidOtpRequest.status, 400);
+  assert.deepEqual(await invalidOtpRequest.json(), {
+    success: false, message: "Choose a less common password.", field: "password",
+  });
+  assert.ok(!(first.output() + second.output()).includes(`Code for ${email}`));
+  const otpRequest = { email, password: REGISTRATION_PASSWORD };
   const sendResults = await Promise.all([
-    post("/api/send-otp", { email }),
-    second.request("/api/send-otp", { method: "POST", body: { email } }),
+    post("/api/send-otp", otpRequest),
+    second.request("/api/send-otp", { method: "POST", body: otpRequest }),
   ]);
   assert.deepEqual(sendResults.map((response) => response.status).sort(), [200, 429]);
   const otp = /Code for 100001@usc\.edu\.ph: (\d{6})/.exec(first.output() + second.output())?.[1];
   assert.ok(otp);
 
   const lockedEmail = "100002@usc.edu.ph";
-  assert.equal((await post("/api/send-otp", { email: lockedEmail })).status, 200);
+  assert.equal((await post("/api/send-otp", { email: lockedEmail, password: REGISTRATION_PASSWORD })).status, 200);
   const lockedOtp = /Code for 100002@usc\.edu\.ph: (\d{6})/.exec(first.output())?.[1];
   assert.ok(lockedOtp);
   const wrongCode = lockedOtp === "111111" ? "222222" : "111111";
@@ -241,9 +250,14 @@ test("seed and authentication hardening works through the app entry points", { t
   assert.ok(verificationToken);
   const registration = {
     email, studentId: "100001", course: COURSE, username: " new_student ",
-    name: " New Student ", password: " unique unrelated credential 11 ",
+    name: " New Student ", password: REGISTRATION_PASSWORD,
   };
   assert.equal((await post("/api/register", registration)).status, 400);
+  const invalidRegistration = await post("/api/register", {
+    ...registration, verificationToken, password: "Password123",
+  });
+  assert.equal(invalidRegistration.status, 400);
+  assert.equal((await invalidRegistration.json()).message, "Choose a less common password.");
   const mismatched = await post("/api/register", { ...registration, studentId: "100006", verificationToken });
   assert.equal(mismatched.status, 400);
   assert.match((await mismatched.json()).message, /Student ID must match/);

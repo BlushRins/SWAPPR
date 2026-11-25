@@ -53,7 +53,8 @@ function hideMessage(el) {
 function setFieldError(field, hasError, message = "") {
   if (!field) return;
   field.classList.toggle("error", hasError);
-  field.toggleAttribute("aria-invalid", hasError);
+  if (hasError) field.setAttribute("aria-invalid", "true");
+  else field.removeAttribute("aria-invalid");
   const errorLine = (field.getAttribute("aria-describedby") || "")
     .split(/\s+/)
     .filter(Boolean)
@@ -61,7 +62,7 @@ function setFieldError(field, hasError, message = "") {
     .find((el) => el?.classList.contains("field-error"));
   if (!errorLine) return;
   errorLine.textContent = hasError ? message : "";
-  errorLine.hidden = !(hasError && message);
+  if (!errorLine.hasAttribute("aria-live")) errorLine.hidden = !(hasError && message);
 }
 
 // ── OTP box auto-advance ──────────────────────────────────────────────
@@ -129,7 +130,10 @@ async function handleResend() {
   btn.disabled = true;
   errorEl.style.display = "none";
   try {
-    const data = await postJson("/api/send-otp", { email: verifiedEmail });
+    const data = await postJson("/api/send-otp", {
+      email: verifiedEmail,
+      password: pendingFormData.password,
+    });
     if (data.success) {
       document.querySelectorAll(".otp-box").forEach((b) => (b.value = ""));
       startResendTimer(60);
@@ -717,15 +721,14 @@ async function handleRegister(e) {
   if (!/^[A-Za-z0-9_.-]{1,40}$/.test(values.username)) {
     return fail("username", "Use letters, digits, dots, underscores or hyphens.");
   }
-  if (values.password.trim().length < 8) {
-    return fail("password", "Password must be at least 8 characters.");
-  }
+  const invalidPassword = window.SWAPPR.passwordPolicy.passwordError(values.password);
+  if (invalidPassword) return fail("password", invalidPassword);
 
   registerBtn.disabled = true;
   registerBtn.textContent = "Sending code...";
 
   try {
-    const data = await postJson("/api/send-otp", { email: values.email });
+    const data = await postJson("/api/send-otp", { email: values.email, password: values.password });
 
     if (data.success) {
       // Store form data and email for use after OTP verification
@@ -745,7 +748,8 @@ async function handleRegister(e) {
       document.querySelector(".otp-box")?.focus();
     } else {
       const message = data.message || "Failed to send code. Try again.";
-      if (data.field === "username") markRed("username", true, message);
+      if (data.field === "password") fail("password", message);
+      else if (data.field === "username") markRed("username", true, message);
       else if (/email/i.test(message)) markRed("email", true, message);
       else showMessage(errorEl, message);
       if (data.retryAfterSeconds) {

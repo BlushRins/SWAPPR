@@ -161,6 +161,7 @@
     ownActions.className = "flex flex-wrap items-center gap-2 ml-auto";
     // The author can always open their own file.
     ownActions.appendChild(app.createAccessButton(notebook));
+    // lucide-icons: pencil trash-2
     if (notebook.status !== "removed") {
       const editBtn = button("btn-outline", "pencil", "Edit");
       editBtn.addEventListener("click", () => {

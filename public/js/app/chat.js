@@ -119,10 +119,35 @@
     list.scrollTop = list.scrollHeight;
   }
 
+  function isMoreMenuOpen() {
+    const menu = document.getElementById("chatMoreMenu");
+    return Boolean(menu && !menu.classList.contains("hidden"));
+  }
+
+  function closeMoreMenu({ returnFocus = false } = {}) {
+    const btn = document.getElementById("chatMoreBtn");
+    const menu = document.getElementById("chatMoreMenu");
+    if (menu) menu.classList.add("hidden");
+    if (btn) btn.setAttribute("aria-expanded", "false");
+    if (returnFocus) btn?.focus();
+  }
+
+  function toggleMoreMenu() {
+    const btn = document.getElementById("chatMoreBtn");
+    const menu = document.getElementById("chatMoreMenu");
+    if (!btn || !menu) return;
+    const willOpen = menu.classList.contains("hidden");
+    menu.classList.toggle("hidden", !willOpen);
+    btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    if (willOpen) document.getElementById("chatEndBtn")?.focus();
+  }
+
   function setEndedState(ended) {
     document.getElementById("chatInputRow")?.classList.toggle("hidden", ended);
     document.getElementById("chatEndedNotice")?.classList.toggle("hidden", !ended);
+    document.getElementById("chatMoreWrap")?.classList.toggle("hidden", ended);
     document.getElementById("chatEndBtn")?.classList.toggle("hidden", ended);
+    if (ended) closeMoreMenu();
   }
 
   function stopPolling() {
@@ -197,6 +222,7 @@
   app.closeChat = function closeChat() {
     activeChatId = null;
     stopPolling();
+    closeMoreMenu();
     const panel = document.getElementById("chatPanel");
     const hadFocus = panel?.contains(document.activeElement);
     panel?.classList.add("hidden");
@@ -213,19 +239,36 @@
   };
 
   // The panel is a non-modal dialog named after the other student, so the
-  // page behind it stays usable. Escape closes it wherever focus is (it can
-  // cover a focused control on a phone), unless a popup above it was open
-  // when Escape was pressed: that popup gets the Escape.
+  // page behind it stays usable. Escape closes the More menu first if it is
+  // open, otherwise closes the chat wherever focus is, unless a popup above
+  // it was open when Escape was pressed: that popup gets the Escape.
   document.addEventListener("DOMContentLoaded", () => {
     const panel = document.getElementById("chatPanel");
     if (!panel) return;
     panel.setAttribute("role", "dialog");
     if (!panel.hasAttribute("aria-label")) panel.setAttribute("aria-label", "SWAPPR Chat");
+
+    document.getElementById("chatMoreBtn")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleMoreMenu();
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!isMoreMenuOpen()) return;
+      const wrap = document.getElementById("chatMoreWrap");
+      if (wrap && !wrap.contains(event.target)) closeMoreMenu();
+    });
+
     document.addEventListener(
       "keydown",
       (event) => {
         if (event.key !== "Escape" || panel.classList.contains("hidden")) return;
         if (app.isLayerOpen?.() || app.keyStartedOverLayer?.(event)) return;
+        if (isMoreMenuOpen()) {
+          event.preventDefault();
+          closeMoreMenu({ returnFocus: true });
+          return;
+        }
         app.closeChat();
       },
       true,
@@ -266,6 +309,7 @@
   };
 
   app.endChat = async function endChat() {
+    closeMoreMenu();
     if (!activeChatId) return;
     if (!confirm("End this chat? You can still read it, but no more messages can be sent.")) {
       return;

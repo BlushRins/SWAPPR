@@ -15,6 +15,7 @@
     menu.classList.toggle("active", open);
     overlay.classList.toggle("active", open);
     toggle.setAttribute("aria-expanded", String(open));
+    // lucide-icons: x menu
     toggle
       .querySelector("[data-mobile-menu-icon]")
       ?.setAttribute("data-lucide", open ? "x" : "menu");
