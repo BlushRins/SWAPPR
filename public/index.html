@@ -89,6 +89,14 @@
       class="mobile-menu"
       aria-label="Mobile navigation"
     >
+      <button
+        type="button"
+        data-action="mobile-add-notebook"
+        class="mobile-menu-primary"
+      >
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Add notebook
+      </button>
       <p
         class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-purple-300 dark:text-purple-400"
       >
@@ -100,7 +108,7 @@
         class="sidebar-link active flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <i data-lucide="book-open" class="w-4 h-4"></i>
-        All Subjects
+        Browse subjects
       </a>
       <a
         href="#"
@@ -117,7 +125,7 @@
       >
         <span class="flex items-center gap-2">
           <i data-lucide="handshake" class="w-4 h-4"></i>
-          My SWAPPs
+          My swaps
         </span>
         <span
           data-chat-badge
@@ -167,6 +175,14 @@
         Subject Filter
       </button>
       <button
+        type="button"
+        data-action="mobile-profile"
+        class="sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
+      >
+        <i data-lucide="user" class="w-4 h-4"></i>
+        Profile
+      </button>
+      <button
         data-action="handleLogout"
         class="mobile-menu-logout sidebar-link flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition w-full text-left"
       >
@@ -195,7 +211,7 @@
               class="sidebar-link active flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <i data-lucide="book-open" class="w-4 h-4"></i>
-              All Subjects
+              Browse subjects
             </a>
             <a
               href="#"
@@ -212,7 +228,7 @@
             >
               <span class="flex items-center gap-2">
                 <i data-lucide="handshake" class="w-4 h-4"></i>
-                My SWAPPs
+                My swaps
               </span>
               <span
                 data-chat-badge
@@ -315,9 +331,10 @@
               </button>
               <h2
                 id="sectionTitle"
+                tabindex="-1"
                 class="text-3xl font-extrabold text-gray-800 dark:text-purple-100"
               >
-                All Subjects
+                Browse subjects
               </h2>
               <p
                 id="sectionSubtitle"
@@ -327,26 +344,33 @@
                 feed.
               </p>
             </div>
-            <!-- Search Bar -->
-            <div class="w-full md:w-auto md:min-w-[300px]">
+            <!-- Search: labelled per view (subjects, or notebooks by title/author) -->
+            <div id="browseSearch" class="browse-search w-full md:w-auto md:min-w-[320px]">
+              <label id="searchLabel" for="searchInput" class="search-label">
+                Search by subject name or code
+              </label>
               <input
-                type="text"
+                type="search"
                 id="searchInput"
-                placeholder="Search subjects or users..."
-                class="w-full px-4 py-2.5 rounded-xl border-2 border-purple-200 dark:border-purple-500/30 bg-white dark:bg-[#1a1432] focus:border-purple-500 dark:focus:border-purple-400 outline-none transition text-sm"
+                placeholder="e.g. CIS 2101"
+                autocomplete="off"
+                class="input-field"
               />
             </div>
           </div>
 
-          <form id="programSearchForm" action="/index.html" method="get" class="flex flex-wrap items-end gap-2 mb-4">
-            <label class="grow min-w-48 text-sm font-semibold">
-              Search courses
-              <input id="programSearch" name="program" list="programOptions" required autocomplete="off"
-                placeholder="Enter a degree program" class="input-field block mt-1" />
-              <datalist id="programOptions"></datalist>
-            </label>
-            <button type="submit" class="btn-primary">View course</button>
-          </form>
+          <details id="programPicker" class="program-picker mb-4">
+            <summary>Change degree program</summary>
+            <form id="programSearchForm" action="/index.html" method="get" class="program-picker-form">
+              <label for="programSearch" class="search-label">Degree program</label>
+              <div class="program-picker-row">
+                <input id="programSearch" name="program" list="programOptions" required autocomplete="off"
+                  placeholder="e.g. Bachelor of Science in Computer Science" class="input-field" />
+                <datalist id="programOptions"></datalist>
+                <button type="submit" class="btn-solid">Show notebooks</button>
+              </div>
+            </form>
+          </details>
           <div id="programFilters" class="hidden mb-4">
             <label class="text-sm font-semibold">
               Filter by subject
@@ -519,77 +543,84 @@
           id="modalHeading"
           class="text-2xl font-extrabold mb-5 pr-8 text-purple-900 dark:text-purple-100 flex items-center gap-2"
         >
-          <i data-lucide="book-open" class="w-6 h-6"></i>
-          New Notebook
+          New notebook
         </h3>
         <div class="space-y-4">
           <div>
-            <label class="field-section-label"
-              >Title <span class="text-red-500">*</span></label
+            <label for="newTitle" class="field-section-label"
+              >Title <span class="text-red-500" aria-hidden="true">*</span></label
             >
             <input
               type="text"
               id="newTitle" maxlength="120"
               class="input-field"
               placeholder="e.g. Data Structures Notes"
+              aria-describedby="newTitleError"
               required
             />
             <p id="newTitleError" class="report-error hidden">Missing input.</p>
           </div>
           <div>
-            <label class="field-section-label">Short Description</label>
-            <textarea
-              id="newDescription" maxlength="3000"
-              rows="3"
-              class="input-field resize-none"
-              placeholder="What's this notebook about? Help others discover your content!"
-            ></textarea>
-          </div>
-          <div>
-            <label class="field-section-label">Subject</label>
+            <label for="newSubject" class="field-section-label">Subject</label>
             <select id="newSubject" class="input-field">
               <!-- Options populated dynamically by populateSubjectDropdown() from /api/subjects -->
               <option value="">— Select subject —</option>
             </select>
           </div>
           <div>
-            <label class="field-section-label"
-              >File URL
-              <span class="text-purple-400 font-normal normal-case"
-                >(Google Drive, Notion, etc.)</span
-              >
-              <span class="text-red-500">*</span></label
+            <label for="newFileUrl" class="field-section-label"
+              >Link to your notes <span class="text-red-500" aria-hidden="true">*</span></label
             >
             <input
               type="url"
               id="newFileUrl"
               class="input-field"
               placeholder="https://drive.google.com/…"
+              aria-describedby="newFileUrlHint newFileUrlError"
+              required
             />
+            <p id="newFileUrlHint" class="field-hint">
+              Paste a share link to your file, such as Google Drive, OneDrive or Notion.
+              Set it so anyone with the link can view, or your swap partner can't open it.
+            </p>
             <p id="newFileUrlError" class="report-error hidden">Missing input.</p>
           </div>
-          <!-- Optional counts: drive the card's size label and reading time (FUNC-007 REQT-002) -->
-          <div class="grid grid-cols-3 gap-3">
-            <div>
-              <label for="newWordCount" class="field-section-label">Word count</label>
-              <input id="newWordCount" type="text" inputmode="numeric" maxlength="7" class="input-field" placeholder="6200" />
-              <p id="newWordCountError" class="report-error hidden">Enter a whole number.</p>
-            </div>
-            <div>
-              <label for="newPageCount" class="field-section-label">Page count</label>
-              <input id="newPageCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="40" />
-              <p id="newPageCountError" class="report-error hidden">Enter a whole number.</p>
-            </div>
-            <div>
-              <label for="newDiagramCount" class="field-section-label">Diagram count</label>
-              <input id="newDiagramCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="12" />
-              <p id="newDiagramCountError" class="report-error hidden">Enter a whole number.</p>
-            </div>
+          <div>
+            <label for="newDescription" class="field-section-label">Short description</label>
+            <textarea
+              id="newDescription" maxlength="3000"
+              rows="3"
+              class="input-field resize-none"
+              placeholder="What does it cover? Which lessons or exams is it for?"
+            ></textarea>
           </div>
+          <!-- Optional counts: drive the card's size label and reading time (FUNC-007 REQT-002) -->
+          <details id="optionalNotebookDetails" class="optional-details">
+            <summary>Optional notebook details</summary>
+            <p class="field-hint">Counts help other students judge the notebook's size and reading time.</p>
+            <div class="optional-details-grid">
+              <div>
+                <label for="newWordCount" class="field-section-label">Word count</label>
+                <input id="newWordCount" type="text" inputmode="numeric" maxlength="7" class="input-field" placeholder="6200" />
+                <p id="newWordCountError" class="report-error hidden">Enter a whole number.</p>
+              </div>
+              <div>
+                <label for="newPageCount" class="field-section-label">Page count</label>
+                <input id="newPageCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="40" />
+                <p id="newPageCountError" class="report-error hidden">Enter a whole number.</p>
+              </div>
+              <div>
+                <label for="newDiagramCount" class="field-section-label">Diagram count</label>
+                <input id="newDiagramCount" type="text" inputmode="numeric" maxlength="5" class="input-field" placeholder="12" />
+                <p id="newDiagramCountError" class="report-error hidden">Enter a whole number.</p>
+              </div>
+            </div>
+          </details>
           <div class="flex justify-end gap-3 pt-2">
             <button
+              type="button"
               data-action="closeAddModal"
-              class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+              class="btn-outline"
             >
               Cancel
             </button>
@@ -597,9 +628,9 @@
               id="portfolioActionBtn"
               type="button"
               data-action="submitPortfolio"
-              class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+              class="btn-solid"
             >
-              Publish Notebook
+              Publish notebook
             </button>
           </div>
         </div>
@@ -774,6 +805,7 @@
           id="detailsTitle"
           class="text-xl font-extrabold leading-tight text-purple-900 dark:text-purple-100 break-words"
         ></h3>
+        <p id="detailsSubject" class="details-subject"></p>
         <a
           id="detailsAuthor"
           href="#"
@@ -785,31 +817,33 @@
           class="notebook-details-description mt-4 text-sm text-gray-600 dark:text-gray-300"
         ></p>
 
-        <dl class="notebook-details-meta mt-5">
-          <dt>Subject</dt>
-          <dd id="detailsSubject"></dd>
-          <dt>Department</dt>
-          <dd id="detailsDepartment"></dd>
-          <dt>Uploaded</dt>
-          <dd id="detailsUploaded"></dd>
-          <dt id="detailsStatusLabel" class="hidden">Status</dt>
-          <dd id="detailsStatus" class="hidden"></dd>
-        </dl>
-
-        <div id="detailsMetrics" class="mt-4 flex flex-wrap items-center gap-2"></div>
-
-        <div
-          id="detailsTrust"
-          class="mt-4 inline-flex items-center gap-1.5 text-sm font-bold"
-        >
-          <i data-lucide="shield-check" class="w-4 h-4"></i>
-          <span id="detailsTrustText"></span>
-        </div>
+        <p id="detailsSummaryMetric" class="details-summary-metric hidden"></p>
+        <p id="detailsAccessNote" class="details-access-note"></p>
 
         <div
           id="detailsActions"
-          class="mt-6 pt-4 border-t border-purple-100 dark:border-white/[0.08] flex flex-wrap items-center gap-2"
+          class="mt-4 pt-4 border-t border-purple-100 dark:border-white/[0.08] flex flex-wrap items-center gap-2"
         ></div>
+
+        <details class="details-more mt-4">
+          <summary>More details</summary>
+          <dl class="notebook-details-meta mt-3">
+            <dt>Department</dt>
+            <dd id="detailsDepartment"></dd>
+            <dt>Uploaded</dt>
+            <dd id="detailsUploaded"></dd>
+            <dt id="detailsStatusLabel" class="hidden">Status</dt>
+            <dd id="detailsStatus" class="hidden"></dd>
+          </dl>
+          <div id="detailsMetrics" class="mt-3 flex flex-wrap items-center gap-2"></div>
+          <div
+            id="detailsTrust"
+            class="mt-3 inline-flex items-center gap-1.5 text-sm font-bold"
+          >
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+            <span id="detailsTrustText"></span>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -825,14 +859,16 @@
           class="text-xl font-extrabold mb-1 text-purple-900 dark:text-purple-100 flex items-center gap-2"
         >
           <i data-lucide="repeat-2" class="w-5 h-5"></i>
-          Request Swap
+          Request swap
         </h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-5 break-words">
-          Requesting "<strong id="swappRequestTitle" class="text-gray-700 dark:text-purple-100"></strong>"
-          by @<strong id="swappRequestAuthor" class="text-gray-700 dark:text-purple-100"></strong>
+        <p class="exchange-label">You receive</p>
+        <p class="exchange-item mb-5 break-words">
+          <strong id="swappRequestTitle"></strong>
+          <span class="exchange-author">from @<span id="swappRequestAuthor"></span></span>
         </p>
 
-        <p class="field-section-label">Select which of your notebooks to offer</p>
+        <p class="exchange-label">You share</p>
+        <p class="exchange-hint">Choose at least one of your notebooks. @<span id="swappShareAuthor"></span> gets access to what you choose if they accept.</p>
         <div id="swappRequestChoices" class="swapp-choices"></div>
         <p id="swappRequestError" class="report-error hidden"></p>
 
@@ -850,7 +886,7 @@
             data-action="submitSwappRequest"
             class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Send Request
+            Send request
           </button>
         </div>
       </div>

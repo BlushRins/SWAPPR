@@ -131,12 +131,12 @@ function renderProfile(p) {
     document.getElementById("ownBadge").style.display = "inline-flex";
     document.getElementById("addNotebookBtn").classList.remove("hidden");
     document.getElementById("profileActions").innerHTML = `
-      <button data-action="editProfile" class="btn-action btn-action-primary">✏️ Edit Profile</button>`;
+      <button type="button" data-action="editProfile" class="btn-solid">Edit profile</button>`;
   } else {
     // FUNC-015 REQT-002: another student's profile can be reported.
     document.getElementById("profileActions").innerHTML = `
-      <button data-action="reportProfileUser" class="btn-action btn-action-outline">🚩 Report</button>
-      <button data-action="goHome" class="btn-action btn-action-outline">← Back</button>`;
+      <button type="button" data-action="goHome" class="btn-outline">Back to browsing</button>
+      <button type="button" data-action="reportProfileUser" class="btn-outline">Report</button>`;
   }
 
   // Notebooks
@@ -151,26 +151,26 @@ function renderProfile(p) {
       .map(
         (n) => `
       <div class="notebook-item">
-        <div class="flex items-start justify-between gap-2">
+        <div class="notebook-item-row">
           <div class="flex-1 min-w-0">
             <button type="button" data-notebook-action="openNotebook" data-notebook-id="${Number(n.id)}" class="notebook-title notebook-title-link">${escapeHtml(n.title)}</button>
             <p class="notebook-dept">${escapeHtml(n.department || "No department")}</p>
             ${
               moderationNote(n.status)
-                ? `<p class="text-xs font-semibold text-red-500 dark:text-red-400 mt-1">${moderationNote(n.status)}</p>`
+                ? `<p class="mt-2"><span class="status-pill ${n.status === "removed" ? "status-ended" : "status-pending"}">${moderationNote(n.status)}</span></p>`
                 : ""
             }
           </div>
           ${
             isOwn
               ? `
-            <div class="flex gap-1.5 shrink-0">
+            <div class="notebook-item-actions">
               ${
                 moderationNote(n.status)
                   ? ""
-                  : `<button data-notebook-action="editNotebook" data-notebook-id="${Number(n.id)}" class="edit-btn">✏️ Edit</button>`
+                  : `<button type="button" data-notebook-action="editNotebook" data-notebook-id="${Number(n.id)}" class="btn-outline">Edit</button>`
               }
-              <button data-notebook-action="deleteNotebook" data-notebook-id="${Number(n.id)}" class="delete-btn">🗑️</button>
+              <button type="button" data-notebook-action="deleteNotebook" data-notebook-id="${Number(n.id)}" class="btn-danger-outline">Delete</button>
             </div>`
               : ""
           }

@@ -9,16 +9,16 @@
     swapps: [],
     editingNotebookId: null,
     selectedDepartment: null,
-    selectedSubject: null, // course_code currently drilled into via View Swaps
+    selectedSubject: null, // course_code currently drilled into via View notebooks
     selectedProgram: null, // degree program currently open
     currentPage: 1,
     itemsPerPage: 5,
     departments: [],
     subjects: [],
     titles: {
-      all: "All Subjects",
+      all: "Browse subjects",
       mine: "My Subjects",
-      matched: "SWAPP Matches",
+      matched: "My swaps",
       requests: "Requests",
       top: "Top Departments",
       recent: "Recently Added",

@@ -92,3 +92,57 @@ test("dark app fields keep a readable placeholder and visible boundary", () => {
   assert.ok(contrast(dark["color-placeholder"], "1e1b4b") >= 4.5);
   assert.ok(contrast(dark["color-border"], "1e1b4b") >= 3);
 });
+
+test("browse has one labelled search and a secondary degree-program control", () => {
+  const index = read("index.html");
+  assert.match(index, /<label id="searchLabel" for="searchInput"[^>]*>\s*Search by subject name or code/);
+  assert.match(index, /<details id="programPicker"[^>]*>\s*<summary>Change degree program<\/summary>/);
+  assert.match(index, /<label for="programSearch"[^>]*>Degree program<\/label>/);
+  assert.doesNotMatch(read("js/app/subjects.js"), /View Swaps/);
+  assert.match(read("js/app/subjects.js"), /"View notebooks"/);
+});
+
+test("the phone menu reaches Add notebook, Profile and Requests", () => {
+  const menu = read("index.html").match(/<nav\s+id="mobileMenu"[\s\S]*?<\/nav>/)[0];
+  assert.match(menu, /data-action="mobile-add-notebook"[\s\S]*?Add notebook/);
+  assert.match(menu, /data-action="mobile-profile"[\s\S]*?Profile/);
+  assert.match(menu, /data-filter="requests"[\s\S]*?data-requests-badge/);
+});
+
+test("notebook actions say Open notebook and Request swap", () => {
+  const notebooks = read("js/app/notebooks.js");
+  assert.match(notebooks, /Open notebook/);
+  assert.match(notebooks, /Request swap/);
+  assert.doesNotMatch(notebooks, /UNLOCK VIA SWAP/);
+});
+
+test("publishing groups optional counts and explains the file link", () => {
+  const index = read("index.html");
+  const form = index.slice(index.indexOf('id="addModal"'), index.indexOf('id="portfolioActionBtn"'));
+  const details = form.match(/<details id="optionalNotebookDetails"[\s\S]*?<\/details>/)?.[0];
+  assert.ok(details, "counts sit in an Optional notebook details disclosure");
+  assert.match(details, /<summary>Optional notebook details<\/summary>/);
+  for (const id of ["newWordCount", "newPageCount", "newDiagramCount"]) {
+    assert.match(details, new RegExp(`id="${id}"`));
+  }
+  const order = ["newTitle", "newSubject", "newFileUrl", "optionalNotebookDetails"].map((id) =>
+    form.indexOf(`id="${id}"`),
+  );
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "title, subject and link come first");
+  assert.match(form, /id="newFileUrlHint"[^>]*>[\s\S]*anyone with the link can\s+view/);
+  for (const id of ["newTitle", "newSubject", "newFileUrl", "newDescription"]) {
+    assert.match(form, new RegExp(`<label for="${id}"`), `#${id} has a label`);
+  }
+});
+
+test("the profile shows notebooks before About, under a short header", () => {
+  const profile = read("profile.html");
+  assert.ok(profile.indexOf('id="notebooksList"') < profile.indexOf('id="aboutCard"'));
+  assert.match(profile, /\.cover \{\s*height: 88px;/);
+});
+
+test("admin status labels are words in sentence case", () => {
+  const adminUi = read("js/app/admin-ui.js");
+  assert.match(adminUi, /under_review: \["Under review"/);
+  assert.match(adminUi, /Sorted by \$\{column\.label\}/);
+});

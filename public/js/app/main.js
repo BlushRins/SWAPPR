@@ -69,6 +69,14 @@
       closeChat: () => app.closeChat(),
       sendChatMessage: () => app.sendChatMessage(),
       openSubjectSettings: () => app.openSubjectSettings(),
+      "mobile-add-notebook": () => {
+        app.closeMobileMenu();
+        app.openAddModal();
+      },
+      "mobile-profile": () => {
+        app.closeMobileMenu();
+        app.openProfilePanel();
+      },
       "mobile-subject-settings": () => {
         app.openSubjectSettings();
         app.closeMobileMenu();
