@@ -136,14 +136,15 @@
   }
 
   async function openNotebook(id) {
-    ui.openModal("Flagged Notebook", ui.loading(), { icon: "flag" });
+    const session = ui.openModal("Flagged Notebook", ui.loading(), { icon: "flag" });
     try {
       const data = await app.adminApi.getNotebook(id);
-      ui.openModal("Flagged Notebook", notebookDetails(data.notebook, data.reports), {
+      ui.updateModal(session, "Flagged Notebook", notebookDetails(data.notebook, data.reports), {
         icon: "flag",
       });
     } catch (err) {
-      ui.openModal(
+      ui.updateModal(
+        session,
         "Flagged Notebook",
         el("p", { class: "admin-muted" }, err.message || "Could not load this notebook."),
         { icon: "flag" },

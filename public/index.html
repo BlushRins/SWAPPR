@@ -59,7 +59,7 @@
         </button>
         <button
           id="themeToggle"
-          class="w-11 h-11 md:w-8 md:h-8 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
+          class="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
           title="Toggle theme"
         >
           <i data-lucide="moon" class="w-5 h-5"></i>
@@ -71,14 +71,15 @@
           Logout
         </button>
         <a href="#" data-filter="requests" class="swaps-shortcut">
-          Swaps
+          <i data-lucide="handshake" class="swaps-shortcut-icon w-4 h-4" aria-hidden="true"></i>
+          <span class="swaps-shortcut-label">Swaps</span>
           <span data-requests-badge role="img" class="swaps-count hidden">0</span>
         </a>
         <button
           id="mobileMenuToggle"
           type="button"
           data-action="toggleMobileMenu"
-          class="md:hidden w-11 h-11 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
+          class="md:hidden w-11 h-11 shrink-0 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
           aria-label="Open menu"
           aria-expanded="false"
           aria-controls="mobileMenu"

@@ -2942,3 +2942,56 @@ h2 {
     white-space: normal;
   }
 }
+
+/* ── Phone tap targets and chat focus ── */
+.chat-panel-input::placeholder {
+  color: var(--color-placeholder);
+  opacity: 1;
+}
+.chat-panel-input:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+.swaps-shortcut-icon {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  [data-action="all-subjects"],
+  .mobile-menu .sidebar-link,
+  #profilePortfolioList > button,
+  #profileMatchList a {
+    min-height: var(--target-control);
+  }
+  #profileMatchList a,
+  #detailsAuthor {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-control);
+  }
+  #profilePanel a[href="profile.html"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--target-control);
+  }
+}
+
+/* Very narrow phones: the Swaps shortcut shows its icon instead of its
+   label so the theme and menu buttons keep their 44px size. */
+@media (max-width: 359px) {
+  .swaps-shortcut {
+    padding: 0 var(--space-2);
+  }
+  .swaps-shortcut-icon {
+    display: inline-block;
+  }
+  .swaps-shortcut-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+

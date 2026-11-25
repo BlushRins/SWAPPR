@@ -140,6 +140,13 @@
         cursor: pointer;
         overflow-wrap: anywhere;
       }
+      @media (max-width: 767px) {
+        .notebook-title-link {
+          display: flex;
+          align-items: center;
+          min-height: var(--target-control);
+        }
+      }
       .notebook-title-link:hover,
       .notebook-title-link:focus-visible {
         text-decoration: underline;

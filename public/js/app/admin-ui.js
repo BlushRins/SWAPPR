@@ -261,6 +261,7 @@
           title: `${ui.openVerb()} to view`,
           onClick: (event) => {
             if (event.target.closest("button, a")) return;
+            if (event.detail) rowOpenedByPointerAt = performance.now();
             onOpen?.(row);
           },
           onKeydown: (event) => {
@@ -406,18 +407,54 @@
       text,
     );
 
+  // A row opens its popup on the first click, so the second click of a
+  // double-click (Reports and Users used to need one) lands on the popup or
+  // its backdrop. Ignore that click: it must not select text, close the
+  // popup or press a button in it.
+  let rowOpenedByPointerAt = -Infinity;
+  const isSecondClickOfRowOpen = (event) =>
+    event.detail > 1 && performance.now() - rowOpenedByPointerAt < 600;
+  for (const type of ["mousedown", "click"]) {
+    document.addEventListener(
+      type,
+      (event) => {
+        if (!isSecondClickOfRowOpen(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true,
+    );
+  }
+
   // ── Detail modal (shared by Flagged Notebooks and Reports) ──────────────
+  // Each open or close starts a new session, so a slow response can fill
+  // only the dialog it was loaded for and never reopens a closed one.
+  let modalSession = 0;
+
   ui.openModal = function openModal(title, content, { icon = "file-text" } = {}) {
+    modalSession += 1;
     document.getElementById("adminModalTitle").replaceChildren(ui.icon(icon, "w-5 h-5"), title);
     document.getElementById("adminModalBody").replaceChildren(content);
     const modal = document.getElementById("adminModal");
     modal.classList.remove("hidden");
     ui.refreshIcons();
     app.openLayer?.(modal);
+    return modalSession;
+  };
+
+  // Replaces the content of the dialog opened as `session`; false if it was
+  // closed or replaced in the meantime.
+  ui.updateModal = function updateModal(session, title, content, { icon = "file-text" } = {}) {
+    if (session !== modalSession) return false;
+    document.getElementById("adminModalTitle").replaceChildren(ui.icon(icon, "w-5 h-5"), title);
+    document.getElementById("adminModalBody").replaceChildren(content);
+    ui.refreshIcons();
+    return true;
   };
 
   ui.closeModal = function closeModal(event) {
     if (event && event.target.id !== "adminModal") return;
+    modalSession += 1;
     const modal = document.getElementById("adminModal");
     modal.classList.add("hidden");
     document.getElementById("adminModalBody").replaceChildren();
