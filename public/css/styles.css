@@ -3124,3 +3124,102 @@ body {
   text-transform: none;
   color: var(--color-text);
 }
+
+/* ── Swaps page ── */
+.swaps-shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 30%);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.swaps-shortcut:focus-visible {
+  outline-color: #fff;
+}
+.swaps-shortcut[aria-current="page"] {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.swaps-nav-counts {
+  display: flex;
+  gap: 0.25rem;
+}
+.swaps-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.swaps-chat-count {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.swaps-empty-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.swaps-empty-section {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.625rem;
+}
+.requests-layout .swaps-empty-section .requests-heading {
+  font-size: 0.875rem;
+}
+
+.swaps-history > summary {
+  align-content: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--color-text);
+}
+.swaps-history > summary .requests-heading {
+  display: inline;
+}
+.swaps-history[open] > .requests-section {
+  margin-top: 0.75rem;
+}
+
+.requests-layout .request-card-head {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+.requests-layout .swap-notebook-btn {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 768px) {
+  .swaps-shortcut {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  #mobileMenu [data-filter="requests"] {
+    min-height: 44px;
+  }
+
+  .requests-layout .exchange-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

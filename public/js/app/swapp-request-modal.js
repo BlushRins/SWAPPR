@@ -176,7 +176,7 @@
       return;
     }
 
-    app.showToast("Request sent. It's waiting for a response under Requests.");
+    app.showToast("Request sent. Track it under Sent in Swaps.");
     try {
       await refreshSwapps();
     } finally {

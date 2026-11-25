@@ -109,9 +109,16 @@
       sessionStorage.removeItem("openAddNotebook");
       app.openAddModal();
     }
-    if (sessionStorage.getItem("openView") === "mine") {
+    const view = sessionStorage.getItem("openView");
+    if (["mine", "matched", "requests"].includes(view)) {
       sessionStorage.removeItem("openView");
-      app.filterBy("mine");
+      app.filterBy(view);
+    }
+    if (root.location.hash === "#matched") {
+      const url = new URL(root.location.href);
+      url.hash = "";
+      root.history.replaceState(null, "", url);
+      app.filterBy("requests");
     }
     const message = sessionStorage.getItem("flashMessage");
     if (message) {

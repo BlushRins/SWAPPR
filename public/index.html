@@ -69,6 +69,10 @@
         >
           Logout
         </button>
+        <a href="#" data-filter="requests" class="swaps-shortcut">
+          Swaps
+          <span data-requests-badge role="img" class="swaps-count hidden">0</span>
+        </a>
         <button
           id="mobileMenuToggle"
           type="button"
@@ -124,35 +128,23 @@
       </a>
       <a
         href="#"
-        data-filter="matched"
-        class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
-      >
-        <span class="flex items-center gap-2">
-          <i data-lucide="handshake" class="w-4 h-4"></i>
-          My swaps
-        </span>
-        <span
-          data-chat-badge
-          title="Unread messages"
-          class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-          >0</span
-        >
-      </a>
-      <a
-        href="#"
         data-filter="requests"
         class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <span class="flex items-center gap-2">
-          <i data-lucide="inbox" class="w-4 h-4"></i>
-          Requests
+          <i data-lucide="handshake" class="w-4 h-4"></i>
+          Swaps
         </span>
-        <span
-          id="mobileRequestsBadge"
-          data-requests-badge
-          class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-          >0</span
-        >
+        <span class="swaps-nav-counts">
+          <span
+            id="mobileRequestsBadge"
+            data-requests-badge
+            role="img"
+            class="swaps-count hidden"
+            >0</span
+          >
+          <span data-chat-badge role="img" class="swaps-count swaps-chat-count hidden">0</span>
+        </span>
       </a>
       <a
         href="#"
@@ -227,35 +219,23 @@
             </a>
             <a
               href="#"
-              data-filter="matched"
-              class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
-            >
-              <span class="flex items-center gap-2">
-                <i data-lucide="handshake" class="w-4 h-4"></i>
-                My swaps
-              </span>
-              <span
-                data-chat-badge
-                title="Unread messages"
-                class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-                >0</span
-              >
-            </a>
-            <a
-              href="#"
               data-filter="requests"
               class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <span class="flex items-center gap-2">
-                <i data-lucide="inbox" class="w-4 h-4"></i>
-                Requests
+                <i data-lucide="handshake" class="w-4 h-4"></i>
+                Swaps
               </span>
-              <span
-                id="requestsBadge"
-                data-requests-badge
-                class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-                >0</span
-              >
+              <span class="swaps-nav-counts">
+                <span
+                  id="requestsBadge"
+                  data-requests-badge
+                  role="img"
+                  class="swaps-count hidden"
+                  >0</span
+                >
+                <span data-chat-badge role="img" class="swaps-count swaps-chat-count hidden">0</span>
+              </span>
             </a>
             <a
               href="#"

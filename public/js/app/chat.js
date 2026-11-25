@@ -29,7 +29,11 @@
 
   function updateChatBadges() {
     const total = Object.values(unreadByUser).reduce((sum, n) => sum + n, 0);
-    document.querySelectorAll("[data-chat-badge]").forEach((badge) => setBadge(badge, total));
+    document.querySelectorAll("[data-chat-badge]").forEach((badge) => {
+      setBadge(badge, total);
+      badge.setAttribute("aria-label", `${total} unread messages`);
+      badge.title = "Unread messages";
+    });
     document.querySelectorAll("[data-chat-swapp]").forEach((button) => {
       const badge = button.querySelector("[data-chat-button-badge]");
       if (!badge) return;
@@ -40,7 +44,7 @@
   }
 
   // Polls the chat list for unread counts. Drives the red badges on
-  // "My SWAPPs" and the Chat buttons, and the "New message from @x" popup.
+  // the Swaps navigation and chat buttons, and the "New message from @x" popup.
   app.refreshChatNotifications = async function refreshChatNotifications() {
     if (!app.state.currentUser) return;
     try {
