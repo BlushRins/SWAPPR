@@ -30,6 +30,14 @@
       onOpen: (row) => openUser(row.id),
       defaultSort: { key: "id", dir: "asc" },
       emptyMessage: "No registered students yet.",
+      emptySubtitle: "Student accounts will appear here after registration.",
+      emptyIcon: "users",
+      onClearSearch: () => {
+        const input = document.getElementById("usersSearch");
+        if (input) input.value = "";
+        app.searchAdminUsers("");
+        input?.focus();
+      },
       rowClass: (row) => (row.highlightWarning ? "admin-row--warning" : ""),
       searchFields: [
         "id",

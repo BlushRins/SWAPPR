@@ -15,6 +15,8 @@
       onOpen: (row) => openNotebook(row.id),
       defaultSort: { key: "reportCount", dir: "desc" },
       emptyMessage: "No flagged notebooks right now.",
+      emptySubtitle: "Reported notebooks waiting for review will appear here.",
+      emptyIcon: "circle-check",
       columns: [
         { key: "id", label: "Notebook ID", className: "admin-col-id" },
         { key: "title", label: "Title", className: "admin-col-wide" },

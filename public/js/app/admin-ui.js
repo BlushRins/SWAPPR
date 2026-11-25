@@ -91,17 +91,47 @@
   };
 
   ui.button = function button(label, { tone = "neutral", icon, onClick, disabled, title } = {}) {
+    const buttonClass =
+      tone === "purple"
+        ? "btn-solid admin-btn"
+        : tone === "neutral"
+          ? "btn-outline admin-btn"
+          : `admin-btn admin-btn--${tone}`;
     return el(
       "button",
       {
         type: "button",
-        class: `admin-btn admin-btn--${tone}`,
+        class: buttonClass,
         onClick,
         disabled,
         title,
       },
       icon ? ui.icon(icon) : null,
       label,
+    );
+  };
+
+  // lucide-icons: circle-check search users
+  ui.emptyCard = function emptyCard({
+    icon = "circle-check",
+    title,
+    subtitle,
+    actionLabel,
+    onAction,
+  }) {
+    return el(
+      "div",
+      { class: "empty-card" },
+      el("span", { class: "empty-card-icon", "aria-hidden": "true" }, ui.icon(icon, "w-5 h-5")),
+      el("p", { class: "empty-card-title" }, title),
+      subtitle ? el("p", { class: "empty-card-body" }, subtitle) : null,
+      actionLabel
+        ? el(
+            "button",
+            { type: "button", class: "btn-outline empty-card-action", onClick: onAction },
+            actionLabel,
+          )
+        : null,
     );
   };
 
@@ -128,6 +158,9 @@
     searchFields = [],
     pageSize = 10,
     emptyMessage,
+    emptySubtitle,
+    emptyIcon = "circle-check",
+    onClearSearch,
     openOn = "dblclick",
     onOpen,
     rowClass,
@@ -320,11 +353,24 @@
       if (pageRows.length) {
         body = pageRows.map(bodyRow);
       } else {
-        const message = query.trim() ? "No Matching Records Found." : emptyMessage;
+        const hasQuery = Boolean(query.trim());
+        const card = hasQuery
+          ? ui.emptyCard({
+              icon: "search",
+              title: "No Matching Records Found.",
+              subtitle: "Try a different search term or clear your filter.",
+              actionLabel: onClearSearch ? "Clear search" : null,
+              onAction: onClearSearch,
+            })
+          : ui.emptyCard({
+              icon: emptyIcon,
+              title: emptyMessage,
+              subtitle: emptySubtitle,
+            });
         body = el(
           "tr",
           {},
-          el("td", { class: "admin-empty", colspan: String(columns.length) }, message),
+          el("td", { class: "admin-empty", colspan: String(columns.length) }, card),
         );
       }
 
