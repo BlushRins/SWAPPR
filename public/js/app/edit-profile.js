@@ -1,8 +1,6 @@
 (function (root) {
   const app = (root.SWAPPR = root.SWAPPR || {});
 
-  // Same minimum the registration form and the server enforce.
-  const PASSWORD_MIN_LENGTH = 8;
   // profile.html's Edit Profile button sets this and sends the student here.
   const HANDOFF_KEY = "openEditProfile";
 
@@ -18,20 +16,33 @@
     };
   }
 
-  function showError(message) {
-    const error = document.getElementById("editProfileError");
-    if (!error) return;
+  function showError(errorId, message) {
+    const error = document.getElementById(errorId);
     error.textContent = message;
-    error.classList.toggle("hidden", !message);
+    error.hidden = !message;
   }
 
-  function markField(field, hasError) {
-    field?.classList.toggle("error", hasError);
+  function setFieldError(field, message = "") {
+    field.classList.toggle("error", Boolean(message));
+    if (message) field.setAttribute("aria-invalid", "true");
+    else field.removeAttribute("aria-invalid");
+    showError(field.getAttribute("aria-describedby"), message);
   }
 
-  function resetErrors() {
-    Object.values(getFields()).forEach((field) => markField(field, false));
-    showError("");
+  function resetErrors(fields) {
+    Object.values(fields).forEach((field) => setFieldError(field));
+    showError("editProfileError", "");
+  }
+
+  function passwordDetails() {
+    return document.getElementById("editProfilePasswordDetails");
+  }
+
+  function clearPasswordFields(fields) {
+    for (const field of [fields.currentPassword, fields.password]) {
+      field.value = "";
+      setFieldError(field);
+    }
   }
 
   function setSaving(isSaving) {
@@ -55,7 +66,7 @@
     }
 
     const fields = getFields();
-    resetErrors();
+    resetErrors(fields);
     fields.name.value = profile.name || "";
     fields.username.value = profile.username || "";
     // A course that isn't in the list leaves the placeholder selected, so
@@ -63,8 +74,8 @@
     fields.course.value = root.SWAPPRCourses.isCourse(profile.course)
       ? profile.course
       : "";
-    fields.password.value = "";
-    fields.currentPassword.value = "";
+    passwordDetails().open = false;
+    clearPasswordFields(fields);
 
     const modal = document.getElementById("editProfileModal");
     modal?.classList.remove("hidden");
@@ -80,10 +91,10 @@
     if (event && event.target.id !== "editProfileModal") return;
     document.getElementById("editProfileModal")?.classList.add("hidden");
     app.closeLayer?.(document.getElementById("editProfileModal"));
-    resetErrors();
     const fields = getFields();
-    fields.password.value = "";
-    fields.currentPassword.value = "";
+    resetErrors(fields);
+    passwordDetails().open = false;
+    clearPasswordFields(fields);
   };
 
   app.saveProfile = async function saveProfile(event) {
@@ -95,39 +106,45 @@
       name: fields.name.value.trim(),
       username: fields.username.value.trim(),
       course: fields.course.value,
-      password: fields.password.value,
-      currentPassword: fields.currentPassword.value,
     };
-    resetErrors();
+    resetErrors(fields);
 
-    const required = ["name", "username", "course"];
-    if (values.password) required.push("currentPassword");
-    const missing = required.filter((key) => !values[key]);
-    if (missing.length) {
-      missing.forEach((key) => markField(fields[key], true));
-      showError("Missing Input");
-      fields[missing[0]].focus();
+    const editingPassword = passwordDetails().open &&
+      (fields.password.value || fields.currentPassword.value);
+    const validation = {
+      name: values.name ? "" : "Enter your full name.",
+      username: /^[A-Za-z0-9_.-]{1,40}$/.test(values.username)
+        ? ""
+        : "Use letters, digits, dots, underscores or hyphens.",
+      course: root.SWAPPRCourses.isCourse(values.course) ? "" : "Select your degree program.",
+    };
+    if (editingPassword) {
+      values.currentPassword = fields.currentPassword.value;
+      values.password = fields.password.value;
+      validation.currentPassword = values.currentPassword ? "" : "Enter your current password.";
+      validation.password = app.passwordPolicy.passwordError(values.password);
+    }
+    const errors = Object.entries(validation).filter(([, message]) => message);
+    if (errors.length) {
+      errors.forEach(([key, message]) => setFieldError(fields[key], message));
+      fields[errors[0][0]].focus();
       return;
     }
-    if (values.password && values.password.trim().length < PASSWORD_MIN_LENGTH) {
-      markField(fields.password, true);
-      showError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
-      fields.password.focus();
-      return;
-    }
-
-    // REQT-007 / REQT-009: "No" leaves the student in the modal.
-    if (!confirm("Are you sure you want to edit this profile?")) return;
 
     setSaving(true);
     let data;
     try {
-      if (!values.password) delete values.currentPassword;
       data = await app.api.updateProfile(values);
     } catch (err) {
-      if (err.message?.startsWith("Username already taken")) markField(fields.username, true);
-      if (err.message?.startsWith("Current password")) markField(fields.currentPassword, true);
-      showError(err.message || "Could not update profile. Please try again.");
+      const message = err.message || "Could not update profile. Please try again.";
+      const field = Object.hasOwn(fields, err.field) ? fields[err.field] : null;
+      if (field) {
+        if (field === fields.currentPassword || field === fields.password) passwordDetails().open = true;
+        setFieldError(field, message);
+        field.focus();
+      } else {
+        showError("editProfileError", message);
+      }
       return;
     } finally {
       setSaving(false);
@@ -172,16 +189,14 @@
 
     document.getElementById("editProfileForm")?.addEventListener("submit", app.saveProfile);
 
-    // A field stops being red once it's filled in, and the message goes
-    // once nothing is red any more.
-    Object.values(getFields()).forEach((field) => {
-      const clear = () => {
-        if (!field.value.trim()) return;
-        markField(field, false);
-        if (!document.querySelector("#editProfileForm .error")) showError("");
-      };
-      field?.addEventListener("input", clear);
-      field?.addEventListener("change", clear);
+    const fields = getFields();
+    Object.values(fields).forEach((field) => {
+      const clear = () => setFieldError(field);
+      field.addEventListener("input", clear);
+      field.addEventListener("change", clear);
+    });
+    passwordDetails().addEventListener("toggle", () => {
+      if (!passwordDetails().open) clearPasswordFields(fields);
     });
 
     document.addEventListener("keydown", closeOnEscape);

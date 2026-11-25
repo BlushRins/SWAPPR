@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SWAPPR — Admin Panel</title>
+    <link rel="icon" href="Images/swappr_logo_updated.jpg" type="image/jpeg" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
@@ -148,7 +149,7 @@
                 aria-label="Search reports"
                 autocomplete="off"
                 maxlength="50"
-                class="admin-search"
+                class="input-field sm:max-w-[320px]"
               />
             </div>
             <div class="admin-card">
@@ -167,9 +168,9 @@
                 aria-label="Search users"
                 autocomplete="off"
                 maxlength="50"
-                class="admin-search"
+                class="input-field sm:max-w-[320px]"
               />
-              <p id="usersWarningNote" class="admin-muted text-xs"></p>
+              <p id="usersWarningNote" class="text-xs text-[color:var(--color-text-muted)]"></p>
             </div>
             <div class="admin-card">
               <div id="usersTable" class="admin-table-wrap"></div>

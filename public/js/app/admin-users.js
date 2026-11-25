@@ -26,7 +26,6 @@
     table = ui.createTable({
       container: document.getElementById("usersTable"),
       pagination: document.getElementById("usersPagination"),
-      openOn: "dblclick",
       onOpen: (row) => openUser(row.id),
       defaultSort: { key: "id", dir: "asc" },
       emptyMessage: "No registered students yet.",
@@ -39,10 +38,10 @@
         (row) => ui.statusLabel("account", row.accountStatus),
       ],
       columns: [
-        { key: "id", label: "User ID", className: "admin-col-id" },
-        { key: "username", label: "Username", render: (row) => `@${row.username}` },
-        { key: "name", label: "Name", render: (row) => row.name || "—" },
-        { key: "course", label: "Course", className: "admin-col-wide", render: (row) => row.course || "—" },
+        { key: "id", label: "User ID", className: "admin-col-id admin-user-col-secondary" },
+        { key: "username", label: "Username", className: "admin-user-col-secondary", render: (row) => `@${row.username}` },
+        { key: "name", label: "Name", className: "admin-user-col-name", render: (row) => row.name || "—" },
+        { key: "course", label: "Degree program", className: "admin-col-wide admin-user-col-secondary", render: (row) => row.course || "—" },
         {
           key: "trustScore",
           label: "Trust Score",
@@ -52,7 +51,7 @@
         {
           key: "warningCount",
           label: "Warning Count",
-          className: "admin-col-num",
+          className: "admin-col-num admin-user-col-secondary",
           render: warningCell,
         },
         {
@@ -230,7 +229,7 @@
               .map(({ partner, exchanges }) => `@${partner} (${exchanges})`).join(", "))
         : null,
       ui.details([
-        ["Course", user.course || "—"],
+        ["Degree program", user.course || "—"],
         ["Department", user.department || "—"],
         ["Student ID", user.studentId || "—"],
         ["Email", user.email || "—"],

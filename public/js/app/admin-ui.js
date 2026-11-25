@@ -27,11 +27,7 @@
 
   ui.refreshIcons = () => root.lucide?.createIcons();
 
-  // Double-tap is unreliable on phones (it zooms), so touch screens open rows
-  // with a single tap instead of the spec's double-click.
-  ui.isTouch = () => root.matchMedia?.("(pointer: coarse)").matches ?? false;
-  ui.openVerb = (openOn) =>
-    openOn === "dblclick" && !ui.isTouch() ? "Double-click" : ui.isTouch() ? "Tap" : "Click";
+  ui.openVerb = () => root.matchMedia("(pointer: coarse)").matches ? "Tap" : "Click";
 
   // The design spec displays dates as MMM d, yyyy (see js/date-format.js).
   ui.formatDate = (value) => root.SWAPPRDates.formatLongDate(value) || "—";
@@ -128,7 +124,6 @@
     searchFields = [],
     pageSize = 10,
     emptyMessage,
-    openOn = "dblclick",
     onOpen,
     rowClass,
   }) {
@@ -221,9 +216,7 @@
     }
 
     function bodyRow(row) {
-      const open = () => onOpen?.(row);
       const extraClass = rowClass?.(row);
-      const openEvent = openOn === "dblclick" && !ui.isTouch() ? "onDblclick" : "onClick";
       return el(
         "tr",
         {
@@ -232,17 +225,17 @@
           // Lets focus come back to this row after the table re-renders.
           "data-focus-key":
             row.id === undefined || row.id === null ? null : `${container.id}:${row.id}`,
-          title: `${ui.openVerb(openOn)} to view`,
-          [openEvent]: (event) => {
+          title: `${ui.openVerb()} to view`,
+          onClick: (event) => {
             if (event.target.closest("button, a")) return;
-            open();
+            onOpen?.(row);
           },
           onKeydown: (event) => {
-            if (event.key !== "Enter" || event.target !== event.currentTarget) return;
-            // The popup takes focus; without this the same Enter would also
-            // press its first button (Close).
+            if (event.target !== event.currentTarget ||
+                (event.key !== "Enter" && event.key !== " ")) return;
+            // Suppress the key's default action when focus moves to the popup.
             event.preventDefault();
-            open();
+            onOpen?.(row);
           },
         },
         columns.map((column) => {

@@ -95,13 +95,26 @@ const REG_STEP_LABELS = {
   2: "Step 2 of 2: Verify your USC email",
 };
 
+const SCHOOL_EMAIL_PATTERN = /^(\d{1,64})@usc\.edu\.ph$/i;
+
+function updateStudentIdPreview() {
+  const email = document.getElementById("regEmail").value.trim();
+  const studentId = SCHOOL_EMAIL_PATTERN.exec(email)?.[1];
+  const preview = document.getElementById("regStudentIdPreview");
+  preview.textContent = studentId ? `Student ID ${studentId} (from your USC email)` : "";
+  preview.hidden = !studentId;
+}
+
 function showRegStep(step) {
   document.getElementById("registerForm").hidden = step !== 1;
   document.getElementById("regStep2").hidden = step !== 2;
   document.getElementById("registerError").style.display = "none";
   document.getElementById("registerSuccess").style.display = "none";
   document.getElementById("regStepLabel").textContent = REG_STEP_LABELS[step];
-  if (step === 1) document.getElementById("regEmail").focus();
+  if (step === 1) {
+    updateStudentIdPreview();
+    document.getElementById("regEmail").focus();
+  }
 }
 
 function startResendTimer(seconds) {
@@ -630,7 +643,8 @@ document.addEventListener("DOMContentLoaded", () => {
       hideMessage(document.getElementById("loginError"));
     }),
   );
-  ["regEmail", "regName", "regStudentId", "regUsername", "regPassword"].forEach((id) =>
+  document.getElementById("regEmail").addEventListener("input", updateStudentIdPreview);
+  ["regEmail", "regName", "regUsername", "regPassword"].forEach((id) =>
     document.getElementById(id).addEventListener("input", (event) => {
       if (event.target.value.trim()) setFieldError(event.target, false);
     }),
@@ -682,7 +696,6 @@ async function handleRegister(e) {
   const fields = {
     email: document.getElementById("regEmail"),
     name: document.getElementById("regName"),
-    studentId: document.getElementById("regStudentId"),
     course: document.getElementById("regCourse"),
     username: document.getElementById("regUsername"),
     password: document.getElementById("regPassword"),
@@ -712,11 +725,8 @@ async function handleRegister(e) {
     (missing[0] === "course" ? courseButton : fields[missing[0]]).focus();
     return;
   }
-  if (!/^\d+@usc\.edu\.ph$/i.test(values.email)) {
-    return fail("email", "Email must be in the format: numbers@usc.edu.ph");
-  }
-  if (!/^\d{1,64}$/.test(values.studentId) || values.studentId !== values.email.split("@")[0]) {
-    return fail("studentId", "Student ID must match the number in your school email.");
+  if (!SCHOOL_EMAIL_PATTERN.test(values.email)) {
+    return fail("email", "Enter your USC email in the format numbers@usc.edu.ph.");
   }
   if (!/^[A-Za-z0-9_.-]{1,40}$/.test(values.username)) {
     return fail("username", "Use letters, digits, dots, underscores or hyphens.");
@@ -735,7 +745,6 @@ async function handleRegister(e) {
       verifiedEmail = values.email;
       pendingFormData = {
         name: values.name,
-        studentId: values.studentId,
         course: values.course,
         username: values.username,
         password: values.password,

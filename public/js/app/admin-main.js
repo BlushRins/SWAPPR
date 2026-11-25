@@ -6,19 +6,19 @@
     notebooks: {
       title: "Flagged Notebooks",
       subtitle: () =>
-        `Notebooks under review after being reported. ${ui.openVerb("click")} one to review it.`,
+        `Notebooks under review after being reported. ${ui.openVerb()} one to review it.`,
       load: () => app.loadAdminNotebooks(),
     },
     reports: {
       title: "Reports",
       subtitle: () =>
-        `Every report students have filed, newest first. ${ui.openVerb("dblclick")} one to resolve it.`,
+        `Every report students have filed, newest first. ${ui.openVerb()} one to resolve it.`,
       load: () => app.loadAdminReports(),
     },
     users: {
       title: "User Accounts",
       subtitle: () =>
-        `All registered students. ${ui.openVerb("dblclick")} one to view and manage the account.`,
+        `All registered students. ${ui.openVerb()} one to view and manage the account.`,
       load: () => app.loadAdminUsers(),
     },
   };

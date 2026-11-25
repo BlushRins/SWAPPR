@@ -3124,3 +3124,53 @@ body {
   text-transform: none;
   color: var(--color-text);
 }
+
+/* ── Account and admin ── */
+#editProfilePasswordDetails > summary {
+  min-height: 44px;
+  padding-block: 0.75rem;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-row {
+  user-select: none;
+}
+
+@media (max-width: 767px) {
+  #editProfileForm .input-field,
+  .admin-toolbar .input-field {
+    min-height: 44px;
+  }
+
+  .admin-row > td {
+    height: 44px;
+  }
+
+  #usersTable .admin-table {
+    min-width: 0;
+  }
+
+  #usersTable .admin-user-col-secondary {
+    display: none;
+  }
+
+  #usersTable .admin-sort,
+  #usersTable .admin-row > td {
+    padding-inline: 0.65rem;
+  }
+
+  #usersTable .admin-user-col-name {
+    overflow-wrap: anywhere;
+  }
+
+  #usersTable .admin-row--warning .admin-user-col-name {
+    box-shadow: inset 3px 0 0 var(--color-error);
+  }
+
+  #usersTable .admin-sort {
+    white-space: normal;
+  }
+}

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SWAPPR — Sign in</title>
+    <link rel="icon" href="Images/swappr_logo_updated.jpg" type="image/jpeg" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
@@ -123,49 +124,31 @@
                 id="regEmail"
                 class="input-field"
                 autocomplete="email"
-                aria-describedby="regEmailHint regEmailError"
+                aria-describedby="regEmailHint regStudentIdPreview regEmailError"
                 required
               />
               <p id="regEmailHint" class="field-hint">
                 Your student number, then @usc.edu.ph. Example:
                 23200114@usc.edu.ph
               </p>
+              <p id="regStudentIdPreview" class="field-hint break-words" hidden></p>
               <p id="regEmailError" class="field-error" hidden></p>
             </div>
-            <div class="form-row">
-              <div class="field">
-                <label for="regName" class="field-label">Full name</label>
-                <input
-                  type="text"
-                  id="regName"
-                  maxlength="100"
-                  class="input-field"
-                  autocomplete="name"
-                  aria-describedby="regNameError"
-                  required
-                />
-                <p id="regNameError" class="field-error" hidden></p>
-              </div>
-              <div class="field">
-                <label for="regStudentId" class="field-label">Student ID</label>
-                <input
-                  type="text"
-                  id="regStudentId"
-                  maxlength="64"
-                  inputmode="numeric"
-                  class="input-field"
-                  autocomplete="off"
-                  aria-describedby="regStudentIdHint regStudentIdError"
-                  required
-                />
-                <p id="regStudentIdHint" class="field-hint">
-                  Same number as your email.
-                </p>
-                <p id="regStudentIdError" class="field-error" hidden></p>
-              </div>
+            <div class="field">
+              <label for="regName" class="field-label">Full name</label>
+              <input
+                type="text"
+                id="regName"
+                maxlength="100"
+                class="input-field"
+                autocomplete="name"
+                aria-describedby="regNameError"
+                required
+              />
+              <p id="regNameError" class="field-error" hidden></p>
             </div>
             <div class="field">
-              <span id="regCourseLabel" class="field-label">Degree program</span>
+              <label id="regCourseLabel" for="regCourseButton" class="field-label">Degree program</label>
               <div class="custom-select-wrapper">
                 <select id="regCourse" class="hidden" aria-hidden="true" tabindex="-1">
                   <option value="">Select your degree program</option>

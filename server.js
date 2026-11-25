@@ -365,6 +365,9 @@ app.use("/api", (req, res, next) => {
 app.get("/js/vendor/lucide.js", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "js", "vendor", "lucide.js"));
 });
+app.get("/favicon.ico", (req, res) => {
+  res.redirect("/Images/swappr_logo_updated.jpg");
+});
 app.get("/healthz", async (req, res) => {
   res.set("Cache-Control", "no-store");
   try {
@@ -969,7 +972,9 @@ app.post("/api/register",
     const cleanUsername = textField(req.body.username, 40);
     const course = textField(req.body.course, 150);
     const cleanEmail = normalizeEmail(req.body.email);
-    const studentId = textField(req.body.studentId, 64);
+    const [studentId] = cleanEmail.split("@");
+    const mismatchedId = Object.hasOwn(req.body, "studentId") &&
+      textField(req.body.studentId, 64) !== studentId;
     const yearLevel = textField(req.body.yearLevel, 30);
 
     if (!name || !USERNAME_PATTERN.test(cleanUsername)) {
@@ -983,7 +988,7 @@ app.post("/api/register",
     }
     const invalidPassword = passwordError(password);
     if (invalidPassword) return res.status(400).json({ success: false, message: invalidPassword });
-    if (!isValidSchoolEmail(cleanEmail) || !studentId || studentId !== cleanEmail.split("@")[0]) {
+    if (!isValidSchoolEmail(cleanEmail) || mismatchedId) {
       return res.status(400).json({ success: false, message: "Student ID must match the number in your school email." });
     }
 
@@ -1240,14 +1245,14 @@ app.patch("/api/profile", requireAuth,
       return res.status(400).json({ success: false, message: "Enter your name and a valid username." });
     }
     if (!isCourse(course)) {
-      return res.status(400).json({ success: false, message: "Please select a course from the list." });
+      return res.status(400).json({ success: false, message: "Please select a degree program from the list.", field: "course" });
     }
     if (changingPassword) {
       if (typeof currentPassword !== "string" || !currentPassword) {
-        return res.status(400).json({ success: false, message: "Enter your current password." });
+        return res.status(400).json({ success: false, message: "Enter your current password.", field: "currentPassword" });
       }
       const invalidPassword = passwordError(password);
-      if (invalidPassword) return res.status(400).json({ success: false, message: invalidPassword });
+      if (invalidPassword) return res.status(400).json({ success: false, message: invalidPassword, field: "password" });
     }
 
     try {
@@ -1256,11 +1261,11 @@ app.patch("/api/profile", requireAuth,
         dbGet("SELECT course, department, password FROM Users WHERE id = ?", [me]),
       ]);
       if (taken) {
-        return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
+        return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
       }
       if (!current) return res.status(401).json({ success: false, message: "Login required" });
       if (changingPassword && !await verifyPassword(currentPassword, current.password)) {
-        return res.status(403).json({ success: false, message: "Current password is incorrect." });
+        return res.status(403).json({ success: false, message: "Current password is incorrect.", field: "currentPassword" });
       }
 
       const department = course === current.course ? current.department : COURSE_TO_DEPARTMENT[course] || course;
@@ -1281,7 +1286,7 @@ app.patch("/api/profile", requireAuth,
       res.json({ success: true, user: publicUser({ id: me, name, username, course }) });
     } catch (err) {
       if (String(err.message).includes("UNIQUE constraint failed: Users.username")) {
-        return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE });
+        return res.status(400).json({ success: false, message: USERNAME_TAKEN_MESSAGE, field: "username" });
       }
       console.error("Profile update failed:", err.message);
       res.status(500).json({ success: false, message: "Could not update profile." });

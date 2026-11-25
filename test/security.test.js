@@ -249,7 +249,7 @@ test("seed and authentication hardening works through the app entry points", { t
   const { verificationToken } = await verified.json();
   assert.ok(verificationToken);
   const registration = {
-    email, studentId: "100001", course: COURSE, username: " new_student ",
+    email, course: COURSE, username: " new_student ",
     name: " New Student ", password: REGISTRATION_PASSWORD,
   };
   assert.equal((await post("/api/register", registration)).status, 400);
@@ -266,6 +266,9 @@ test("seed and authentication hardening works through the app entry points", { t
   assert.equal((await me(cookieFrom(registered))).status, 200);
 
   const studentCookie = cookieFrom(registered);
+  const registeredProfile = await request("/api/profile/new_student", { cookie: studentCookie });
+  assert.equal(registeredProfile.status, 200);
+  assert.equal((await registeredProfile.json()).profile.studentId, "100001");
   const registeredLogin = await login("new_student", registration.password);
   assert.equal(registeredLogin.status, 200);
   assert.equal((await registeredLogin.json()).user.name, "New Student");
