@@ -1,4 +1,4 @@
-// The Requests page (public/js/app/swapps.js) must tell each student what
+// The Swaps page (public/js/app/swapps.js) must tell each student what
 // they receive and what they share, from their own side of the swap.
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
@@ -41,7 +41,7 @@ const SWAPPS = [
 function exchanges(html, heading) {
   const start = html.indexOf(`>${heading}</h3>`);
   assert.notEqual(start, -1, `section "${heading}" exists`);
-  const end = html.indexOf("<section", start);
+  const end = html.indexOf("</section>", start);
   const section = html.slice(start, end === -1 ? undefined : end);
   return [...section.matchAll(/You receive<\/p>([\s\S]*?)You share<\/p>([\s\S]*?)<\/div>\s*<\/div>/g)].map(
     ([, receive, share]) => ({
@@ -53,19 +53,23 @@ function exchanges(html, heading) {
 
 test("the receiver of a request receives the offer and shares the requested notebook", () => {
   const html = loadApp("bo", SWAPPS).renderRequests();
-  assert.deepEqual(exchanges(html, "Needs a response"), [
+  assert.deepEqual(exchanges(html, "Needs your reply (1)"), [
     { receive: ["Ana&#39;s Physics"], share: ["Bo&#39;s Calculus"] },
   ]);
   assert.match(html, /class="respond-btn btn-solid"[^>]*data-status="accepted"/);
+  assert.match(html, /class="respond-btn btn-outline"[^>]*data-status="rejected"/);
+  const card = html.match(/<article class="request-card" data-swapp="1">[\s\S]*?<\/article>/)[0];
+  assert.equal((card.match(/class="status-pill/g) || []).length, 1);
+  assert.doesNotMatch(card, /Pending your approval/);
 });
 
-test("the sender of a request sees it under Your requests from their side", () => {
+test("the sender of a request sees it under Sent from their side", () => {
   const html = loadApp("ana", SWAPPS).renderRequests();
-  assert.deepEqual(exchanges(html, "Your requests"), [
+  assert.deepEqual(exchanges(html, "Sent (1)"), [
     { receive: ["Bo&#39;s Calculus"], share: ["Ana&#39;s Physics"] },
   ]);
   assert.match(html, /Waiting for a response/);
-  assert.deepEqual(exchanges(html, "Needs a response"), []);
+  assert.deepEqual(exchanges(html, "Needs your reply (0)"), []);
 });
 
 test("an active swap shows each side's notebooks and leads with Open chat", () => {
@@ -74,11 +78,15 @@ test("an active swap shows each side's notebooks and leads with Open chat", () =
     ["bo", { receive: ["Ana&#39;s Chemistry"], share: ["Bo&#39;s Biology"] }],
   ]) {
     const html = loadApp(me, SWAPPS).renderRequests();
-    assert.deepEqual(exchanges(html, "Active swaps"), [expected], me);
+    assert.deepEqual(exchanges(html, "Active (1)"), [expected], me);
     assert.match(html, /class="open-chat-btn btn-solid"/);
     assert.match(html, /class="open-chat-btn btn-solid"[^>]*data-chat-swapp="2"/);
     assert.match(html, /data-chat-button-badge[^>]*class="chat-count hidden"/);
     assert.match(html, /<details class="more-menu">[\s\S]*Cancel swap/);
+    const receiveId = me === "ana" ? 11 : 21;
+    const shareId = me === "ana" ? 21 : 11;
+    assert.match(html, new RegExp(`class="open-chat-btn[\\s\\S]*class="btn-outline swap-notebook-btn" data-notebook-id="${receiveId}"`));
+    assert.doesNotMatch(html, new RegExp(`data-notebook-id="${shareId}"`));
   }
 });
 
@@ -91,7 +99,12 @@ test("newer declines do not hide an outstanding request", () => {
   }));
   const html = loadApp("ana", [SWAPPS[0], ...declines]).renderRequests();
   assert.match(html, /Request to @bo/);
-  assert.equal(exchanges(html, "Your requests").length, 11);
+  assert.equal(exchanges(html, "Sent (1)").length, 1);
+  assert.match(html, /<details class="swaps-history">\s*<summary><h3 class="requests-heading">Past swaps \(11\)<\/h3>/);
+  const history = html.match(/<details class="swaps-history">[\s\S]*?<\/details>/)[0];
+  assert.equal((history.match(/status-ended">Declined/g) || []).length, 11);
+  assert.ok(html.indexOf("Sent (1)") < html.indexOf("Past swaps (11)"));
+  assert.ok(html.indexOf("Past swaps (11)") < html.indexOf("Needs your reply (0)"));
 });
 
 test("usernames and titles are escaped", () => {
@@ -104,7 +117,56 @@ test("usernames and titles are escaped", () => {
 
 test("empty sections say what will appear there", () => {
   const html = loadApp("cy", SWAPPS).renderRequests();
-  assert.match(html, /No requests are waiting for you\./);
-  assert.match(html, /No active swaps\. Accepted requests appear here\./);
-  assert.match(html, /You haven't sent any requests yet\./);
+  assert.match(html, /No replies needed\./);
+  assert.match(html, /Accepted requests appear here\./);
+  assert.match(html, /Nothing sent yet\./);
+});
+
+function headings(html) {
+  return [...html.matchAll(/<h3 class="requests-heading">([^<]+)<\/h3>/g)].map((match) => match[1]);
+}
+
+test("filled sections follow reply, active, sent order with exact counts", () => {
+  const incoming = { ...SWAPPS[0], id: 3, sender: "cy", receiver: "ana" };
+  const twoSent = { ...SWAPPS[0], id: 4, receiver: "cy" };
+  const html = loadApp("ana", [...SWAPPS, twoSent, incoming]).renderRequests();
+  assert.deepEqual(headings(html), ["Needs your reply (1)", "Active (1)", "Sent (2)"]);
+  assert.doesNotMatch(html, /swaps-empty-section|swaps-history/);
+});
+
+test("empty sections follow filled sections and have a single message each", () => {
+  const html = loadApp("ana", [SWAPPS[0]]).renderRequests();
+  assert.deepEqual(headings(html), ["Sent (1)", "Needs your reply (0)", "Active (0)"]);
+  assert.equal((html.match(/class="requests-empty"/g) || []).length, 2);
+});
+
+test("ended swaps retain notebook access in history and cancelled swaps lose it", () => {
+  const ended = { ...SWAPPS[1], chatEnded: true };
+  const cancelled = {
+    ...SWAPPS[1],
+    id: 3,
+    status: "cancelled",
+    offeredNotebooks: [notebook(12, "Bo's Math")],
+  };
+  const html = loadApp("ana", [ended, cancelled]).renderRequests();
+  assert.deepEqual(headings(html), ["Past swaps (2)", "Needs your reply (0)", "Active (0)", "Sent (0)"]);
+  assert.match(html, /status-ended">Ended/);
+  assert.match(html, /status-ended">Cancelled/);
+  assert.match(html, /data-notebook-id="11"/);
+  assert.doesNotMatch(html, /data-notebook-id="12"|open-chat-btn/);
+});
+
+test("each available received notebook is reachable and hidden notebooks have no action", () => {
+  const multi = {
+    ...SWAPPS[1],
+    offeredNotebooks: [
+      ...SWAPPS[1].offeredNotebooks,
+      notebook(12, "Bo's Math"),
+      { ...notebook(13, "Bo's Astronomy"), status: "under_review" },
+    ],
+  };
+  const html = loadApp("ana", [multi]).renderRequests();
+  assert.match(html, /data-notebook-id="11"/);
+  assert.match(html, /data-notebook-id="12"/);
+  assert.doesNotMatch(html, /data-notebook-id="13"/);
 });

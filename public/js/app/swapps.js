@@ -30,16 +30,6 @@
     return app.state.swapps.filter((swapp) => swapp.sender === me || swapp.receiver === me);
   }
 
-  // FUNC-011 REQT-006: a notebook is unlocked by an accepted SWAPP whose
-  // manifest lists it.
-  app.unlockedNotebookIds = function unlockedNotebookIds() {
-    return new Set(
-      mySwapps()
-        .filter((swapp) => swapp.status === "accepted")
-        .flatMap(manifestIds),
-    );
-  };
-
   // What a notebook card should show for the current student:
   // accessSwapp — the accepted SWAPP that unlocked it (null if locked);
   // pending — they already asked for it and are waiting;
@@ -71,11 +61,9 @@
     return swapp.status === "accepted" && !swapp.chatEnded;
   }
 
-  // ── Requests page (IDX005, FUNC-011) ────────────────────────────────────
-  // Three sections: requests waiting on this student, their active swaps,
-  // and requests they sent. Every card says what the student receives and
-  // what they share. A card being answered or cancelled shows that state
-  // until the server replies; a failed action keeps its card with a retry.
+  // ── Swaps page (IDX005, FUNC-011) ───────────────────────────────────────
+  // Every card shows what the student receives and shares. Pending actions
+  // stay in place while saving, and failures keep the option to retry.
 
   const busy = new Map(); // swapp id -> "accepting" | "declining" | "cancelling"
   const failures = new Map(); // swapp id -> message
@@ -147,8 +135,7 @@
     return message ? `<p class="request-error" role="alert">${escapeHtml(message)}</p>` : "";
   }
 
-  // FUNC-011 REQT-002: requester username, "Pending your approval", the
-  // requester's trust score, the notebooks they offer, Accept and Decline.
+  // FUNC-011 REQT-002: requester, trust score, exchange, Accept and Decline.
   function requestCard(swapp) {
     const id = escapeHtml(swapp.id);
     const state = busy.get(String(swapp.id));
@@ -158,7 +145,7 @@
         <div class="request-card-head">
           <div class="min-w-0">
             <p class="request-title">@${escapeHtml(swapp.sender)} wants to swap</p>
-            <p class="request-meta">Pending your approval · Trust score ${escapeHtml(swapp.senderTrustScore ?? 100)}%</p>
+            <p class="request-meta">Trust score ${escapeHtml(swapp.senderTrustScore ?? 100)}%</p>
             ${sentLabel(swapp)}
           </div>
           <span class="status-pill status-pending" ${progressFocus(state)}>${state ? BUSY_LABELS[state] : "Pending"}</span>
@@ -177,12 +164,28 @@
     `;
   }
 
-  // One open SWAPP: what each side gets, Open chat first, Cancel tucked away.
+  function swapSides(swapp, me) {
+    return swapp.sender === me
+      ? { partner: swapp.receiver, receive: swapp.requestedNotebooks, share: swapp.offeredNotebooks }
+      : { partner: swapp.sender, receive: swapp.offeredNotebooks, share: swapp.requestedNotebooks };
+  }
+
+  function notebookActions(notebooks = [], disabled = false) {
+    const available = notebooks.filter((notebook) => !HIDDEN_NOTE[notebook.status]);
+    return available.map((notebook) => {
+      const id = escapeHtml(notebook.id);
+      const title = escapeHtml(notebook.title);
+      return `<button type="button" class="btn-outline swap-notebook-btn" data-notebook-id="${id}"
+        data-request-focus="notebook-${id}" aria-label="Open notebook: ${title}" ${disabled ? "disabled" : ""}>
+        <i data-lucide="external-link" class="w-4 h-4 shrink-0"></i>
+        ${available.length > 1 ? `Open notebook: ${title}` : "Open notebook"}
+      </button>`;
+    }).join("");
+  }
+
+  // Lead with Open chat, with Cancel tucked behind More.
   function activeSwappCard(swapp, me) {
-    const iSentIt = swapp.sender === me;
-    const partner = iSentIt ? swapp.receiver : swapp.sender;
-    const youReceive = iSentIt ? swapp.requestedNotebooks : swapp.offeredNotebooks;
-    const youShare = iSentIt ? swapp.offeredNotebooks : swapp.requestedNotebooks;
+    const { partner, receive, share } = swapSides(swapp, me);
     const id = escapeHtml(swapp.id);
     const state = busy.get(String(swapp.id));
     const unread = app.getChatUnreadForSwapp?.(swapp.id) || 0;
@@ -192,7 +195,7 @@
           <p class="request-title min-w-0">Swap with @${escapeHtml(partner)}</p>
           <span class="status-pill status-active" ${progressFocus(state)}>${state ? BUSY_LABELS[state] : "Active"}</span>
         </div>
-        ${exchange(youReceive, youShare)}
+        ${exchange(receive, share)}
         ${failureLine(swapp)}
         <div class="request-actions">
           <button type="button" class="open-chat-btn btn-solid" data-id="${id}" data-chat-swapp="${id}" data-request-focus="chat" ${state ? "disabled" : ""}>
@@ -200,6 +203,7 @@
             Open chat
             <span data-chat-button-badge aria-label="${unread} unread" class="chat-count${unread ? "" : " hidden"}">${unread > 9 ? "9+" : unread}</span>
           </button>
+          ${notebookActions(receive, Boolean(state))}
           <details class="more-menu">
             <summary aria-label="More actions for this swap" data-request-focus="more">More</summary>
             <div class="more-menu-list">
@@ -220,14 +224,7 @@
     `;
   }
 
-  const SENT_STATUS = {
-    pending: { label: "Waiting for a response", tone: "status-pending" },
-    rejected: { label: "Declined", tone: "status-ended" },
-  };
-
-  // A request this student sent that hasn't become an active swap.
   function sentRequestCard(swapp) {
-    const status = SENT_STATUS[swapp.status];
     return `
       <article class="request-card">
         <div class="request-card-head">
@@ -235,21 +232,54 @@
             <p class="request-title">Request to @${escapeHtml(swapp.receiver)}</p>
             ${sentLabel(swapp)}
           </div>
-          <span class="status-pill ${status.tone}">${status.label}</span>
+          <span class="status-pill status-pending">Waiting for a response</span>
         </div>
         ${exchange(swapp.requestedNotebooks, swapp.offeredNotebooks)}
       </article>
     `;
   }
 
-  const DECLINED_LIMIT = 10;
+  const PAST_STATUS = { rejected: "Declined", cancelled: "Cancelled", accepted: "Ended" };
 
-  function section(title, cards, emptyText) {
+  function pastSwapCard(swapp, me) {
+    const { partner, receive, share } = swapSides(swapp, me);
+    // An ended chat leaves the swap accepted and its notebook files unlocked.
+    const actions = swapp.status === "accepted" ? notebookActions(receive) : "";
+    const relationship = swapp.status === "rejected"
+      ? (swapp.sender === me ? "Request to" : "Request from")
+      : "Swap with";
     return `
-      <section class="requests-section">
-        <h3 class="requests-heading">${title}</h3>
+      <article class="request-card" data-swapp="${escapeHtml(swapp.id)}">
+        <div class="request-card-head">
+          <div class="min-w-0">
+            <p class="request-title">${relationship} @${escapeHtml(partner)}</p>
+            ${sentLabel(swapp)}
+          </div>
+          <span class="status-pill status-ended">${PAST_STATUS[swapp.status]}</span>
+        </div>
+        ${exchange(receive, share)}
+        ${actions ? `<div class="request-actions">${actions}</div>` : ""}
+      </article>
+    `;
+  }
+
+  function section({ title, cards, emptyText }) {
+    return `
+      <section class="requests-section${cards.length ? "" : " swaps-empty-section"}">
+        <h3 class="requests-heading">${title} (${cards.length})</h3>
         ${cards.length ? cards.join("") : `<p class="requests-empty">${emptyText}</p>`}
       </section>`;
+  }
+
+  function pastSection(swapps, me) {
+    if (!swapps.length) return "";
+    return `
+      <details class="swaps-history">
+        <summary><h3 class="requests-heading">Past swaps (${swapps.length})</h3></summary>
+        <div class="requests-section">
+          ${swapps.map((swapp) => pastSwapCard(swapp, me)).join("")}
+        </div>
+      </details>`;
   }
 
   app.renderRequests = function renderRequests() {
@@ -258,28 +288,31 @@
       return `<p class="requests-empty">Please sign in.</p>`;
     }
     const me = currentUser.username;
-
-    const incoming = app.state.swapps.filter(
-      (swapp) => swapp.receiver === me && swapp.status === "pending",
-    );
-    const active = mySwapps().filter(isOpen);
-    const outgoing = app.state.swapps.filter((swapp) => swapp.sender === me);
-    const recentDeclines = outgoing
-      .filter((swapp) => swapp.status === "rejected")
-      .sort((a, b) => b.id - a.id)
-      .slice(0, DECLINED_LIMIT);
-    const sent = [...outgoing.filter((swapp) => swapp.status === "pending"), ...recentDeclines]
+    const swaps = mySwapps();
+    const incoming = swaps.filter((swapp) => swapp.receiver === me && swapp.status === "pending");
+    const active = swaps.filter(isOpen);
+    const sent = swaps
+      .filter((swapp) => swapp.sender === me && swapp.status === "pending")
       .sort((a, b) => b.id - a.id);
+    const past = swaps.filter((swapp) => Object.hasOwn(PAST_STATUS, swapp.status) && !isOpen(swapp));
 
-    return [
-      section("Needs a response", incoming.map(requestCard), "No requests are waiting for you."),
-      section(
-        "Active swaps",
-        active.map((swapp) => activeSwappCard(swapp, me)),
-        "No active swaps. Accepted requests appear here.",
-      ),
-      section("Your requests", sent.map(sentRequestCard), "You haven't sent any requests yet."),
-    ].join("");
+    const sections = [
+      {
+        title: "Needs your reply",
+        cards: incoming.map(requestCard),
+        emptyText: "No replies needed.",
+      },
+      {
+        title: "Active",
+        cards: active.map((swapp) => activeSwappCard(swapp, me)),
+        emptyText: "Accepted requests appear here.",
+      },
+      { title: "Sent", cards: sent.map(sentRequestCard), emptyText: "Nothing sent yet." },
+    ];
+
+    const filled = sections.filter(({ cards }) => cards.length).map(section).join("");
+    const empty = sections.filter(({ cards }) => !cards.length).map(section).join("");
+    return filled + pastSection(past, me) + (empty ? `<div class="swaps-empty-list">${empty}</div>` : "");
   };
 
   app.renderRequestsView = function renderRequestsView(grid) {
@@ -287,7 +320,15 @@
     const previousCard = previousAction?.closest("[data-swapp]");
     const restoreFocus = previousCard && grid.contains(previousCard);
 
+    const previousHistory = grid.querySelector(".swaps-history");
+    const historyWasFocused = previousHistory?.firstElementChild === document.activeElement;
     grid.innerHTML = app.renderRequests();
+    const history = grid.querySelector(".swaps-history");
+    if (history) {
+      history.open = previousHistory?.open || false;
+      if (historyWasFocused) history.firstElementChild.focus();
+    }
+
     grid.querySelectorAll(".respond-btn").forEach((button) => {
       button.addEventListener("click", () => {
         app.respondSwapp(button.dataset.id, button.dataset.status);
@@ -296,6 +337,14 @@
 
     grid.querySelectorAll(".open-chat-btn").forEach((button) => {
       button.addEventListener("click", () => app.openChatForSwapp?.(Number(button.dataset.id)));
+    });
+
+    grid.querySelectorAll(".swap-notebook-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const id = Number(button.dataset.notebookId);
+        const notebook = app.state.notebooks.find((item) => item.id === id);
+        app.openNotebookFile(notebook);
+      });
     });
 
     grid.querySelectorAll(".cancel-swapp-btn").forEach((button) => {
@@ -442,14 +491,13 @@
       (swapp) => swapp.receiver === currentUser.username && swapp.status === "pending",
     ).length;
 
-    if (count > 0) {
-      badges.forEach((badge) => {
-        badge.textContent = count;
-        badge.classList.remove("hidden");
-      });
-    } else {
-      badges.forEach((badge) => badge.classList.add("hidden"));
-    }
+    badges.forEach((badge) => {
+      badge.textContent = String(count);
+      const label = `${count} pending swap request${count === 1 ? "" : "s"}`;
+      badge.setAttribute("aria-label", label);
+      badge.title = label;
+      badge.classList.toggle("hidden", count === 0);
+    });
   };
 
   // FUNC-010: request one notebook, offering one or more of your own. The

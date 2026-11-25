@@ -21,8 +21,7 @@
 
   // Subtitles the design gives specific views (IDX004, IDX006).
   const VIEW_SUBTITLES = {
-    requests: "Answer requests, open chats for active swaps and track what you sent.",
-    matched: "Notebooks unlocked through your swaps.",
+    requests: "Reply to requests, open chats and track what you sent.",
     top: "The most active departments first.",
   };
 
@@ -30,7 +29,6 @@
   // IDX007). When a search empties it, FUNC-007 REQT-003 applies instead.
   const EMPTY_MESSAGES = {
     mine: "You have not shared any notebooks yet.",
-    matched: "You have no swap partners yet.",
     top: "No notebooks have been shared yet.",
     recent: "No notebooks have been shared yet.",
   };
@@ -63,7 +61,7 @@
   }
 
   // One search box, labelled for what it searches in the current view.
-  // Requests has nothing to search, so the box is hidden there.
+  // The search box applies to subject and notebook lists.
   function syncSearchControl() {
     const wrapper = document.getElementById("browseSearch");
     const label = document.getElementById("searchLabel");
@@ -167,16 +165,6 @@
       );
     }
 
-    // FUNC-012 REQT-002: only the notebooks unlocked by confirmed SWAPPs.
-    if (app.state.currentFilter === "matched") {
-      const unlocked = app.unlockedNotebookIds();
-      filtered = filtered.filter(
-        (notebook) =>
-          unlocked.has(notebook.id) &&
-          notebook.username !== app.state.currentUser?.username,
-      );
-    }
-
     if (app.state.currentFilter === "top") {
       filtered = byDepartmentActivity(filtered);
     }
@@ -191,17 +179,19 @@
 
   // Access opens the notebook's file in a new tab: for notebooks unlocked by
   // an accepted SWAPP (FUNC-007 REQT-007) and for your own notebooks.
+  app.openNotebookFile = function openNotebookFile(notebook) {
+    const url = notebook?.fileUrl || notebook?.file_url;
+    if (url) root.open(url, "_blank", "noopener,noreferrer");
+    else app.showToast("No file URL available");
+  };
+
   app.createAccessButton = function createAccessButton(notebook) {
     const accessBtn = document.createElement("button");
     accessBtn.type = "button";
     accessBtn.innerHTML = '<i data-lucide="external-link" class="w-4 h-4"></i> Open notebook';
     accessBtn.className = "btn-solid";
     accessBtn.dataset.action = "access";
-    accessBtn.addEventListener("click", () => {
-      const url = notebook.fileUrl || notebook.file_url;
-      if (url) window.open(url, "_blank", "noopener,noreferrer");
-      else app.showToast("No file URL available");
-    });
+    accessBtn.addEventListener("click", () => app.openNotebookFile(notebook));
     return accessBtn;
   };
 
@@ -439,6 +429,8 @@
   };
 
   app.renderNotebooks = function renderNotebooks() {
+    if (app.state.currentFilter === "matched") return app.filterBy("requests");
+
     const grid = document.getElementById("notebookGrid");
     if (!grid) return;
 
@@ -661,6 +653,7 @@
   };
 
   app.filterBy = function filterBy(type) {
+    if (type === "matched") type = "requests";
     app.state.currentFilter = type;
     app.state.selectedDepartment = null;
     app.state.selectedSubject = null;
@@ -674,7 +667,7 @@
       sectionTitle.textContent = app.state.titles[type] || "Notebooks";
     }
 
-    document.querySelectorAll(".sidebar-link").forEach((link) => {
+    document.querySelectorAll(".sidebar-link, .swaps-shortcut").forEach((link) => {
       const current = link.dataset.filter === type;
       link.classList.toggle("active", current);
       if (current) link.setAttribute("aria-current", "page");
