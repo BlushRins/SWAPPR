@@ -43,6 +43,12 @@ test("every sign-in and registration field has a persistent label", () => {
   }
 });
 
+test("registration shows the derived student ID as an email description", () => {
+  assert.doesNotMatch(loginHtml, /<input\b[^>]*id="regStudentId[^"]*"/);
+  assert.match(loginHtml, /id="regEmail"[^>]*aria-describedby="[^"]*\bregStudentIdPreview\b/);
+  assert.match(loginHtml, /<p id="regStudentIdPreview"[^>]* hidden><\/p>/);
+});
+
 test("registration is a labelled modal dialog with named steps", () => {
   assert.match(loginHtml, /role="dialog"[^>]*aria-modal="true"[^>]*aria-labelledby="registerTitle"/s);
   assert.match(loginHtml, /id="regStepLabel"[^>]*>\s*Step 1 of 2: Account details/);

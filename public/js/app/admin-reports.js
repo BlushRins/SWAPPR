@@ -19,7 +19,6 @@
     table = ui.createTable({
       container: document.getElementById("reportsTable"),
       pagination: document.getElementById("reportsPagination"),
-      openOn: "dblclick",
       onOpen: (row) => openReport(row.id),
       // FUNC-017 REQT-002: most to least recent.
       defaultSort: { key: "dateSubmitted", dir: "desc" },

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SWAPPR — Study Together</title>
+    <link rel="icon" href="Images/swappr_logo_updated.jpg" type="image/jpeg" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
@@ -469,7 +470,7 @@
 
       <!-- FUNC-014 REQT-003: read-only account standing (REQT-010) -->
       <dl class="profile-standing mb-6">
-        <dt>Course</dt>
+        <dt>Degree program</dt>
         <dd id="profileCourse">—</dd>
         <dt>Trust Score</dt>
         <dd><span id="profileTrustScore" class="font-bold">100%</span></dd>
@@ -957,67 +958,74 @@
 
         <form id="editProfileForm" class="space-y-4" novalidate>
           <div>
-            <label for="editProfileName" class="field-section-label">
-              Full Name <span class="text-red-500">*</span>
-            </label>
+            <label for="editProfileName" class="field-section-label">Full name</label>
             <input
-              id="editProfileName" maxlength="100"
+              id="editProfileName"
               type="text"
               class="input-field"
               autocomplete="name"
+              maxlength="100"
+              aria-describedby="editProfileNameError"
+              required
             />
+            <p id="editProfileNameError" class="report-error" hidden></p>
           </div>
 
           <div>
-            <label for="editProfileUsername" class="field-section-label">
-              Username <span class="text-red-500">*</span>
-            </label>
+            <label for="editProfileUsername" class="field-section-label">Username</label>
             <input
-              id="editProfileUsername" maxlength="40"
+              id="editProfileUsername"
               type="text"
               class="input-field"
               autocomplete="username"
               autocapitalize="off"
               spellcheck="false"
+              maxlength="40"
+              aria-describedby="editProfileUsernameError"
+              required
             />
+            <p id="editProfileUsernameError" class="report-error" hidden></p>
           </div>
 
           <div>
-            <label for="editProfileCourse" class="field-section-label">
-              Course <span class="text-red-500">*</span>
-            </label>
-            <select id="editProfileCourse" class="input-field">
-              <option value="">Select your course</option>
+            <label for="editProfileCourse" class="field-section-label">Degree program</label>
+            <select id="editProfileCourse" class="input-field" aria-describedby="editProfileCourseError" required>
+              <option value="">Select your degree program</option>
             </select>
+            <p id="editProfileCourseError" class="report-error" hidden></p>
           </div>
 
-          <div>
-            <label for="editProfileCurrentPassword" class="field-section-label">
-              Current password (for password changes)
-            </label>
-            <input
-              id="editProfileCurrentPassword"
-              type="password"
-              class="input-field"
-              autocomplete="current-password"
-            />
-          </div>
+          <details id="editProfilePasswordDetails">
+            <summary>Change password</summary>
+            <div class="space-y-4 mt-2">
+              <div>
+                <label for="editProfileCurrentPassword" class="field-section-label">Current password</label>
+                <input
+                  id="editProfileCurrentPassword"
+                  type="password"
+                  class="input-field"
+                  autocomplete="current-password"
+                  aria-describedby="editProfileCurrentPasswordError"
+                />
+                <p id="editProfileCurrentPasswordError" class="report-error" hidden></p>
+              </div>
+              <div>
+                <label for="editProfilePassword" class="field-section-label">New password</label>
+                <input
+                  id="editProfilePassword"
+                  type="password"
+                  class="input-field"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="128"
+                  aria-describedby="editProfilePasswordError"
+                />
+                <p id="editProfilePasswordError" class="report-error" hidden></p>
+              </div>
+            </div>
+          </details>
 
-          <div>
-            <label for="editProfilePassword" class="field-section-label">
-              New password (optional)
-            </label>
-            <input
-              id="editProfilePassword"
-              type="password"
-              class="input-field"
-              autocomplete="new-password"
-              minlength="8"
-              maxlength="128"
-            />
-          </div>
-
-          <p id="editProfileError" class="report-error hidden" role="alert"></p>
+          <p id="editProfileError" class="report-error" role="alert" hidden></p>
 
           <div class="flex justify-end gap-3 pt-2">
             <button
@@ -1059,6 +1067,7 @@
     <script src="js/app/swapp-request-modal.js"></script>
     <script src="js/app/sidebar.js"></script>
     <script src="js/app/profile-panel.js"></script>
+    <script src="js/password-policy.js"></script>
     <script src="js/app/edit-profile.js"></script>
     <script src="js/app/notebook-modal.js"></script>
     <script src="js/app/notebook-details.js"></script>

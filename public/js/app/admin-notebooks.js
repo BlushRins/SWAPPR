@@ -11,7 +11,6 @@
     table = ui.createTable({
       container: document.getElementById("notebooksTable"),
       pagination: document.getElementById("notebooksPagination"),
-      openOn: "click",
       onOpen: (row) => openNotebook(row.id),
       defaultSort: { key: "reportCount", dir: "desc" },
       emptyMessage: "No flagged notebooks right now.",
