@@ -365,6 +365,15 @@ app.use("/api", (req, res, next) => {
 app.get("/js/vendor/lucide.js", (req, res) => {
   res.sendFile(path.resolve(path.dirname(require.resolve("lucide")), "../umd/lucide.min.js"));
 });
+app.get("/healthz", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    await dbGet("SELECT 1 FROM Users LIMIT 1");
+    res.json({ status: "ok" });
+  } catch {
+    res.status(503).json({ status: "unavailable" });
+  }
+});
 app.use(sessionMiddleware);
 
 app.get(["/", "/index.html"], requirePageAuth, (req, res) => {

@@ -25,13 +25,14 @@ start_container() {
     -p 127.0.0.1::3000 "${image}" >/dev/null
   base_url="http://$(docker port "${container}" 3000/tcp)"
   if ! curl --fail --silent --show-error --max-time 3 --retry 8 --retry-delay 1 --retry-connrefused --retry-all-errors \
-    "${base_url}/login.html" --output /dev/null; then
+    "${base_url}/healthz" --output /dev/null; then
     docker logs "${container}" >&2 || true
     return 1
   fi
 }
 
 start_container
+curl --fail --silent --show-error "${base_url}/login.html" --output /dev/null
 curl --fail --silent --show-error "${base_url}/css/tailwind.css" --output /dev/null
 curl --fail --silent --show-error "${base_url}/js/vendor/lucide.js" --output /dev/null
 cookie=$(curl --fail --silent --show-error --dump-header - --output /dev/null \

@@ -19,8 +19,11 @@ docker volume create swappr-data
 docker run -d --name swappr --env-file .env \
   -e HOST=0.0.0.0 -e PORT=3000 -e SWAPPR_SQL_DIR=/app/sql \
   --mount source=swappr-data,target=/app/sql -p 127.0.0.1:3000:3000 swappr:local
+curl --fail http://127.0.0.1:3000/healthz
 curl --fail --output /dev/null http://127.0.0.1:3000/login.html
 ```
+
+Configure the host readiness probe to use `GET /healthz`. It returns HTTP 200 when the application can read its account database and HTTP 503 if the read fails.
 
 GitHub Actions runs `bash test/container-smoke.sh swappr-ci` against a fresh
 image. It checks that the production container serves its built assets, an
