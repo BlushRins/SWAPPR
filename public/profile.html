@@ -230,6 +230,28 @@
         color: #8878b8;
         margin-top: 2px;
       }
+      .notebook-item-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .notebook-item-row > :first-child {
+        flex: 1;
+        min-width: 0;
+      }
+      .notebook-item-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      /* Phones: the actions sit under the title so it keeps the full width. */
+      @media (max-width: 480px) {
+        .notebook-item-row {
+          flex-direction: column;
+          gap: 12px;
+        }
+      }
 
       /* ── Match pill ──────────────────────────────────────────────────────── */
       .match-pill {

@@ -151,7 +151,7 @@ function renderProfile(p) {
       .map(
         (n) => `
       <div class="notebook-item">
-        <div class="flex items-start justify-between gap-2">
+        <div class="notebook-item-row">
           <div class="flex-1 min-w-0">
             <button type="button" data-notebook-action="openNotebook" data-notebook-id="${Number(n.id)}" class="notebook-title notebook-title-link">${escapeHtml(n.title)}</button>
             <p class="notebook-dept">${escapeHtml(n.department || "No department")}</p>
@@ -164,7 +164,7 @@ function renderProfile(p) {
           ${
             isOwn
               ? `
-            <div class="flex gap-1.5 shrink-0">
+            <div class="notebook-item-actions">
               ${
                 moderationNote(n.status)
                   ? ""
