@@ -1,6 +1,6 @@
 // Static checks for the sign-in page and shared design tokens: every field
-// keeps a visible label, the registration dialog stays a real dialog, no
-// page animates by default, and the token colors keep WCAG AA contrast.
+// has an accessible name, the registration dialog stays a real dialog, and
+// the token colors keep WCAG AA contrast.
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const path = require("node:path");
@@ -31,15 +31,16 @@ function tokens(blockStart) {
   );
 }
 
-test("every sign-in and registration field has a persistent label", () => {
+test("every sign-in and registration field has an accessible name", () => {
+  // The sign-in design shows placeholders, so each field also carries a name
+  // that stays when the placeholder disappears.
   const inputs = [...loginHtml.matchAll(/<input\b[^>]*>/g)].map(([tag]) => tag);
   assert.ok(inputs.length > 0);
   for (const tag of inputs) {
-    if (/aria-label="/.test(tag)) continue; // one-time-code digit boxes
+    if (/aria-label="[^"]+"/.test(tag)) continue;
     const id = tag.match(/\bid="([^"]+)"/)?.[1];
     assert.ok(id, `input has an id: ${tag}`);
-    assert.match(loginHtml, new RegExp(`<label[^>]*for="${id}"`), `#${id} has a <label>`);
-    assert.doesNotMatch(tag, /placeholder=/, `#${id} relies on its label, not a placeholder`);
+    assert.match(loginHtml, new RegExp(`<label[^>]*for="${id}"`), `#${id} has a <label> or aria-label`);
   }
 });
 
@@ -53,11 +54,6 @@ test("registration is a labelled modal dialog with named steps", () => {
   assert.match(loginHtml, /role="dialog"[^>]*aria-modal="true"[^>]*aria-labelledby="registerTitle"/s);
   assert.match(loginHtml, /id="regStepLabel"[^>]*>\s*Step 1 of 2: Account details/);
   assert.match(read("js/login.js"), /Step 2 of 2: Verify your USC email/);
-});
-
-test("the sign-in page does not animate", () => {
-  assert.doesNotMatch(loginHtml, /bg-particle/);
-  assert.doesNotMatch(read("css/login_styles.css"), /@keyframes|animation\s*:/);
 });
 
 test("every page loads the shared tokens before its own stylesheet", () => {

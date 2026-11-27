@@ -111,6 +111,12 @@ function showRegStep(step) {
   document.getElementById("registerError").style.display = "none";
   document.getElementById("registerSuccess").style.display = "none";
   document.getElementById("regStepLabel").textContent = REG_STEP_LABELS[step];
+  // The wide dot marks the current step.
+  const [current, other] = step === 1 ? ["stepDot1", "stepDot2"] : ["stepDot2", "stepDot1"];
+  document.getElementById(current).style.cssText =
+    "width:20px;height:8px;border-radius:4px;background:#6d28d9;transition:all .3s;";
+  document.getElementById(other).style.cssText =
+    `width:8px;height:8px;border-radius:50%;background:${step === 1 ? "#d1d5db" : "#6d28d9"};transition:all .3s;`;
   if (step === 1) {
     updateStudentIdPreview();
     document.getElementById("regEmail").focus();
@@ -188,7 +194,7 @@ async function handleVerifyOtp() {
       errorEl.textContent = vData.message || "Incorrect code.";
       errorEl.style.display = "block";
       btn.disabled = false;
-      btn.textContent = "Verify & create account";
+      btn.textContent = "Verify & Create Account";
       return;
     }
 
@@ -206,7 +212,7 @@ async function handleVerifyOtp() {
         successEl.style.display = "block";
         setTimeout(() => { window.location.replace("index.html"); }, 1000);
       } else {
-        successEl.textContent = "Account created! You can now sign in.";
+        successEl.textContent = "Account created! You can now log in.";
         successEl.style.display = "block";
         setTimeout(closeRegisterModal, 2000);
       }
@@ -214,12 +220,12 @@ async function handleVerifyOtp() {
       errorEl.textContent = rData.message || "Registration failed.";
       errorEl.style.display = "block";
       btn.disabled = false;
-      btn.textContent = "Verify & create account";
+      btn.textContent = "Verify & Create Account";
     }
   } catch {
     showMessage(errorEl, NETWORK_ERROR);
     btn.disabled = false;
-    btn.textContent = "Verify & create account";
+    btn.textContent = "Verify & Create Account";
   }
 }
 
@@ -280,7 +286,7 @@ async function handleVerifyOtp() {
 
   const updateButtonLabel = () => {
     const selected = options.find((opt) => opt.value === courseSelect.value);
-    const labelText = selected ? selected.label : "Select your degree program";
+    const labelText = selected ? selected.label : "Select your course";
     const textSpan = courseButton.querySelector(".custom-select-label");
     if (textSpan) {
       textSpan.textContent = labelText;
@@ -671,7 +677,7 @@ async function handleLogin(e) {
   }
 
   loginBtn.disabled = true;
-  loginBtn.textContent = "Signing in…";
+  loginBtn.textContent = "Logging in...";
 
   try {
     const data = await postJson("/api/login", { username, password });
@@ -681,12 +687,19 @@ async function handleLogin(e) {
       return;
     }
     // The server uses the same error for unknown accounts and bad credentials.
-    showMessage(errorEl, data.message || NETWORK_ERROR);
+    // Students often try their USC email here, so say what the field wants.
+    const message = data.message || NETWORK_ERROR;
+    showMessage(
+      errorEl,
+      data.message && username.includes("@")
+        ? `${message} Use the username you chose when you registered, not your email.`
+        : message,
+    );
   } catch {
     showMessage(errorEl, NETWORK_ERROR);
   }
   loginBtn.disabled = false;
-  loginBtn.textContent = "Sign in";
+  loginBtn.textContent = "Log In";
 }
 
 // Register handler — Step 1: validate form, send OTP, advance to step 2
@@ -769,7 +782,7 @@ async function handleRegister(e) {
     showMessage(errorEl, NETWORK_ERROR);
   } finally {
     registerBtn.disabled = false;
-    registerBtn.textContent = "Send verification code";
+    registerBtn.textContent = "Register";
   }
 }
 
