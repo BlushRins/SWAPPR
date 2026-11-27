@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SWAPPR — Study Together</title>
+    <link rel="icon" href="Images/swappr_logo_updated.jpg" type="image/jpeg" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
@@ -16,7 +17,7 @@
   </head>
 
   <body
-    class="font-sans min-h-screen overflow-x-hidden transition-colors duration-300 text-gray-900 dark:text-purple-100 bg-transparent"
+    class="font-sans min-h-screen overflow-x-clip transition-colors duration-300 text-gray-900 dark:text-purple-100 bg-transparent"
   >
     <!-- Header -->
     <header
@@ -58,7 +59,7 @@
         </button>
         <button
           id="themeToggle"
-          class="w-11 h-11 md:w-8 md:h-8 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
+          class="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-full flex items-center justify-center glass-btn hover:scale-110 transition"
           title="Toggle theme"
         >
           <i data-lucide="moon" class="w-5 h-5"></i>
@@ -69,11 +70,16 @@
         >
           Logout
         </button>
+        <a href="#" data-filter="requests" class="swaps-shortcut">
+          <i data-lucide="handshake" class="swaps-shortcut-icon w-4 h-4" aria-hidden="true"></i>
+          <span class="swaps-shortcut-label">Swaps</span>
+          <span data-requests-badge role="img" class="swaps-count hidden">0</span>
+        </a>
         <button
           id="mobileMenuToggle"
           type="button"
           data-action="toggleMobileMenu"
-          class="md:hidden w-11 h-11 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
+          class="md:hidden w-11 h-11 shrink-0 rounded-full flex items-center justify-center glass-btn hover:scale-105 transition"
           aria-label="Open menu"
           aria-expanded="false"
           aria-controls="mobileMenu"
@@ -124,35 +130,23 @@
       </a>
       <a
         href="#"
-        data-filter="matched"
-        class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
-      >
-        <span class="flex items-center gap-2">
-          <i data-lucide="handshake" class="w-4 h-4"></i>
-          My swaps
-        </span>
-        <span
-          data-chat-badge
-          title="Unread messages"
-          class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-          >0</span
-        >
-      </a>
-      <a
-        href="#"
         data-filter="requests"
         class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
       >
         <span class="flex items-center gap-2">
-          <i data-lucide="inbox" class="w-4 h-4"></i>
-          Requests
+          <i data-lucide="handshake" class="w-4 h-4"></i>
+          Swaps
         </span>
-        <span
-          id="mobileRequestsBadge"
-          data-requests-badge
-          class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-          >0</span
-        >
+        <span class="swaps-nav-counts">
+          <span
+            id="mobileRequestsBadge"
+            data-requests-badge
+            role="img"
+            class="swaps-count hidden"
+            >0</span
+          >
+          <span data-chat-badge role="img" class="swaps-count swaps-chat-count hidden">0</span>
+        </span>
       </a>
       <a
         href="#"
@@ -199,7 +193,7 @@
     <div class="dashboard-shell flex min-w-0">
       <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
       <aside
-        class="w-56 bg-white/70 backdrop-blur-md dark:bg-[#110e20] p-5 hidden md:flex flex-col gap-6 shrink-0 border-r border-purple-100 dark:border-white/[0.06] sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto"
+        class="w-56 bg-white/70 backdrop-blur-md dark:bg-[var(--color-sidebar-surface)] p-5 hidden md:flex flex-col gap-6 shrink-0 border-r border-purple-100 dark:border-[color:var(--color-divider)] sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto"
       >
         <!-- Browse nav -->
         <div>
@@ -227,35 +221,23 @@
             </a>
             <a
               href="#"
-              data-filter="matched"
-              class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
-            >
-              <span class="flex items-center gap-2">
-                <i data-lucide="handshake" class="w-4 h-4"></i>
-                My swaps
-              </span>
-              <span
-                data-chat-badge
-                title="Unread messages"
-                class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-                >0</span
-              >
-            </a>
-            <a
-              href="#"
               data-filter="requests"
               class="sidebar-link flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
             >
               <span class="flex items-center gap-2">
-                <i data-lucide="inbox" class="w-4 h-4"></i>
-                Requests
+                <i data-lucide="handshake" class="w-4 h-4"></i>
+                Swaps
               </span>
-              <span
-                id="requestsBadge"
-                data-requests-badge
-                class="hidden bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-                >0</span
-              >
+              <span class="swaps-nav-counts">
+                <span
+                  id="requestsBadge"
+                  data-requests-badge
+                  role="img"
+                  class="swaps-count hidden"
+                  >0</span
+                >
+                <span data-chat-badge role="img" class="swaps-count swaps-chat-count hidden">0</span>
+              </span>
             </a>
             <a
               href="#"
@@ -420,7 +402,7 @@
         </div>
         <button
           data-action="closeProfilePanel"
-          class="w-11 h-11 md:w-7 md:h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-[color:var(--color-primary)] hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
+          class="w-11 h-11 md:w-7 md:h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[color:var(--color-surface-muted)] text-[color:var(--color-primary)] hover:bg-purple-200 dark:hover:bg-[color:var(--color-primary-soft)] transition"
         >
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
@@ -445,7 +427,7 @@
       <button
         type="button"
         data-action="openEditProfileModal"
-        class="w-full mb-6 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-purple-200 dark:border-purple-500/30 text-sm font-semibold text-purple-700 dark:text-purple-200 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition"
+        class="btn-outline w-full mb-6"
       >
         <i data-lucide="pencil" class="w-4 h-4"></i>
         Edit Profile
@@ -489,7 +471,7 @@
 
       <!-- FUNC-014 REQT-003: read-only account standing (REQT-010) -->
       <dl class="profile-standing mb-6">
-        <dt>Course</dt>
+        <dt>Degree program</dt>
         <dd id="profileCourse">—</dd>
         <dt>Trust Score</dt>
         <dd><span id="profileTrustScore" class="font-bold">100%</span></dd>
@@ -499,7 +481,7 @@
         <dd id="profileAccountStatus">Active</dd>
       </dl>
 
-      <div class="h-px bg-purple-100 dark:bg-[#3a2565] mb-5"></div>
+      <div class="h-px bg-purple-100 dark:bg-[color:var(--color-divider)] mb-5"></div>
 
       <div class="mb-6">
         <p
@@ -514,7 +496,7 @@
         ></div>
       </div>
 
-      <div class="h-px bg-purple-100 dark:bg-[#3a2565] mb-5"></div>
+      <div class="h-px bg-purple-100 dark:bg-[color:var(--color-divider)] mb-5"></div>
 
       <div>
         <p
@@ -788,11 +770,11 @@
             id="subjectSearch"
             type="text"
             placeholder="Search by code or name…"
-            class="w-full px-3 py-2 mb-2 rounded-lg border border-purple-200 dark:border-purple-500/30 bg-white dark:bg-[#1a1432] text-sm outline-none focus:border-purple-500 transition"
+            class="input-field mb-2"
           />
           <div
             id="subjectCheckboxList"
-            class="max-h-72 overflow-y-auto border border-purple-100 dark:border-purple-500/20 rounded-lg p-2 bg-purple-50/60 dark:bg-[#1a1432]"
+            class="max-h-72 overflow-y-auto border border-purple-100 dark:border-[color:var(--color-divider)] rounded-lg p-2 bg-purple-50/60 dark:bg-[color:var(--color-surface-recessed)]"
           >
             <!-- populated by subject-settings.js -->
           </div>
@@ -805,12 +787,13 @@
 
         <div class="flex justify-end gap-3">
           <button
+            type="button"
             data-action="closeSubjectSettings"
-            class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+            class="btn-outline"
           >
             Cancel
           </button>
-          <button data-action="applySubjectSettings" class="btn-primary">
+          <button type="button" data-action="applySubjectSettings" class="btn-solid">
             Save
           </button>
         </div>
@@ -976,80 +959,87 @@
 
         <form id="editProfileForm" class="space-y-4" novalidate>
           <div>
-            <label for="editProfileName" class="field-section-label">
-              Full Name <span class="text-red-500">*</span>
-            </label>
+            <label for="editProfileName" class="field-section-label">Full name</label>
             <input
-              id="editProfileName" maxlength="100"
+              id="editProfileName"
               type="text"
               class="input-field"
               autocomplete="name"
+              maxlength="100"
+              aria-describedby="editProfileNameError"
+              required
             />
+            <p id="editProfileNameError" class="report-error" hidden></p>
           </div>
 
           <div>
-            <label for="editProfileUsername" class="field-section-label">
-              Username <span class="text-red-500">*</span>
-            </label>
+            <label for="editProfileUsername" class="field-section-label">Username</label>
             <input
-              id="editProfileUsername" maxlength="40"
+              id="editProfileUsername"
               type="text"
               class="input-field"
               autocomplete="username"
               autocapitalize="off"
               spellcheck="false"
+              maxlength="40"
+              aria-describedby="editProfileUsernameError"
+              required
             />
+            <p id="editProfileUsernameError" class="report-error" hidden></p>
           </div>
 
           <div>
-            <label for="editProfileCourse" class="field-section-label">
-              Course <span class="text-red-500">*</span>
-            </label>
-            <select id="editProfileCourse" class="input-field">
-              <option value="">Select your course</option>
+            <label for="editProfileCourse" class="field-section-label">Degree program</label>
+            <select id="editProfileCourse" class="input-field" aria-describedby="editProfileCourseError" required>
+              <option value="">Select your degree program</option>
             </select>
+            <p id="editProfileCourseError" class="report-error" hidden></p>
           </div>
 
-          <div>
-            <label for="editProfileCurrentPassword" class="field-section-label">
-              Current password (for password changes)
-            </label>
-            <input
-              id="editProfileCurrentPassword"
-              type="password"
-              class="input-field"
-              autocomplete="current-password"
-            />
-          </div>
+          <details id="editProfilePasswordDetails">
+            <summary>Change password</summary>
+            <div class="space-y-4 mt-2">
+              <div>
+                <label for="editProfileCurrentPassword" class="field-section-label">Current password</label>
+                <input
+                  id="editProfileCurrentPassword"
+                  type="password"
+                  class="input-field"
+                  autocomplete="current-password"
+                  aria-describedby="editProfileCurrentPasswordError"
+                />
+                <p id="editProfileCurrentPasswordError" class="report-error" hidden></p>
+              </div>
+              <div>
+                <label for="editProfilePassword" class="field-section-label">New password</label>
+                <input
+                  id="editProfilePassword"
+                  type="password"
+                  class="input-field"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="128"
+                  aria-describedby="editProfilePasswordError"
+                />
+                <p id="editProfilePasswordError" class="report-error" hidden></p>
+              </div>
+            </div>
+          </details>
 
-          <div>
-            <label for="editProfilePassword" class="field-section-label">
-              New password (optional)
-            </label>
-            <input
-              id="editProfilePassword"
-              type="password"
-              class="input-field"
-              autocomplete="new-password"
-              minlength="8"
-              maxlength="128"
-            />
-          </div>
-
-          <p id="editProfileError" class="report-error hidden" role="alert"></p>
+          <p id="editProfileError" class="report-error" role="alert" hidden></p>
 
           <div class="flex justify-end gap-3 pt-2">
             <button
               type="button"
               data-action="closeEditProfileModal"
-              class="text-sm font-semibold px-4 py-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+              class="btn-outline"
             >
               Cancel
             </button>
             <button
               id="editProfileSaveBtn"
               type="submit"
-              class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+              class="btn-solid"
             >
               Save
             </button>
@@ -1078,6 +1068,7 @@
     <script src="js/app/swapp-request-modal.js"></script>
     <script src="js/app/sidebar.js"></script>
     <script src="js/app/profile-panel.js"></script>
+    <script src="js/password-policy.js"></script>
     <script src="js/app/edit-profile.js"></script>
     <script src="js/app/notebook-modal.js"></script>
     <script src="js/app/notebook-details.js"></script>

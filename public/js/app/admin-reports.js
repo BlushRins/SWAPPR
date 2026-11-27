@@ -19,11 +19,18 @@
     table = ui.createTable({
       container: document.getElementById("reportsTable"),
       pagination: document.getElementById("reportsPagination"),
-      openOn: "dblclick",
       onOpen: (row) => openReport(row.id),
       // FUNC-017 REQT-002: most to least recent.
       defaultSort: { key: "dateSubmitted", dir: "desc" },
       emptyMessage: "No reports have been submitted yet.",
+      emptySubtitle: "Student and automatic screening reports will appear here.",
+      emptyIcon: "circle-check",
+      onClearSearch: () => {
+        const input = document.getElementById("reportsSearch");
+        if (input) input.value = "";
+        app.searchAdminReports("");
+        input?.focus();
+      },
       searchFields: [
         "id",
         (row) => ui.reporterLabel(row),

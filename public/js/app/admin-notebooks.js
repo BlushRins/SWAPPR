@@ -11,10 +11,11 @@
     table = ui.createTable({
       container: document.getElementById("notebooksTable"),
       pagination: document.getElementById("notebooksPagination"),
-      openOn: "click",
       onOpen: (row) => openNotebook(row.id),
       defaultSort: { key: "reportCount", dir: "desc" },
       emptyMessage: "No flagged notebooks right now.",
+      emptySubtitle: "Reported notebooks waiting for review will appear here.",
+      emptyIcon: "circle-check",
       columns: [
         { key: "id", label: "Notebook ID", className: "admin-col-id" },
         { key: "title", label: "Title", className: "admin-col-wide" },
@@ -135,14 +136,15 @@
   }
 
   async function openNotebook(id) {
-    ui.openModal("Flagged Notebook", ui.loading(), { icon: "flag" });
+    const session = ui.openModal("Flagged Notebook", ui.loading(), { icon: "flag" });
     try {
       const data = await app.adminApi.getNotebook(id);
-      ui.openModal("Flagged Notebook", notebookDetails(data.notebook, data.reports), {
+      ui.updateModal(session, "Flagged Notebook", notebookDetails(data.notebook, data.reports), {
         icon: "flag",
       });
     } catch (err) {
-      ui.openModal(
+      ui.updateModal(
+        session,
         "Flagged Notebook",
         el("p", { class: "admin-muted" }, err.message || "Could not load this notebook."),
         { icon: "flag" },

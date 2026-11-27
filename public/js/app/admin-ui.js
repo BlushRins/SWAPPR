@@ -27,11 +27,7 @@
 
   ui.refreshIcons = () => root.lucide?.createIcons();
 
-  // Double-tap is unreliable on phones (it zooms), so touch screens open rows
-  // with a single tap instead of the spec's double-click.
-  ui.isTouch = () => root.matchMedia?.("(pointer: coarse)").matches ?? false;
-  ui.openVerb = (openOn) =>
-    openOn === "dblclick" && !ui.isTouch() ? "Double-click" : ui.isTouch() ? "Tap" : "Click";
+  ui.openVerb = () => root.matchMedia("(pointer: coarse)").matches ? "Tap" : "Click";
 
   // The design spec displays dates as MMM d, yyyy (see js/date-format.js).
   ui.formatDate = (value) => root.SWAPPRDates.formatLongDate(value) || "—";
@@ -91,17 +87,47 @@
   };
 
   ui.button = function button(label, { tone = "neutral", icon, onClick, disabled, title } = {}) {
+    const buttonClass =
+      tone === "purple"
+        ? "btn-solid admin-btn"
+        : tone === "neutral"
+          ? "btn-outline admin-btn"
+          : `admin-btn admin-btn--${tone}`;
     return el(
       "button",
       {
         type: "button",
-        class: `admin-btn admin-btn--${tone}`,
+        class: buttonClass,
         onClick,
         disabled,
         title,
       },
       icon ? ui.icon(icon) : null,
       label,
+    );
+  };
+
+  // lucide-icons: circle-check search users
+  ui.emptyCard = function emptyCard({
+    icon = "circle-check",
+    title,
+    subtitle,
+    actionLabel,
+    onAction,
+  }) {
+    return el(
+      "div",
+      { class: "empty-card" },
+      el("span", { class: "empty-card-icon", "aria-hidden": "true" }, ui.icon(icon, "w-5 h-5")),
+      el("p", { class: "empty-card-title" }, title),
+      subtitle ? el("p", { class: "empty-card-body" }, subtitle) : null,
+      actionLabel
+        ? el(
+            "button",
+            { type: "button", class: "btn-outline empty-card-action", onClick: onAction },
+            actionLabel,
+          )
+        : null,
     );
   };
 
@@ -128,7 +154,9 @@
     searchFields = [],
     pageSize = 10,
     emptyMessage,
-    openOn = "dblclick",
+    emptySubtitle,
+    emptyIcon = "circle-check",
+    onClearSearch,
     onOpen,
     rowClass,
   }) {
@@ -221,9 +249,7 @@
     }
 
     function bodyRow(row) {
-      const open = () => onOpen?.(row);
       const extraClass = rowClass?.(row);
-      const openEvent = openOn === "dblclick" && !ui.isTouch() ? "onDblclick" : "onClick";
       return el(
         "tr",
         {
@@ -232,17 +258,18 @@
           // Lets focus come back to this row after the table re-renders.
           "data-focus-key":
             row.id === undefined || row.id === null ? null : `${container.id}:${row.id}`,
-          title: `${ui.openVerb(openOn)} to view`,
-          [openEvent]: (event) => {
+          title: `${ui.openVerb()} to view`,
+          onClick: (event) => {
             if (event.target.closest("button, a")) return;
-            open();
+            if (event.detail) rowOpenedByPointerAt = performance.now();
+            onOpen?.(row);
           },
           onKeydown: (event) => {
-            if (event.key !== "Enter" || event.target !== event.currentTarget) return;
-            // The popup takes focus; without this the same Enter would also
-            // press its first button (Close).
+            if (event.target !== event.currentTarget ||
+                (event.key !== "Enter" && event.key !== " ")) return;
+            // Suppress the key's default action when focus moves to the popup.
             event.preventDefault();
-            open();
+            onOpen?.(row);
           },
         },
         columns.map((column) => {
@@ -320,11 +347,24 @@
       if (pageRows.length) {
         body = pageRows.map(bodyRow);
       } else {
-        const message = query.trim() ? "No Matching Records Found." : emptyMessage;
+        const hasQuery = Boolean(query.trim());
+        const card = hasQuery
+          ? ui.emptyCard({
+              icon: "search",
+              title: "No Matching Records Found.",
+              subtitle: "Try a different search term or clear your filter.",
+              actionLabel: onClearSearch ? "Clear search" : null,
+              onAction: onClearSearch,
+            })
+          : ui.emptyCard({
+              icon: emptyIcon,
+              title: emptyMessage,
+              subtitle: emptySubtitle,
+            });
         body = el(
           "tr",
           {},
-          el("td", { class: "admin-empty", colspan: String(columns.length) }, message),
+          el("td", { class: "admin-empty", colspan: String(columns.length) }, card),
         );
       }
 
@@ -367,18 +407,54 @@
       text,
     );
 
+  // A row opens its popup on the first click, so the second click of a
+  // double-click (Reports and Users used to need one) lands on the popup or
+  // its backdrop. Ignore that click: it must not select text, close the
+  // popup or press a button in it.
+  let rowOpenedByPointerAt = -Infinity;
+  const isSecondClickOfRowOpen = (event) =>
+    event.detail > 1 && performance.now() - rowOpenedByPointerAt < 600;
+  for (const type of ["mousedown", "click"]) {
+    document.addEventListener(
+      type,
+      (event) => {
+        if (!isSecondClickOfRowOpen(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true,
+    );
+  }
+
   // ── Detail modal (shared by Flagged Notebooks and Reports) ──────────────
+  // Each open or close starts a new session, so a slow response can fill
+  // only the dialog it was loaded for and never reopens a closed one.
+  let modalSession = 0;
+
   ui.openModal = function openModal(title, content, { icon = "file-text" } = {}) {
+    modalSession += 1;
     document.getElementById("adminModalTitle").replaceChildren(ui.icon(icon, "w-5 h-5"), title);
     document.getElementById("adminModalBody").replaceChildren(content);
     const modal = document.getElementById("adminModal");
     modal.classList.remove("hidden");
     ui.refreshIcons();
     app.openLayer?.(modal);
+    return modalSession;
+  };
+
+  // Replaces the content of the dialog opened as `session`; false if it was
+  // closed or replaced in the meantime.
+  ui.updateModal = function updateModal(session, title, content, { icon = "file-text" } = {}) {
+    if (session !== modalSession) return false;
+    document.getElementById("adminModalTitle").replaceChildren(ui.icon(icon, "w-5 h-5"), title);
+    document.getElementById("adminModalBody").replaceChildren(content);
+    ui.refreshIcons();
+    return true;
   };
 
   ui.closeModal = function closeModal(event) {
     if (event && event.target.id !== "adminModal") return;
+    modalSession += 1;
     const modal = document.getElementById("adminModal");
     modal.classList.add("hidden");
     document.getElementById("adminModalBody").replaceChildren();

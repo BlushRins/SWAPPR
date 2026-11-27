@@ -18,8 +18,7 @@
     titles: {
       all: "Browse subjects",
       mine: "My notebooks",
-      matched: "My swaps",
-      requests: "Requests",
+      requests: "Swaps",
       top: "Top departments",
       recent: "Recently added",
     },

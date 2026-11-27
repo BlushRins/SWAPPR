@@ -43,6 +43,12 @@ test("every sign-in and registration field has a persistent label", () => {
   }
 });
 
+test("registration shows the derived student ID as an email description", () => {
+  assert.doesNotMatch(loginHtml, /<input\b[^>]*id="regStudentId[^"]*"/);
+  assert.match(loginHtml, /id="regEmail"[^>]*aria-describedby="[^"]*\bregStudentIdPreview\b/);
+  assert.match(loginHtml, /<p id="regStudentIdPreview"[^>]* hidden><\/p>/);
+});
+
 test("registration is a labelled modal dialog with named steps", () => {
   assert.match(loginHtml, /role="dialog"[^>]*aria-modal="true"[^>]*aria-labelledby="registerTitle"/s);
   assert.match(loginHtml, /id="regStepLabel"[^>]*>\s*Step 1 of 2: Account details/);
@@ -102,11 +108,16 @@ test("browse has one labelled search and a secondary degree-program control", ()
   assert.match(read("js/app/subjects.js"), /"View notebooks"/);
 });
 
-test("the phone menu reaches Add notebook, Profile and Requests", () => {
-  const menu = read("index.html").match(/<nav\s+id="mobileMenu"[\s\S]*?<\/nav>/)[0];
+test("the phone menu reaches Add notebook, Profile and Swaps", () => {
+  const index = read("index.html");
+  const menu = index.match(/<nav\s+id="mobileMenu"[\s\S]*?<\/nav>/)[0];
   assert.match(menu, /data-action="mobile-add-notebook"[\s\S]*?Add notebook/);
   assert.match(menu, /data-action="mobile-profile"[\s\S]*?Profile/);
-  assert.match(menu, /data-filter="requests"[\s\S]*?data-requests-badge/);
+  assert.match(menu, /data-filter="requests"[\s\S]*?Swaps[\s\S]*?data-requests-badge/);
+  const header = index.match(/<header[\s\S]*?<\/header>/)[0];
+  assert.match(header, /data-filter="requests" class="swaps-shortcut">[\s\S]*?Swaps[\s\S]*?data-requests-badge/);
+  assert.doesNotMatch(index, /data-filter="matched"|My swaps/);
+  assert.equal((index.match(/data-filter="requests"/g) || []).length, 3);
 });
 
 test("notebook actions say Open notebook and Request swap", () => {

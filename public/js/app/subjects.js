@@ -21,17 +21,35 @@
     return String(text ?? "").toLowerCase().replace(/\s+/g, "");
   }
 
-  // A next-step button for empty and failed states (Clear search, Try again).
-  app.stateMessage = function stateMessage(text, actionLabel, onAction) {
+  // A next-step card for empty and failed states (Clear search, Try again).
+  // lucide-icons: search book-open notebook handshake triangle-alert
+  app.stateMessage = function stateMessage(text, actionLabel, onAction, options = {}) {
     const wrapper = document.createElement("div");
-    wrapper.className = "feed-state";
+    wrapper.className = "empty-card feed-state";
+    if (options.icon !== null) {
+      const badge = document.createElement("span");
+      badge.className = "empty-card-icon";
+      badge.setAttribute("aria-hidden", "true");
+      const icon = document.createElement("i");
+      icon.dataset.lucide = options.icon || "book-open";
+      icon.className = "w-5 h-5";
+      badge.appendChild(icon);
+      wrapper.appendChild(badge);
+    }
     const message = document.createElement("p");
+    message.className = "empty-card-title";
     message.textContent = text;
     wrapper.appendChild(message);
+    if (options.subtitle) {
+      const subtitle = document.createElement("p");
+      subtitle.className = "empty-card-body";
+      subtitle.textContent = options.subtitle;
+      wrapper.appendChild(subtitle);
+    }
     if (actionLabel) {
       const action = document.createElement("button");
       action.type = "button";
-      action.className = "btn-outline";
+      action.className = `${options.actionClass || "btn-outline"} empty-card-action`;
       action.textContent = actionLabel;
       action.addEventListener("click", onAction);
       wrapper.appendChild(action);
@@ -272,17 +290,29 @@
 
     if (app.state.subjectsError) {
       grid.replaceChildren(
-        app.stateMessage("Couldn't load subjects.", "Try again", () => {
-          grid.replaceChildren(app.stateMessage("Loading subjects…"));
-          app.loadSubjects();
-        }),
+        app.stateMessage(
+          "Couldn't load subjects.",
+          "Try again",
+          () => {
+            grid.replaceChildren(app.stateMessage("Loading subjects…", null, null, { icon: null }));
+            app.loadSubjects();
+          },
+          { icon: "triangle-alert", subtitle: "Check your connection and try again." },
+        ),
       );
+      root.lucide?.createIcons();
       app.renderPagination(0);
       return;
     }
 
     if (app.state.subjects.length === 0) {
-      grid.replaceChildren(app.stateMessage("No subjects found for your degree program."));
+      grid.replaceChildren(
+        app.stateMessage("No subjects found for your degree program.", null, null, {
+          icon: "book-open",
+          subtitle: "Use Subject filter to browse subjects from other departments.",
+        }),
+      );
+      root.lucide?.createIcons();
       app.renderPagination(0);
       return;
     }
@@ -304,9 +334,16 @@
       // textContent: the query is whatever the student typed.
       grid.replaceChildren(
         query
-          ? app.stateMessage(`No subjects match "${rawQuery}".`, "Clear search", app.clearSearch)
-          : app.stateMessage("No subjects with shared notebooks yet."),
+          ? app.stateMessage(`No subjects match "${rawQuery}".`, "Clear search", app.clearSearch, {
+              icon: "search",
+              subtitle: "Try a different course code or subject name.",
+            })
+          : app.stateMessage("No subjects with shared notebooks yet.", null, null, {
+              icon: "book-open",
+              subtitle: "Publish a notebook to get your course started.",
+            }),
       );
+      root.lucide?.createIcons();
       app.renderPagination(0);
       return;
     }

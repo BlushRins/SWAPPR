@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SWAPPR — Admin Panel</title>
+    <link rel="icon" href="Images/swappr_logo_updated.jpg" type="image/jpeg" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
@@ -16,7 +17,7 @@
   </head>
 
   <body
-    class="font-sans min-h-screen overflow-x-hidden transition-colors duration-300 text-gray-900 dark:text-purple-100 bg-transparent"
+    class="font-sans min-h-screen overflow-x-clip transition-colors duration-300 text-gray-900 dark:text-purple-100 bg-transparent"
   >
     <!-- Header -->
     <header
@@ -99,7 +100,7 @@
     <div class="flex min-w-0">
       <!-- Sidebar (FUNC-016 REQT-002, REQT-003) -->
       <aside
-        class="w-56 bg-white/70 backdrop-blur-md dark:bg-[#110e20] p-5 hidden md:flex flex-col gap-6 shrink-0 border-r border-purple-100 dark:border-white/[0.06] sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto"
+        class="w-56 bg-white/70 backdrop-blur-md dark:bg-[var(--color-sidebar-surface)] p-5 hidden md:flex flex-col gap-6 shrink-0 border-r border-purple-100 dark:border-[color:var(--color-divider)] sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto"
       >
         <div>
           <p class="text-xs font-bold uppercase tracking-widest mb-2 px-2 text-[color:var(--color-text-muted)]">
@@ -148,7 +149,7 @@
                 aria-label="Search reports"
                 autocomplete="off"
                 maxlength="50"
-                class="admin-search"
+                class="input-field sm:max-w-[320px]"
               />
             </div>
             <div class="admin-card">
@@ -167,9 +168,9 @@
                 aria-label="Search users"
                 autocomplete="off"
                 maxlength="50"
-                class="admin-search"
+                class="input-field sm:max-w-[320px]"
               />
-              <p id="usersWarningNote" class="admin-muted text-xs"></p>
+              <p id="usersWarningNote" class="text-xs text-[color:var(--color-text-muted)]"></p>
             </div>
             <div class="admin-card">
               <div id="usersTable" class="admin-table-wrap"></div>
@@ -208,7 +209,7 @@
           type="button"
           data-action="closeAdminUserPanel"
           aria-label="Close"
-          class="w-11 h-11 md:w-7 md:h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[#181428] text-[color:var(--color-primary)] hover:bg-purple-200 dark:hover:bg-[#3a2565] transition"
+          class="w-11 h-11 md:w-7 md:h-7 rounded-full flex items-center justify-center text-sm font-bold bg-purple-100 dark:bg-[color:var(--color-surface-muted)] text-[color:var(--color-primary)] hover:bg-purple-200 dark:hover:bg-[color:var(--color-primary-soft)] transition"
         >
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
