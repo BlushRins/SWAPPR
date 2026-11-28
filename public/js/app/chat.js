@@ -6,6 +6,8 @@
 
   let pollTimer = null;
   let activeChatId = null;
+  const drafts = new Map();
+  const failedMessages = new Map();
   // The Open chat button that opened the panel, and its SWAPP id in case
   // the button is re-rendered while the chat is open.
   let chatOpener = null;
@@ -148,6 +150,7 @@
 
   function setEndedState(ended) {
     document.getElementById("chatInputRow")?.classList.toggle("hidden", ended);
+    document.getElementById("chatFailedMessages")?.classList.toggle("hidden", ended);
     document.getElementById("chatEndedNotice")?.classList.toggle("hidden", !ended);
     document.getElementById("chatMoreWrap")?.classList.toggle("hidden", ended);
     document.getElementById("chatEndBtn")?.classList.toggle("hidden", ended);
@@ -202,8 +205,20 @@
     pollTimer = setInterval(() => loadMessages(chatId), POLL_INTERVAL_MS);
   }
 
-  app.openChat = async function openChat(chatId) {
+  function switchComposer(chatId) {
+    if (activeChatId === chatId) return;
+    const input = document.getElementById("chatMessageInput");
+    if (input && activeChatId !== null) {
+      if (input.value) drafts.set(activeChatId, input.value);
+      else drafts.delete(activeChatId);
+    }
     activeChatId = chatId;
+    if (input) input.value = drafts.get(chatId) || "";
+    renderFailedMessages();
+  }
+
+  app.openChat = async function openChat(chatId) {
+    switchComposer(chatId);
     // Don't show the previous chat's dates while this one loads.
     const dates = document.getElementById("chatDates");
     if (dates) dates.textContent = "";
@@ -224,7 +239,7 @@
   };
 
   app.closeChat = function closeChat() {
-    activeChatId = null;
+    switchComposer(null);
     stopPolling();
     closeMoreMenu();
     const panel = document.getElementById("chatPanel");
@@ -295,21 +310,53 @@
     }
   };
 
+  function renderFailedMessages() {
+    const list = document.getElementById("chatFailedMessages");
+    if (!list) return;
+    list.replaceChildren();
+    const chatId = activeChatId;
+    const failures = failedMessages.get(chatId) || [];
+    for (const [index, body] of failures.entries()) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn-outline";
+      button.textContent = `Retry sending: ${body}`;
+      button.addEventListener("click", () => {
+        failures.splice(index, 1);
+        if (!failures.length) failedMessages.delete(chatId);
+        renderFailedMessages();
+        sendMessage(chatId, body);
+      });
+      list.appendChild(button);
+    }
+  }
+
+  async function sendMessage(chatId, body) {
+    try {
+      await app.api.sendChatMessage(chatId, body);
+      if (chatId === activeChatId) await loadMessages(chatId);
+    } catch (err) {
+      const input = document.getElementById("chatMessageInput");
+      if (chatId === activeChatId && input && !input.value) {
+        input.value = body;
+      } else {
+        const failures = failedMessages.get(chatId) || [];
+        failures.push(body);
+        failedMessages.set(chatId, failures);
+        if (chatId === activeChatId) renderFailedMessages();
+      }
+      app.showToast(err.message || "Failed to send message");
+      console.error(err);
+    }
+  }
+
   app.sendChatMessage = async function sendChatMessage() {
     const input = document.getElementById("chatMessageInput");
     if (!input || !activeChatId) return;
     const body = input.value.trim();
     if (!body) return;
-
     input.value = "";
-    try {
-      await app.api.sendChatMessage(activeChatId, body);
-      await loadMessages(activeChatId);
-    } catch (err) {
-      input.value = body;
-      app.showToast(err.message || "Failed to send message");
-      console.error(err);
-    }
+    await sendMessage(activeChatId, body);
   };
 
   app.endChat = async function endChat() {
